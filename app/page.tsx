@@ -61,45 +61,43 @@ export default function HomePage() {
         {/* Hero Section */}
         <section className="w-full py-12 md:py-24 lg:py-32 bg-gradient-to-r from-purple-50 to-blue-50 relative overflow-hidden">
           <div className="container px-4 md:px-6 relative z-10">
-            <div className="grid gap-6 lg:grid-cols-2 lg:gap-12 items-center">
-              <div className="space-y-4">
-                <Badge className="mb-2">Software de Gestão para Igrejas</Badge>
-                <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl md:text-6xl">
-                  Transforme a gestão da sua igreja
-                </h1>
-                <p className="max-w-[600px] text-muted-foreground md:text-xl">
-                  Uma solução digital completa e integrada para atender às necessidades administrativas de igrejas de
-                  todos os tamanhos.
-                </p>
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <Button size="lg" asChild>
-                    <Link href="/demonstracao">Agendar Demonstração</Link>
-                  </Button>
-                  <Button size="lg" variant="outline" asChild>
-                    <Link href="/planos">Ver Planos</Link>
-                  </Button>
+            <div className="flex flex-col items-center text-center max-w-3xl mx-auto">
+              <Badge className="mb-2">Software de Gestão para Igrejas</Badge>
+              <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl md:text-6xl">
+                Transforme a gestão da sua igreja
+              </h1>
+              <p className="max-w-[600px] text-muted-foreground md:text-xl mt-4">
+                Uma solução digital completa e integrada para atender às necessidades administrativas de igrejas de
+                todos os tamanhos.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 mt-6">
+                <Button size="lg" asChild>
+                  <Link href="/demonstracao">Agendar Demonstração</Link>
+                </Button>
+                <Button size="lg" variant="outline" asChild>
+                  <Link href="/planos">Ver Planos</Link>
+                </Button>
+              </div>
+              <div className="flex items-center gap-4 text-sm mt-4">
+                <div className="flex items-center gap-1">
+                  <CheckCircle className="h-4 w-4 text-primary" />
+                  <span>Teste Grátis 14 dias</span>
                 </div>
-                <div className="flex items-center gap-4 text-sm">
-                  <div className="flex items-center gap-1">
-                    <CheckCircle className="h-4 w-4 text-primary" />
-                    <span>Teste Grátis 14 dias</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <CheckCircle className="h-4 w-4 text-primary" />
-                    <span>Sem necessidade de cartão</span>
-                  </div>
+                <div className="flex items-center gap-1">
+                  <CheckCircle className="h-4 w-4 text-primary" />
+                  <span>Sem necessidade de cartão</span>
                 </div>
               </div>
-              <div className="relative">
-                <div className="aspect-video overflow-hidden rounded-xl shadow-xl">
-                  <Image
-                    src="/dashboard-preview.png"
-                    alt="Dashboard do MyChurch"
-                    width={600}
-                    height={400}
-                    className="object-cover w-full h-full"
-                  />
-                </div>
+            </div>
+            <div className="mt-12 max-w-4xl mx-auto">
+              <div className="aspect-video overflow-hidden rounded-xl shadow-xl">
+                <Image
+                  src="/dashboard-preview.png"
+                  alt="Dashboard do MyChurch"
+                  width={1200}
+                  height={675}
+                  className="object-cover w-full h-full"
+                />
               </div>
             </div>
           </div>
@@ -109,7 +107,7 @@ export default function HomePage() {
         <section className="w-full py-12 md:py-16 lg:py-20">
           <div className="container px-4 md:px-6">
             <div className="flex flex-col items-center justify-center space-y-4 text-center">
-              <div className="space-y-2">
+              <div className="space-y-2 max-w-3xl mx-auto">
                 <h2 className="text-3xl font-bold tracking-tighter md:text-4xl">
                   Tudo que sua igreja precisa em um só lugar
                 </h2>
@@ -202,7 +200,7 @@ export default function HomePage() {
           <div className="container px-4 md:px-6">
             <Tabs defaultValue="membros" className="w-full max-w-4xl mx-auto">
               <div className="flex flex-col items-center justify-center space-y-4 text-center mb-8">
-                <div className="space-y-2">
+                <div className="space-y-2 max-w-3xl mx-auto">
                   <h2 className="text-3xl font-bold tracking-tighter md:text-4xl">Funcionalidades Detalhadas</h2>
                   <p className="mx-auto max-w-[700px] text-muted-foreground">
                     Conheça em detalhes como o MyChurch pode transformar a gestão da sua igreja.
@@ -431,14 +429,14 @@ export default function HomePage() {
         <section className="w-full py-12 md:py-16 lg:py-20">
           <div className="container px-4 md:px-6">
             <div className="flex flex-col items-center justify-center space-y-4 text-center">
-              <div className="space-y-2">
+              <div className="space-y-2 max-w-3xl mx-auto">
                 <h2 className="text-3xl font-bold tracking-tighter md:text-4xl">Para Igrejas de Todos os Tamanhos</h2>
                 <p className="mx-auto max-w-[700px] text-muted-foreground">
                   O MyChurch se adapta às necessidades específicas da sua congregação, independente do tamanho.
                 </p>
               </div>
             </div>
-            <div className="mx-auto grid max-w-5xl gap-6 py-8 md:grid-cols-3">
+            <div className="mx-auto grid max-w-4xl gap-6 py-8 md:grid-cols-3">
               <Card className="border-none shadow-md">
                 <CardHeader className="pb-2">
                   <Church className="h-8 w-8 text-primary mb-2" />
@@ -524,14 +522,16 @@ export default function HomePage() {
         {/* Implementation */}
         <section className="w-full py-12 md:py-16 lg:py-20 bg-muted">
           <div className="container px-4 md:px-6">
-            <div className="grid gap-6 lg:grid-cols-2 lg:gap-12 items-center">
-              <div className="space-y-4">
+            <div className="flex flex-col items-center max-w-5xl mx-auto">
+              <div className="text-center max-w-3xl mb-10">
                 <h2 className="text-3xl font-bold tracking-tighter md:text-4xl">Implementação Simples e Segura</h2>
-                <p className="text-muted-foreground">
+                <p className="text-muted-foreground mt-4">
                   Nossa equipe está pronta para garantir uma transição tranquila para o MyChurch, com suporte completo
                   em todas as etapas.
                 </p>
-                <ul className="space-y-4 mt-6">
+              </div>
+              <div className="grid gap-6 lg:grid-cols-2 lg:gap-12 items-center">
+                <ul className="space-y-4">
                   <li className="flex items-start gap-4">
                     <div className="rounded-full bg-primary/10 p-2">
                       <Clock className="h-5 w-5 text-primary" />
@@ -581,15 +581,15 @@ export default function HomePage() {
                     </div>
                   </li>
                 </ul>
-              </div>
-              <div className="aspect-video overflow-hidden rounded-xl shadow-lg">
-                <Image
-                  src="/implementacao-screenshot.png"
-                  alt="Implementação do MyChurch"
-                  width={600}
-                  height={400}
-                  className="object-cover w-full h-full"
-                />
+                <div className="aspect-video overflow-hidden rounded-xl shadow-lg">
+                  <Image
+                    src="/implementacao-screenshot.png"
+                    alt="Implementação do MyChurch"
+                    width={600}
+                    height={400}
+                    className="object-cover w-full h-full"
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -599,14 +599,14 @@ export default function HomePage() {
         <section className="w-full py-12 md:py-16 lg:py-20">
           <div className="container px-4 md:px-6">
             <div className="flex flex-col items-center justify-center space-y-4 text-center">
-              <div className="space-y-2">
+              <div className="space-y-2 max-w-3xl mx-auto">
                 <h2 className="text-3xl font-bold tracking-tighter md:text-4xl">Planos e Preços</h2>
                 <p className="mx-auto max-w-[700px] text-muted-foreground">
                   Escolha o plano que melhor se adapta às necessidades da sua igreja.
                 </p>
               </div>
             </div>
-            <div className="mx-auto grid max-w-5xl gap-6 py-8 md:grid-cols-3">
+            <div className="mx-auto grid max-w-4xl gap-6 py-8 md:grid-cols-3">
               <Card className="border-none shadow-md">
                 <CardHeader>
                   <CardTitle>Plano Congregação</CardTitle>
@@ -712,7 +712,7 @@ export default function HomePage() {
                 </CardFooter>
               </Card>
             </div>
-            <div className="text-center mt-6">
+            <div className="text-center mt-6 max-w-3xl mx-auto">
               <p className="text-muted-foreground">
                 Todos os planos incluem atualizações contínuas e garantia de satisfação de 30 dias.
               </p>
@@ -723,7 +723,7 @@ export default function HomePage() {
         {/* Call to Action */}
         <section className="w-full py-12 md:py-16 lg:py-20 bg-primary text-primary-foreground">
           <div className="container px-4 md:px-6">
-            <div className="flex flex-col items-center justify-center space-y-4 text-center">
+            <div className="flex flex-col items-center justify-center space-y-4 text-center max-w-3xl mx-auto">
               <div className="space-y-2">
                 <h2 className="text-3xl font-bold tracking-tighter md:text-4xl">
                   Transforme a gestão da sua igreja hoje
@@ -733,7 +733,7 @@ export default function HomePage() {
                   sua igreja a crescer com organização e eficiência.
                 </p>
               </div>
-              <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex flex-col sm:flex-row gap-4 mt-2">
                 <Button size="lg" variant="secondary" asChild>
                   <Link href="/demonstracao">Agendar Demonstração</Link>
                 </Button>
