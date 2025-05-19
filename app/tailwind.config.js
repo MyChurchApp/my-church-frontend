@@ -45,6 +45,11 @@ module.exports = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // Cores do MyChurch
+        mychurch: {
+          teal: "#8EEEE5",
+          dark: "#2D2D2D",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

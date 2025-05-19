@@ -18,7 +18,7 @@ export function Logo({ size = "md", showText = true, className = "" }: LogoProps
     <Link href="/" className={`flex items-center gap-2 ${className}`}>
       <div className="relative">
         <Image
-          src="/mychurch-logo.png"
+          src="/mychurch-logo-transparent.png"
           alt="MyChurch Logo"
           width={sizes[size].logo}
           height={sizes[size].height}

@@ -17,14 +17,17 @@ import {
   Building,
   Church,
   MessageSquare,
+  Menu,
 } from "lucide-react"
 import { Logo } from "@/components/logo"
+import { ThemeToggle } from "@/components/theme-toggle"
+import { LanguageSwitcher } from "@/components/language-switcher"
 
 export default function HomePage() {
   return (
     <div className="flex flex-col min-h-screen">
       {/* Header */}
-      <header className="bg-white/90 backdrop-blur-sm border-b sticky top-0 z-10">
+      <header className="bg-background/90 backdrop-blur-sm border-b sticky top-0 z-10">
         <div className="container flex h-16 items-center justify-between px-4 md:px-6">
           <Logo size="md" />
           <nav className="hidden md:flex gap-6">
@@ -50,12 +53,18 @@ export default function HomePage() {
               Planos
             </a>
           </nav>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <LanguageSwitcher className="hidden md:flex" />
+            <ThemeToggle className="hidden md:flex" />
             <Button variant="outline" asChild className="hidden md:flex">
               <Link href="/login">Entrar</Link>
             </Button>
             <Button asChild>
               <Link href="/cadastro">Começar Agora</Link>
+            </Button>
+            <Button variant="ghost" size="icon" className="md:hidden">
+              <Menu className="h-5 w-5" />
+              <span className="sr-only">Menu</span>
             </Button>
           </div>
         </div>
@@ -65,7 +74,7 @@ export default function HomePage() {
         {/* Hero Section */}
         <section
           id="inicio"
-          className="w-full py-12 md:py-24 lg:py-32 bg-gradient-to-r from-purple-50 to-blue-50 relative overflow-hidden"
+          className="w-full py-12 md:py-24 lg:py-32 bg-gradient-to-r from-secondary to-secondary/30 relative overflow-hidden dark:from-secondary/30 dark:to-secondary/10"
         >
           <div className="container px-4 md:px-6 relative z-10 mx-auto text-center">
             <div className="flex flex-col items-center text-center max-w-3xl mx-auto">
