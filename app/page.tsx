@@ -425,7 +425,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Church Sizes */}
+        {/* Church Sizes - REMOVIDO OS BOTÕES */}
         <section id="tamanhos" className="w-full py-12 md:py-16 lg:py-20 scroll-mt-20">
           <div className="container px-4 md:px-6 mx-auto text-center">
             <div className="flex flex-col items-center justify-center space-y-4 text-center">
@@ -462,6 +462,7 @@ export default function HomePage() {
                     </li>
                   </ul>
                 </CardContent>
+                {/* Botão removido */}
               </Card>
               <Card className="border-none shadow-md">
                 <CardHeader className="pb-2">
@@ -488,6 +489,7 @@ export default function HomePage() {
                     </li>
                   </ul>
                 </CardContent>
+                {/* Botão removido */}
               </Card>
               <Card className="border-none shadow-md">
                 <CardHeader className="pb-2">
@@ -595,7 +597,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Pricing */}
+        {/* Pricing - MANTIDO OS BOTÕES */}
         <section id="planos" className="w-full py-12 md:py-16 lg:py-20 scroll-mt-20">
           <div className="container px-4 md:px-6">
             <div className="flex flex-col items-center justify-center space-y-4 text-center">
@@ -637,7 +639,7 @@ export default function HomePage() {
                 </CardContent>
                 <CardFooter>
                   <Button className="w-full" asChild>
-                    <Link href="/cadastro?plano=congregacao">Começar Agora</Link>
+                    <Link href="/planos/checkout?plano=congregacao">Começar Agora</Link>
                   </Button>
                 </CardFooter>
               </Card>
@@ -674,7 +676,7 @@ export default function HomePage() {
                 </CardContent>
                 <CardFooter>
                   <Button className="w-full" asChild>
-                    <Link href="/cadastro?plano=comunidade">Começar Agora</Link>
+                    <Link href={`/planos/checkout?plano=comunidade`}>Começar Agora</Link>
                   </Button>
                 </CardFooter>
               </Card>
