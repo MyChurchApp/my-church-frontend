@@ -1,3 +1,5 @@
+"use client"
+
 import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
@@ -17,13 +19,16 @@ import {
   Building,
   Church,
   MessageSquare,
-  Menu,
 } from "lucide-react"
 import { Logo } from "@/components/logo"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { LanguageSwitcher } from "@/components/language-switcher"
+import { MobileMenu } from "@/components/mobile-menu"
+import { useLanguage } from "@/contexts/language-context"
 
 export default function HomePage() {
+  const { t } = useLanguage()
+
   return (
     <div className="flex flex-col min-h-screen">
       {/* Header */}
@@ -35,37 +40,34 @@ export default function HomePage() {
               href="#funcionalidades"
               className="font-medium text-muted-foreground hover:text-primary scroll-smooth-link"
             >
-              Funcionalidades
+              {t("nav.features")}
             </a>
             <a href="#detalhes" className="font-medium text-muted-foreground hover:text-primary scroll-smooth-link">
-              Detalhes
+              {t("nav.details")}
             </a>
             <a href="#tamanhos" className="font-medium text-muted-foreground hover:text-primary scroll-smooth-link">
-              Para Igrejas
+              {t("nav.churches")}
             </a>
             <a
               href="#implementacao"
               className="font-medium text-muted-foreground hover:text-primary scroll-smooth-link"
             >
-              Implementação
+              {t("nav.implementation")}
             </a>
             <a href="#planos" className="font-medium text-muted-foreground hover:text-primary scroll-smooth-link">
-              Planos
+              {t("nav.plans")}
             </a>
           </nav>
           <div className="flex items-center gap-2">
             <LanguageSwitcher className="hidden md:flex" />
             <ThemeToggle className="hidden md:flex" />
             <Button variant="outline" asChild className="hidden md:flex">
-              <Link href="/login">Entrar</Link>
+              <Link href="/login">{t("btn.login")}</Link>
             </Button>
             <Button asChild>
-              <Link href="/cadastro">Começar Agora</Link>
+              <Link href="/cadastro">{t("btn.getStarted")}</Link>
             </Button>
-            <Button variant="ghost" size="icon" className="md:hidden">
-              <Menu className="h-5 w-5" />
-              <span className="sr-only">Menu</span>
-            </Button>
+            <MobileMenu />
           </div>
         </div>
       </header>
@@ -78,30 +80,25 @@ export default function HomePage() {
         >
           <div className="container px-4 md:px-6 relative z-10 mx-auto text-center">
             <div className="flex flex-col items-center text-center max-w-3xl mx-auto">
-              <Badge className="mb-2">Software de Gestão para Igrejas</Badge>
-              <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl md:text-6xl">
-                Transforme a gestão da sua igreja
-              </h1>
-              <p className="max-w-[600px] text-muted-foreground md:text-xl mt-4">
-                Uma solução digital completa e integrada para atender às necessidades administrativas de igrejas de
-                todos os tamanhos.
-              </p>
+              <Badge className="mb-2">{t("hero.badge")}</Badge>
+              <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl md:text-6xl">{t("hero.title")}</h1>
+              <p className="max-w-[600px] text-muted-foreground md:text-xl mt-4">{t("hero.subtitle")}</p>
               <div className="flex flex-col sm:flex-row gap-4 mt-6">
                 <Button size="lg" asChild>
-                  <Link href="/demonstracao">Agendar Demonstração</Link>
+                  <Link href="/demonstracao">{t("hero.demo")}</Link>
                 </Button>
                 <Button size="lg" variant="outline" asChild>
-                  <a href="#planos">Ver Planos</a>
+                  <a href="#planos">{t("hero.plans")}</a>
                 </Button>
               </div>
               <div className="flex items-center gap-4 text-sm mt-4">
                 <div className="flex items-center gap-1">
                   <CheckCircle className="h-4 w-4 text-primary" />
-                  <span>Teste Grátis 14 dias</span>
+                  <span>{t("hero.trial")}</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <CheckCircle className="h-4 w-4 text-primary" />
-                  <span>Sem necessidade de cartão</span>
+                  <span>{t("hero.nocard")}</span>
                 </div>
               </div>
             </div>
@@ -124,87 +121,74 @@ export default function HomePage() {
           <div className="container px-4 md:px-6 mx-auto text-center">
             <div className="flex flex-col items-center justify-center space-y-4 text-center">
               <div className="space-y-2 max-w-3xl mx-auto">
-                <h2 className="text-3xl font-bold tracking-tighter md:text-4xl">
-                  Tudo que sua igreja precisa em um só lugar
-                </h2>
-                <p className="mx-auto max-w-[700px] text-muted-foreground">
-                  O MyChurch reúne todas as ferramentas necessárias para uma gestão eficiente da sua igreja.
-                </p>
+                <h2 className="text-3xl font-bold tracking-tighter md:text-4xl">{t("features.title")}</h2>
+                <p className="mx-auto max-w-[700px] text-muted-foreground">{t("features.subtitle")}</p>
               </div>
             </div>
             <div className="mx-auto grid max-w-5xl gap-6 py-8 md:grid-cols-2 lg:grid-cols-3 justify-items-center">
               <Card className="border-none shadow-md">
                 <CardHeader className="pb-2">
                   <Users className="h-8 w-8 text-primary mb-2" />
-                  <CardTitle>Gestão de Membros</CardTitle>
-                  <CardDescription>Cadastro completo e organizado</CardDescription>
+                  <CardTitle>{t("feature.members.title")}</CardTitle>
+                  <CardDescription>{t("feature.members.subtitle")}</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-muted-foreground">
-                    Registre todos os dados relevantes dos membros, incluindo informações de contato, familiares e áreas
-                    de atuação.
-                  </p>
+                  <p className="text-muted-foreground">{t("feature.members.description")}</p>
                 </CardContent>
               </Card>
+
               <Card className="border-none shadow-md">
                 <CardHeader className="pb-2">
                   <Calendar className="h-8 w-8 text-primary mb-2" />
-                  <CardTitle>Eventos e Cultos</CardTitle>
-                  <CardDescription>Organização simplificada</CardDescription>
+                  <CardTitle>{t("feature.events.title")}</CardTitle>
+                  <CardDescription>{t("feature.events.subtitle")}</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-muted-foreground">
-                    Crie e gerencie eventos, envie notificações automáticas e acompanhe a participação da comunidade.
-                  </p>
+                  <p className="text-muted-foreground">{t("feature.events.description")}</p>
                 </CardContent>
               </Card>
+
               <Card className="border-none shadow-md">
                 <CardHeader className="pb-2">
                   <CreditCard className="h-8 w-8 text-primary mb-2" />
-                  <CardTitle>Gestão Financeira</CardTitle>
-                  <CardDescription>Controle transparente</CardDescription>
+                  <CardTitle>{t("feature.finance.title")}</CardTitle>
+                  <CardDescription>{t("feature.finance.subtitle")}</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-muted-foreground">
-                    Registre doações, ofereça pagamentos digitais e acesse relatórios financeiros detalhados.
-                  </p>
+                  <p className="text-muted-foreground">{t("feature.finance.description")}</p>
                 </CardContent>
               </Card>
+
               <Card className="border-none shadow-md">
                 <CardHeader className="pb-2">
                   <BarChart4 className="h-8 w-8 text-primary mb-2" />
-                  <CardTitle>Relatórios</CardTitle>
-                  <CardDescription>Análises personalizadas</CardDescription>
+                  <CardTitle>{t("feature.reports.title")}</CardTitle>
+                  <CardDescription>{t("feature.reports.subtitle")}</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-muted-foreground">
-                    Crie relatórios personalizados com filtragem avançada e obtenha insights valiosos para decisões
-                    estratégicas.
-                  </p>
+                  <p className="text-muted-foreground">{t("feature.reports.description")}</p>
                 </CardContent>
               </Card>
+
               <Card className="border-none shadow-md">
                 <CardHeader className="pb-2">
                   <MessageSquare className="h-8 w-8 text-primary mb-2" />
-                  <CardTitle>Comunicação</CardTitle>
-                  <CardDescription>Integração completa</CardDescription>
+                  <CardTitle>{t("feature.communication.title")}</CardTitle>
+                  <CardDescription>{t("feature.communication.subtitle")}</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-muted-foreground">
-                    Envie mensagens por e-mail ou WhatsApp diretamente da plataforma para grupos específicos.
-                  </p>
+                  <p className="text-muted-foreground">{t("feature.communication.description")}</p>
                 </CardContent>
               </Card>
+
               <Card className="border-none shadow-md">
                 <CardHeader className="pb-2">
                   <Shield className="h-8 w-8 text-primary mb-2" />
-                  <CardTitle>Segurança</CardTitle>
-                  <CardDescription>Dados protegidos</CardDescription>
+                  <CardTitle>{t("feature.security.title")}</CardTitle>
+                  <CardDescription>{t("feature.security.subtitle")}</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-muted-foreground">
-                    Controle de permissões, backups automáticos e criptografia para proteger informações sensíveis.
-                  </p>
+                  <p className="text-muted-foreground">{t("feature.security.description")}</p>
                 </CardContent>
               </Card>
             </div>
@@ -773,27 +757,27 @@ export default function HomePage() {
           </div>
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 md:grid-cols-4">
             <div className="space-y-3">
-              <h3 className="text-lg font-medium">Produto</h3>
+              <h3 className="text-lg font-medium">{t("footer.product")}</h3>
               <ul className="space-y-2">
                 <li>
                   <a href="#funcionalidades" className="text-muted-foreground hover:text-foreground scroll-smooth-link">
-                    Funcionalidades
+                    {t("nav.features")}
                   </a>
                 </li>
                 <li>
                   <a href="#planos" className="text-muted-foreground hover:text-foreground scroll-smooth-link">
-                    Planos e Preços
+                    {t("nav.plans")}
                   </a>
                 </li>
                 <li>
                   <Link href="/demonstracao" className="text-muted-foreground hover:text-foreground">
-                    Demonstração
+                    {t("hero.demo")}
                   </Link>
                 </li>
               </ul>
             </div>
             <div className="space-y-3">
-              <h3 className="text-lg font-medium">Empresa</h3>
+              <h3 className="text-lg font-medium">{t("footer.company")}</h3>
               <ul className="space-y-2">
                 <li>
                   <Link href="/sobre" className="text-muted-foreground hover:text-foreground">
@@ -813,7 +797,7 @@ export default function HomePage() {
               </ul>
             </div>
             <div className="space-y-3">
-              <h3 className="text-lg font-medium">Recursos</h3>
+              <h3 className="text-lg font-medium">{t("footer.resources")}</h3>
               <ul className="space-y-2">
                 <li>
                   <Link href="/suporte" className="text-muted-foreground hover:text-foreground">
@@ -833,7 +817,7 @@ export default function HomePage() {
               </ul>
             </div>
             <div className="space-y-3">
-              <h3 className="text-lg font-medium">Contato</h3>
+              <h3 className="text-lg font-medium">{t("footer.contact")}</h3>
               <ul className="space-y-2">
                 <li className="text-muted-foreground">
                   <svg
@@ -930,14 +914,14 @@ export default function HomePage() {
           </div>
           <div className="flex flex-col gap-4 sm:flex-row items-center justify-between">
             <p className="text-sm text-muted-foreground">
-              &copy; {new Date().getFullYear()} MyChurch. Todos os direitos reservados.
+              &copy; {new Date().getFullYear()} MyChurch. {t("footer.copyright")}
             </p>
             <div className="flex gap-4">
               <Link href="/privacidade" className="text-sm text-muted-foreground hover:text-foreground">
-                Política de Privacidade
+                {t("footer.privacy")}
               </Link>
               <Link href="/termos" className="text-sm text-muted-foreground hover:text-foreground">
-                Termos de Uso
+                {t("footer.terms")}
               </Link>
             </div>
           </div>

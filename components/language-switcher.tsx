@@ -1,9 +1,9 @@
 "use client"
 
-import { useState } from "react"
 import { Check, Globe } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { useLanguage } from "@/contexts/language-context"
 
 type Language = {
   code: string
@@ -21,12 +21,12 @@ interface LanguageSwitcherProps {
 }
 
 export function LanguageSwitcher({ className = "" }: LanguageSwitcherProps) {
-  const [currentLanguage, setCurrentLanguage] = useState<Language>(languages[0])
+  const { language, setLanguage } = useLanguage()
 
-  const handleLanguageChange = (language: Language) => {
-    setCurrentLanguage(language)
-    // Aqui você implementaria a lógica para mudar o idioma da aplicação
-    // Por exemplo, usando i18n ou outra biblioteca de internacionalização
+  const handleLanguageChange = (languageCode: string) => {
+    if (languageCode === "pt-BR" || languageCode === "en") {
+      setLanguage(languageCode as "pt-BR" | "en")
+    }
   }
 
   return (
@@ -38,16 +38,16 @@ export function LanguageSwitcher({ className = "" }: LanguageSwitcherProps) {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        {languages.map((language) => (
+        {languages.map((lang) => (
           <DropdownMenuItem
-            key={language.code}
-            onClick={() => handleLanguageChange(language)}
+            key={lang.code}
+            onClick={() => handleLanguageChange(lang.code)}
             className="flex items-center justify-between"
           >
             <span>
-              {language.flag} {language.name}
+              {lang.flag} {lang.name}
             </span>
-            {currentLanguage.code === language.code && <Check className="h-4 w-4 ml-2" />}
+            {language === lang.code && <Check className="h-4 w-4 ml-2" />}
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>
