@@ -165,3 +165,15 @@ html {
     @apply grid-cols-3;
   }
 }
+
+/* Garantir que elementos sticky tenham prioridade no z-index */
+.sticky {
+  isolation: isolate;
+}
+
+/* Garantir que imagens não ultrapassem o z-index de elementos importantes */
+img,
+svg {
+  position: relative;
+  z-index: 1;
+}

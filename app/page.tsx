@@ -32,7 +32,7 @@ export default function HomePage() {
   return (
     <div className="flex flex-col min-h-screen">
       {/* Header */}
-      <header className="bg-background/90 backdrop-blur-sm border-b sticky top-0 z-10">
+      <header className="bg-background/95 backdrop-blur-sm border-b sticky top-0 z-[9999]">
         <div className="container flex h-16 items-center justify-between px-4 md:px-6">
           <Logo size="md" />
           <nav className="hidden md:flex gap-6">

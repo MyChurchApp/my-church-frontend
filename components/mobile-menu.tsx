@@ -26,12 +26,12 @@ export function MobileMenu() {
 
       {/* Overlay with high z-index */}
       {isOpen && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 md:hidden" onClick={toggleMenu} />
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[9998] md:hidden" onClick={toggleMenu} />
       )}
 
       {/* Mobile menu */}
       <div
-        className={`fixed inset-y-0 right-0 w-full max-w-xs bg-background p-6 shadow-lg transform transition-transform duration-200 ease-in-out z-50 md:hidden ${
+        className={`fixed inset-y-0 right-0 w-full max-w-xs bg-background p-6 shadow-lg transform transition-transform duration-200 ease-in-out z-[9999] md:hidden ${
           isOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
