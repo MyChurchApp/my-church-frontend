@@ -18,33 +18,37 @@ import {
   Church,
   MessageSquare,
 } from "lucide-react"
+import { Logo } from "@/components/logo"
 
 export default function HomePage() {
   return (
     <div className="flex flex-col min-h-screen">
       {/* Header */}
-      <header className="bg-white border-b sticky top-0 z-10">
+      <header className="bg-white/90 backdrop-blur-sm border-b sticky top-0 z-10">
         <div className="container flex h-16 items-center justify-between px-4 md:px-6">
-          <Link href="/" className="flex items-center gap-2 font-semibold">
-            <Image src="/mychurch-logo.png" alt="MyChurch Logo" width={32} height={32} />
-            <span className="text-xl">MyChurch</span>
-          </Link>
+          <Logo size="md" />
           <nav className="hidden md:flex gap-6">
-            <Link href="/" className="font-medium text-primary">
-              Início
-            </Link>
-            <Link href="/funcionalidades" className="font-medium text-muted-foreground hover:text-primary">
+            <a
+              href="#funcionalidades"
+              className="font-medium text-muted-foreground hover:text-primary scroll-smooth-link"
+            >
               Funcionalidades
-            </Link>
-            <Link href="/planos" className="font-medium text-muted-foreground hover:text-primary">
+            </a>
+            <a href="#detalhes" className="font-medium text-muted-foreground hover:text-primary scroll-smooth-link">
+              Detalhes
+            </a>
+            <a href="#tamanhos" className="font-medium text-muted-foreground hover:text-primary scroll-smooth-link">
+              Para Igrejas
+            </a>
+            <a
+              href="#implementacao"
+              className="font-medium text-muted-foreground hover:text-primary scroll-smooth-link"
+            >
+              Implementação
+            </a>
+            <a href="#planos" className="font-medium text-muted-foreground hover:text-primary scroll-smooth-link">
               Planos
-            </Link>
-            <Link href="/sobre" className="font-medium text-muted-foreground hover:text-primary">
-              Sobre
-            </Link>
-            <Link href="/contato" className="font-medium text-muted-foreground hover:text-primary">
-              Contato
-            </Link>
+            </a>
           </nav>
           <div className="flex items-center gap-4">
             <Button variant="outline" asChild className="hidden md:flex">
@@ -59,7 +63,10 @@ export default function HomePage() {
 
       <main className="flex-1">
         {/* Hero Section */}
-        <section className="w-full py-12 md:py-24 lg:py-32 bg-gradient-to-r from-purple-50 to-blue-50 relative overflow-hidden">
+        <section
+          id="inicio"
+          className="w-full py-12 md:py-24 lg:py-32 bg-gradient-to-r from-purple-50 to-blue-50 relative overflow-hidden"
+        >
           <div className="container px-4 md:px-6 relative z-10 mx-auto text-center">
             <div className="flex flex-col items-center text-center max-w-3xl mx-auto">
               <Badge className="mb-2">Software de Gestão para Igrejas</Badge>
@@ -75,7 +82,7 @@ export default function HomePage() {
                   <Link href="/demonstracao">Agendar Demonstração</Link>
                 </Button>
                 <Button size="lg" variant="outline" asChild>
-                  <Link href="/planos">Ver Planos</Link>
+                  <a href="#planos">Ver Planos</a>
                 </Button>
               </div>
               <div className="flex items-center gap-4 text-sm mt-4">
@@ -104,7 +111,7 @@ export default function HomePage() {
         </section>
 
         {/* Features Overview */}
-        <section className="w-full py-12 md:py-16 lg:py-20">
+        <section id="funcionalidades" className="w-full py-12 md:py-16 lg:py-20 scroll-mt-20">
           <div className="container px-4 md:px-6 mx-auto text-center">
             <div className="flex flex-col items-center justify-center space-y-4 text-center">
               <div className="space-y-2 max-w-3xl mx-auto">
@@ -196,7 +203,7 @@ export default function HomePage() {
         </section>
 
         {/* Feature Details */}
-        <section className="w-full py-12 md:py-16 lg:py-20 bg-muted">
+        <section id="detalhes" className="w-full py-12 md:py-16 lg:py-20 bg-muted scroll-mt-20">
           <div className="container px-4 md:px-6 mx-auto text-center">
             <Tabs defaultValue="membros" className="w-full max-w-4xl mx-auto">
               <div className="flex flex-col items-center justify-center space-y-4 text-center mb-8">
@@ -426,7 +433,7 @@ export default function HomePage() {
         </section>
 
         {/* Church Sizes */}
-        <section className="w-full py-12 md:py-16 lg:py-20">
+        <section id="tamanhos" className="w-full py-12 md:py-16 lg:py-20 scroll-mt-20">
           <div className="container px-4 md:px-6 mx-auto text-center">
             <div className="flex flex-col items-center justify-center space-y-4 text-center">
               <div className="space-y-2 max-w-3xl mx-auto">
@@ -520,7 +527,7 @@ export default function HomePage() {
         </section>
 
         {/* Implementation */}
-        <section className="w-full py-12 md:py-16 lg:py-20 bg-muted">
+        <section id="implementacao" className="w-full py-12 md:py-16 lg:py-20 bg-muted scroll-mt-20">
           <div className="container px-4 md:px-6 mx-auto text-center">
             <div className="flex flex-col items-center max-w-5xl mx-auto text-center">
               <div className="text-center max-w-3xl mb-10">
@@ -596,7 +603,7 @@ export default function HomePage() {
         </section>
 
         {/* Pricing */}
-        <section className="w-full py-12 md:py-16 lg:py-20">
+        <section id="planos" className="w-full py-12 md:py-16 lg:py-20 scroll-mt-20">
           <div className="container px-4 md:px-6">
             <div className="flex flex-col items-center justify-center space-y-4 text-center">
               <div className="space-y-2 max-w-3xl mx-auto">
@@ -721,7 +728,10 @@ export default function HomePage() {
         </section>
 
         {/* Call to Action */}
-        <section className="w-full py-12 md:py-16 lg:py-20 bg-primary text-primary-foreground">
+        <section
+          id="contato"
+          className="w-full py-12 md:py-16 lg:py-20 bg-primary text-primary-foreground scroll-mt-20"
+        >
           <div className="container px-4 md:px-6">
             <div className="flex flex-col items-center justify-center space-y-4 text-center max-w-3xl mx-auto">
               <div className="space-y-2">
@@ -749,19 +759,22 @@ export default function HomePage() {
       {/* Footer */}
       <footer className="border-t bg-muted/40">
         <div className="container flex flex-col gap-6 py-8 md:py-12 px-4 md:px-6">
+          <div className="flex justify-center mb-6">
+            <Logo size="lg" />
+          </div>
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 md:grid-cols-4">
             <div className="space-y-3">
               <h3 className="text-lg font-medium">Produto</h3>
               <ul className="space-y-2">
                 <li>
-                  <Link href="/funcionalidades" className="text-muted-foreground hover:text-foreground">
+                  <a href="#funcionalidades" className="text-muted-foreground hover:text-foreground scroll-smooth-link">
                     Funcionalidades
-                  </Link>
+                  </a>
                 </li>
                 <li>
-                  <Link href="/planos" className="text-muted-foreground hover:text-foreground">
+                  <a href="#planos" className="text-muted-foreground hover:text-foreground scroll-smooth-link">
                     Planos e Preços
-                  </Link>
+                  </a>
                 </li>
                 <li>
                   <Link href="/demonstracao" className="text-muted-foreground hover:text-foreground">

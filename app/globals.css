@@ -56,6 +56,7 @@
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
+    scroll-behavior: smooth;
   }
 }
 
@@ -125,6 +126,24 @@ section {
 
 .card-grid {
   @apply grid gap-6 mx-auto justify-center;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+.scroll-smooth-link {
+  transition: color 0.2s ease;
+}
+
+.scroll-smooth-link:hover {
+  color: hsl(var(--primary));
+}
+
+/* Scroll margin for section anchors */
+.scroll-mt-20 {
+  scroll-margin-top: 5rem;
 }
 
 @media (min-width: 768px) {
