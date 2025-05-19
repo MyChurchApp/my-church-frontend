@@ -60,7 +60,7 @@ export default function HomePage() {
       <main className="flex-1">
         {/* Hero Section */}
         <section className="w-full py-12 md:py-24 lg:py-32 bg-gradient-to-r from-purple-50 to-blue-50 relative overflow-hidden">
-          <div className="container px-4 md:px-6 relative z-10">
+          <div className="container px-4 md:px-6 relative z-10 mx-auto text-center">
             <div className="flex flex-col items-center text-center max-w-3xl mx-auto">
               <Badge className="mb-2">Software de Gestão para Igrejas</Badge>
               <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl md:text-6xl">
@@ -105,7 +105,7 @@ export default function HomePage() {
 
         {/* Features Overview */}
         <section className="w-full py-12 md:py-16 lg:py-20">
-          <div className="container px-4 md:px-6">
+          <div className="container px-4 md:px-6 mx-auto text-center">
             <div className="flex flex-col items-center justify-center space-y-4 text-center">
               <div className="space-y-2 max-w-3xl mx-auto">
                 <h2 className="text-3xl font-bold tracking-tighter md:text-4xl">
@@ -116,7 +116,7 @@ export default function HomePage() {
                 </p>
               </div>
             </div>
-            <div className="mx-auto grid max-w-5xl gap-6 py-8 md:grid-cols-2 lg:grid-cols-3">
+            <div className="mx-auto grid max-w-5xl gap-6 py-8 md:grid-cols-2 lg:grid-cols-3 justify-items-center">
               <Card className="border-none shadow-md">
                 <CardHeader className="pb-2">
                   <Users className="h-8 w-8 text-primary mb-2" />
@@ -197,7 +197,7 @@ export default function HomePage() {
 
         {/* Feature Details */}
         <section className="w-full py-12 md:py-16 lg:py-20 bg-muted">
-          <div className="container px-4 md:px-6">
+          <div className="container px-4 md:px-6 mx-auto text-center">
             <Tabs defaultValue="membros" className="w-full max-w-4xl mx-auto">
               <div className="flex flex-col items-center justify-center space-y-4 text-center mb-8">
                 <div className="space-y-2 max-w-3xl mx-auto">
@@ -214,10 +214,10 @@ export default function HomePage() {
                 </TabsList>
               </div>
               <TabsContent value="membros" className="space-y-4">
-                <div className="grid gap-6 lg:grid-cols-2 lg:gap-12 items-center">
+                <div className="grid gap-6 lg:grid-cols-2 lg:gap-12 items-center mx-auto text-center">
                   <div className="space-y-4">
                     <h3 className="text-2xl font-bold">Gestão de Membros Simplificada</h3>
-                    <ul className="space-y-2">
+                    <ul className="space-y-2 text-left">
                       <li className="flex items-start gap-2">
                         <CheckCircle className="h-5 w-5 text-primary mt-0.5" />
                         <div>
@@ -266,10 +266,10 @@ export default function HomePage() {
                 </div>
               </TabsContent>
               <TabsContent value="eventos" className="space-y-4">
-                <div className="grid gap-6 lg:grid-cols-2 lg:gap-12 items-center">
+                <div className="grid gap-6 lg:grid-cols-2 lg:gap-12 items-center mx-auto text-center">
                   <div className="space-y-4">
                     <h3 className="text-2xl font-bold">Eventos e Cultos Organizados</h3>
-                    <ul className="space-y-2">
+                    <ul className="space-y-2 text-left">
                       <li className="flex items-start gap-2">
                         <CheckCircle className="h-5 w-5 text-primary mt-0.5" />
                         <div>
@@ -320,10 +320,10 @@ export default function HomePage() {
                 </div>
               </TabsContent>
               <TabsContent value="financeiro" className="space-y-4">
-                <div className="grid gap-6 lg:grid-cols-2 lg:gap-12 items-center">
+                <div className="grid gap-6 lg:grid-cols-2 lg:gap-12 items-center mx-auto text-center">
                   <div className="space-y-4">
                     <h3 className="text-2xl font-bold">Gestão Financeira Transparente</h3>
-                    <ul className="space-y-2">
+                    <ul className="space-y-2 text-left">
                       <li className="flex items-start gap-2">
                         <CheckCircle className="h-5 w-5 text-primary mt-0.5" />
                         <div>
@@ -374,10 +374,10 @@ export default function HomePage() {
                 </div>
               </TabsContent>
               <TabsContent value="relatorios" className="space-y-4">
-                <div className="grid gap-6 lg:grid-cols-2 lg:gap-12 items-center">
+                <div className="grid gap-6 lg:grid-cols-2 lg:gap-12 items-center mx-auto text-center">
                   <div className="space-y-4">
                     <h3 className="text-2xl font-bold">Relatórios Personalizados</h3>
-                    <ul className="space-y-2">
+                    <ul className="space-y-2 text-left">
                       <li className="flex items-start gap-2">
                         <CheckCircle className="h-5 w-5 text-primary mt-0.5" />
                         <div>
@@ -427,7 +427,7 @@ export default function HomePage() {
 
         {/* Church Sizes */}
         <section className="w-full py-12 md:py-16 lg:py-20">
-          <div className="container px-4 md:px-6">
+          <div className="container px-4 md:px-6 mx-auto text-center">
             <div className="flex flex-col items-center justify-center space-y-4 text-center">
               <div className="space-y-2 max-w-3xl mx-auto">
                 <h2 className="text-3xl font-bold tracking-tighter md:text-4xl">Para Igrejas de Todos os Tamanhos</h2>
@@ -436,14 +436,14 @@ export default function HomePage() {
                 </p>
               </div>
             </div>
-            <div className="mx-auto grid max-w-4xl gap-6 py-8 md:grid-cols-3">
+            <div className="mx-auto grid max-w-4xl gap-6 py-8 md:grid-cols-3 justify-items-center">
               <Card className="border-none shadow-md">
                 <CardHeader className="pb-2">
                   <Church className="h-8 w-8 text-primary mb-2" />
                   <CardTitle>Congregações Pequenas</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ul className="space-y-2">
+                  <ul className="space-y-2 text-left">
                     <li className="flex items-center gap-2">
                       <CheckCircle className="h-4 w-4 text-primary" />
                       <span className="text-muted-foreground">Interface simplificada</span>
@@ -469,7 +469,7 @@ export default function HomePage() {
                   <CardTitle>Igrejas Médias</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ul className="space-y-2">
+                  <ul className="space-y-2 text-left">
                     <li className="flex items-center gap-2">
                       <CheckCircle className="h-4 w-4 text-primary" />
                       <span className="text-muted-foreground">Funcionalidades intermediárias</span>
@@ -495,7 +495,7 @@ export default function HomePage() {
                   <CardTitle>Redes com Múltiplas Filiais</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ul className="space-y-2">
+                  <ul className="space-y-2 text-left">
                     <li className="flex items-center gap-2">
                       <CheckCircle className="h-4 w-4 text-primary" />
                       <span className="text-muted-foreground">Gestão hierárquica de permissões</span>
@@ -521,8 +521,8 @@ export default function HomePage() {
 
         {/* Implementation */}
         <section className="w-full py-12 md:py-16 lg:py-20 bg-muted">
-          <div className="container px-4 md:px-6">
-            <div className="flex flex-col items-center max-w-5xl mx-auto">
+          <div className="container px-4 md:px-6 mx-auto text-center">
+            <div className="flex flex-col items-center max-w-5xl mx-auto text-center">
               <div className="text-center max-w-3xl mb-10">
                 <h2 className="text-3xl font-bold tracking-tighter md:text-4xl">Implementação Simples e Segura</h2>
                 <p className="text-muted-foreground mt-4">
