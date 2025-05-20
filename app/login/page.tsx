@@ -3,6 +3,7 @@
 import type React from "react"
 
 import { useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -14,6 +15,11 @@ import { useLanguage } from "@/contexts/language-context"
 
 export default function LoginPage() {
   const { t } = useLanguage()
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const planoParam = searchParams.get("plano")
+  const redirectParam = searchParams.get("redirect")
+
   const [showPassword, setShowPassword] = useState(false)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -27,6 +33,13 @@ export default function LoginPage() {
     e.preventDefault()
     // Implementar lógica de autenticação aqui
     console.log({ email, password, rememberMe })
+
+    // Após login bem-sucedido, redirecionar conforme parâmetros
+    if (redirectParam === "checkout" && planoParam) {
+      router.push(`/planos/checkout?plano=${planoParam}`)
+    } else {
+      router.push("/dashboard")
+    }
   }
 
   return (
