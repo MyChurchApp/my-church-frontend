@@ -12,26 +12,68 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { DollarSign, TrendingUp, TrendingDown, Plus, PiggyBank, Receipt, Filter } from "lucide-react"
-import { getUser, getFinanceRecords, formatCurrency, type User, type FinanceRecord } from "@/lib/fake-api"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  DollarSign,
+  TrendingUp,
+  TrendingDown,
+  Plus,
+  PiggyBank,
+  Receipt,
+  Filter,
+  Trash2,
+  Settings,
+  Download,
+} from "lucide-react"
+import {
+  getUser,
+  getFinanceRecords,
+  getFinanceCategories,
+  formatCurrency,
+  type User,
+  type FinanceRecord,
+  type FinanceCategory,
+} from "@/lib/fake-api"
 
 export default function FinanceiroPage() {
   const router = useRouter()
   const [user, setUser] = useState<User | null>(null)
   const [financeRecords, setFinanceRecords] = useState<FinanceRecord[]>([])
+  const [financeCategories, setFinanceCategories] = useState<FinanceCategory[]>([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [recordToDelete, setRecordToDelete] = useState<string | null>(null)
   const [filterType, setFilterType] = useState<string>("all")
   const [filterMonth, setFilterMonth] = useState<string>("all")
+  const [filterCategory, setFilterCategory] = useState<string>("all")
 
   // Form state for new record
   const [newRecord, setNewRecord] = useState({
     type: "",
-    category: "",
+    categoryId: "",
     description: "",
     amount: "",
     date: "",
     method: "",
     member: "",
+  })
+
+  // Form state for new category
+  const [newCategory, setNewCategory] = useState({
+    name: "",
+    type: "",
+    description: "",
   })
 
   useEffect(() => {
@@ -48,16 +90,22 @@ export default function FinanceiroPage() {
 
     setUser(userData)
     setFinanceRecords(getFinanceRecords())
+    setFinanceCategories(getFinanceCategories())
   }, [router])
 
   const handleCreateRecord = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newRecord.type || !newRecord.category || !newRecord.description || !newRecord.amount || !newRecord.date) return
+    if (!newRecord.type || !newRecord.categoryId || !newRecord.description || !newRecord.amount || !newRecord.date)
+      return
+
+    const selectedCategory = financeCategories.find((cat) => cat.id === newRecord.categoryId)
+    if (!selectedCategory) return
 
     const record: FinanceRecord = {
       id: Date.now().toString(),
       type: newRecord.type as "entrada" | "saida",
-      category: newRecord.category as any,
+      categoryId: newRecord.categoryId,
+      categoryName: selectedCategory.name,
       description: newRecord.description,
       amount: Number.parseFloat(newRecord.amount),
       date: newRecord.date,
@@ -66,15 +114,93 @@ export default function FinanceiroPage() {
     }
 
     setFinanceRecords([record, ...financeRecords])
-    setNewRecord({ type: "", category: "", description: "", amount: "", date: "", method: "", member: "" })
+    setNewRecord({ type: "", categoryId: "", description: "", amount: "", date: "", method: "", member: "" })
     setIsDialogOpen(false)
+  }
+
+  const handleCreateCategory = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newCategory.name || !newCategory.type) return
+
+    const category: FinanceCategory = {
+      id: Date.now().toString(),
+      name: newCategory.name,
+      type: newCategory.type as "entrada" | "saida",
+      description: newCategory.description,
+      isActive: true,
+      createdAt: new Date().toISOString().split("T")[0],
+    }
+
+    setFinanceCategories([...financeCategories, category])
+    setNewCategory({ name: "", type: "", description: "" })
+    setIsCategoryDialogOpen(false)
+  }
+
+  const handleDeleteRecord = (recordId: string) => {
+    setRecordToDelete(recordId)
+    setDeleteDialogOpen(true)
+  }
+
+  const confirmDeleteRecord = () => {
+    if (recordToDelete) {
+      setFinanceRecords(financeRecords.filter((record) => record.id !== recordToDelete))
+      setRecordToDelete(null)
+      setDeleteDialogOpen(false)
+    }
+  }
+
+  const generatePDFReport = () => {
+    const filteredRecords = getFilteredRecords()
+    const totalEntradas = getTotalEntradas()
+    const totalSaidas = getTotalSaidas()
+    const saldo = getSaldo()
+
+    // Criar conteúdo do relatório
+    const reportContent = `
+RELATÓRIO FINANCEIRO - IGREJA BATISTA CENTRAL
+Gerado em: ${new Date().toLocaleDateString("pt-BR")}
+
+RESUMO FINANCEIRO:
+- Total de Entradas: ${formatCurrency(totalEntradas)}
+- Total de Saídas: ${formatCurrency(totalSaidas)}
+- Saldo: ${formatCurrency(saldo)}
+- Total de Transações: ${filteredRecords.length}
+
+DETALHAMENTO DAS TRANSAÇÕES:
+${filteredRecords
+  .map(
+    (record) => `
+Data: ${new Date(record.date).toLocaleDateString("pt-BR")}
+Tipo: ${record.type === "entrada" ? "ENTRADA" : "SAÍDA"}
+Categoria: ${record.categoryName}
+Descrição: ${record.description}
+Valor: ${formatCurrency(record.amount)}
+Método: ${record.method}
+${record.member ? `Membro: ${record.member}` : ""}
+---
+`,
+  )
+  .join("")}
+    `
+
+    // Criar e baixar o arquivo
+    const blob = new Blob([reportContent], { type: "text/plain;charset=utf-8" })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = `relatorio-financeiro-${new Date().toISOString().split("T")[0]}.txt`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
   }
 
   const getFilteredRecords = () => {
     return financeRecords.filter((record) => {
       const typeMatch = filterType === "all" || record.type === filterType
       const monthMatch = filterMonth === "all" || new Date(record.date).getMonth() === Number.parseInt(filterMonth)
-      return typeMatch && monthMatch
+      const categoryMatch = filterCategory === "all" || record.categoryId === filterCategory
+      return typeMatch && monthMatch && categoryMatch
     })
   }
 
@@ -94,15 +220,16 @@ export default function FinanceiroPage() {
     return getTotalEntradas() - getTotalSaidas()
   }
 
-  const getCategoryColor = (category: string) => {
+  const getCategoryColor = (categoryName: string) => {
     const colors = {
-      dizimo: "bg-green-100 text-green-800",
-      oferta: "bg-blue-100 text-blue-800",
-      doacao: "bg-purple-100 text-purple-800",
-      despesa: "bg-red-100 text-red-800",
-      salario: "bg-orange-100 text-orange-800",
+      Dízimo: "bg-green-100 text-green-800",
+      Oferta: "bg-blue-100 text-blue-800",
+      Doação: "bg-purple-100 text-purple-800",
+      "Despesas Gerais": "bg-red-100 text-red-800",
+      Salários: "bg-orange-100 text-orange-800",
+      Manutenção: "bg-yellow-100 text-yellow-800",
     }
-    return colors[category as keyof typeof colors] || "bg-gray-100 text-gray-800"
+    return colors[categoryName as keyof typeof colors] || "bg-gray-100 text-gray-800"
   }
 
   const getMethodIcon = (method: string) => {
@@ -118,6 +245,10 @@ export default function FinanceiroPage() {
       default:
         return "💰"
     }
+  }
+
+  const getAvailableCategories = (type: string) => {
+    return financeCategories.filter((cat) => cat.isActive && (type === "" || cat.type === type))
   }
 
   if (!user) {
@@ -136,132 +267,208 @@ export default function FinanceiroPage() {
               <h1 className="text-2xl font-bold text-gray-900">Financeiro</h1>
               <p className="text-gray-600">Controle financeiro da igreja</p>
             </div>
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="flex items-center gap-2">
-                  <Plus className="h-4 w-4" />
-                  Nova Transação
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Nova Transação</DialogTitle>
-                </DialogHeader>
-                <form onSubmit={handleCreateRecord} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="record-type">Tipo</Label>
-                    <Select
-                      value={newRecord.type}
-                      onValueChange={(value) => setNewRecord({ ...newRecord, type: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione o tipo" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="entrada">Entrada</SelectItem>
-                        <SelectItem value="saida">Saída</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="record-category">Categoria</Label>
-                    <Select
-                      value={newRecord.category}
-                      onValueChange={(value) => setNewRecord({ ...newRecord, category: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione a categoria" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {newRecord.type === "entrada" ? (
-                          <>
-                            <SelectItem value="dizimo">Dízimo</SelectItem>
-                            <SelectItem value="oferta">Oferta</SelectItem>
-                            <SelectItem value="doacao">Doação</SelectItem>
-                          </>
-                        ) : (
-                          <>
-                            <SelectItem value="despesa">Despesa</SelectItem>
-                            <SelectItem value="salario">Salário</SelectItem>
-                          </>
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="record-description">Descrição</Label>
-                    <Input
-                      id="record-description"
-                      value={newRecord.description}
-                      onChange={(e) => setNewRecord({ ...newRecord, description: e.target.value })}
-                      placeholder="Descrição da transação"
-                      required
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="record-amount">Valor</Label>
-                      <Input
-                        id="record-amount"
-                        type="number"
-                        step="0.01"
-                        value={newRecord.amount}
-                        onChange={(e) => setNewRecord({ ...newRecord, amount: e.target.value })}
-                        placeholder="0,00"
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="record-date">Data</Label>
-                      <Input
-                        id="record-date"
-                        type="date"
-                        value={newRecord.date}
-                        onChange={(e) => setNewRecord({ ...newRecord, date: e.target.value })}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="record-method">Método</Label>
-                    <Select
-                      value={newRecord.method}
-                      onValueChange={(value) => setNewRecord({ ...newRecord, method: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Forma de pagamento" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="dinheiro">Dinheiro</SelectItem>
-                        <SelectItem value="pix">PIX</SelectItem>
-                        <SelectItem value="cartao">Cartão</SelectItem>
-                        <SelectItem value="transferencia">Transferência</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {newRecord.type === "entrada" && (
-                    <div className="space-y-2">
-                      <Label htmlFor="record-member">Membro (opcional)</Label>
-                      <Input
-                        id="record-member"
-                        value={newRecord.member}
-                        onChange={(e) => setNewRecord({ ...newRecord, member: e.target.value })}
-                        placeholder="Nome do membro"
-                      />
-                    </div>
-                  )}
-
-                  <Button type="submit" className="w-full">
-                    Registrar Transação
+            <div className="flex gap-2">
+              <Button onClick={generatePDFReport} variant="outline" className="flex items-center gap-2">
+                <Download className="h-4 w-4" />
+                Gerar Relatório
+              </Button>
+              <Dialog open={isCategoryDialogOpen} onOpenChange={setIsCategoryDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="flex items-center gap-2">
+                    <Settings className="h-4 w-4" />
+                    Categorias
                   </Button>
-                </form>
-              </DialogContent>
-            </Dialog>
+                </DialogTrigger>
+                <DialogContent className="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Gerenciar Categorias</DialogTitle>
+                  </DialogHeader>
+                  <Tabs defaultValue="list" className="w-full">
+                    <TabsList className="grid w-full grid-cols-2">
+                      <TabsTrigger value="list">Lista</TabsTrigger>
+                      <TabsTrigger value="add">Adicionar</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="list" className="space-y-2 max-h-60 overflow-y-auto">
+                      {financeCategories.map((category) => (
+                        <div key={category.id} className="flex items-center justify-between p-2 border rounded">
+                          <div>
+                            <p className="font-medium">{category.name}</p>
+                            <p className="text-sm text-gray-500">{category.type === "entrada" ? "Entrada" : "Saída"}</p>
+                          </div>
+                          <Badge variant={category.type === "entrada" ? "default" : "destructive"}>
+                            {category.type === "entrada" ? "Entrada" : "Saída"}
+                          </Badge>
+                        </div>
+                      ))}
+                    </TabsContent>
+                    <TabsContent value="add">
+                      <form onSubmit={handleCreateCategory} className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="category-name">Nome da Categoria</Label>
+                          <Input
+                            id="category-name"
+                            value={newCategory.name}
+                            onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
+                            placeholder="Ex: Manutenção"
+                            required
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="category-type">Tipo</Label>
+                          <Select
+                            value={newCategory.type}
+                            onValueChange={(value) => setNewCategory({ ...newCategory, type: value })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione o tipo" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="entrada">Entrada</SelectItem>
+                              <SelectItem value="saida">Saída</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="category-description">Descrição (opcional)</Label>
+                          <Input
+                            id="category-description"
+                            value={newCategory.description}
+                            onChange={(e) => setNewCategory({ ...newCategory, description: e.target.value })}
+                            placeholder="Descrição da categoria"
+                          />
+                        </div>
+
+                        <Button type="submit" className="w-full">
+                          Criar Categoria
+                        </Button>
+                      </form>
+                    </TabsContent>
+                  </Tabs>
+                </DialogContent>
+              </Dialog>
+              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button className="flex items-center gap-2">
+                    <Plus className="h-4 w-4" />
+                    Nova Transação
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Nova Transação</DialogTitle>
+                  </DialogHeader>
+                  <form onSubmit={handleCreateRecord} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="record-type">Tipo</Label>
+                      <Select
+                        value={newRecord.type}
+                        onValueChange={(value) => setNewRecord({ ...newRecord, type: value, categoryId: "" })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione o tipo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="entrada">Entrada</SelectItem>
+                          <SelectItem value="saida">Saída</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="record-category">Categoria</Label>
+                      <Select
+                        value={newRecord.categoryId}
+                        onValueChange={(value) => setNewRecord({ ...newRecord, categoryId: value })}
+                        disabled={!newRecord.type}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione a categoria" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {getAvailableCategories(newRecord.type).map((category) => (
+                            <SelectItem key={category.id} value={category.id}>
+                              {category.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="record-description">Descrição</Label>
+                      <Input
+                        id="record-description"
+                        value={newRecord.description}
+                        onChange={(e) => setNewRecord({ ...newRecord, description: e.target.value })}
+                        placeholder="Descrição da transação"
+                        required
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="record-amount">Valor</Label>
+                        <Input
+                          id="record-amount"
+                          type="number"
+                          step="0.01"
+                          value={newRecord.amount}
+                          onChange={(e) => setNewRecord({ ...newRecord, amount: e.target.value })}
+                          placeholder="0,00"
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="record-date">Data</Label>
+                        <Input
+                          id="record-date"
+                          type="date"
+                          value={newRecord.date}
+                          onChange={(e) => setNewRecord({ ...newRecord, date: e.target.value })}
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="record-method">Método</Label>
+                      <Select
+                        value={newRecord.method}
+                        onValueChange={(value) => setNewRecord({ ...newRecord, method: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Forma de pagamento" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                          <SelectItem value="pix">PIX</SelectItem>
+                          <SelectItem value="cartao">Cartão</SelectItem>
+                          <SelectItem value="transferencia">Transferência</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {newRecord.type === "entrada" && (
+                      <div className="space-y-2">
+                        <Label htmlFor="record-member">Membro (opcional)</Label>
+                        <Input
+                          id="record-member"
+                          value={newRecord.member}
+                          onChange={(e) => setNewRecord({ ...newRecord, member: e.target.value })}
+                          placeholder="Nome do membro"
+                        />
+                      </div>
+                    )}
+
+                    <Button type="submit" className="w-full">
+                      Registrar Transação
+                    </Button>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </div>
           </div>
         </header>
 
@@ -318,7 +525,7 @@ export default function FinanceiroPage() {
             </div>
 
             {/* Filters */}
-            <div className="mb-6 flex items-center gap-4">
+            <div className="mb-6 flex items-center gap-4 flex-wrap">
               <div className="flex items-center gap-2">
                 <Filter className="h-4 w-4 text-gray-500" />
                 <Select value={filterType} onValueChange={setFilterType}>
@@ -352,6 +559,19 @@ export default function FinanceiroPage() {
                   <SelectItem value="11">Dezembro</SelectItem>
                 </SelectContent>
               </Select>
+              <Select value={filterCategory} onValueChange={setFilterCategory}>
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="Categoria" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas categorias</SelectItem>
+                  {financeCategories.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Transactions List */}
@@ -382,9 +602,7 @@ export default function FinanceiroPage() {
                         <div>
                           <h4 className="font-medium">{record.description}</h4>
                           <div className="flex items-center gap-2 mt-1">
-                            <Badge className={getCategoryColor(record.category)}>
-                              {record.category.charAt(0).toUpperCase() + record.category.slice(1)}
-                            </Badge>
+                            <Badge className={getCategoryColor(record.categoryName)}>{record.categoryName}</Badge>
                             <span className="text-sm text-gray-500">
                               {getMethodIcon(record.method)} {record.method}
                             </span>
@@ -392,14 +610,26 @@ export default function FinanceiroPage() {
                           </div>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <div
-                          className={`text-lg font-bold ${record.type === "entrada" ? "text-green-600" : "text-red-600"}`}
-                        >
-                          {record.type === "entrada" ? "+" : "-"}
-                          {formatCurrency(record.amount)}
+                      <div className="flex items-center gap-2">
+                        <div className="text-right">
+                          <div
+                            className={`text-lg font-bold ${record.type === "entrada" ? "text-green-600" : "text-red-600"}`}
+                          >
+                            {record.type === "entrada" ? "+" : "-"}
+                            {formatCurrency(record.amount)}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {new Date(record.date).toLocaleDateString("pt-BR")}
+                          </div>
                         </div>
-                        <div className="text-sm text-gray-500">{new Date(record.date).toLocaleDateString("pt-BR")}</div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteRecord(record.id)}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
                   ))}
@@ -415,6 +645,24 @@ export default function FinanceiroPage() {
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir esta transação? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteRecord} className="bg-red-600 hover:bg-red-700">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

@@ -30,7 +30,6 @@ export interface Notification {
   image?: string
 }
 
-// Atualizar a interface Event para incluir cor personalizada
 export interface Event {
   id: string
   title: string
@@ -67,10 +66,22 @@ export interface Member {
   notes?: string
 }
 
+// Adicionar interface para categorias financeiras
+export interface FinanceCategory {
+  id: string
+  name: string
+  type: "entrada" | "saida"
+  description?: string
+  isActive: boolean
+  createdAt: string
+}
+
+// Atualizar interface FinanceRecord para usar categorias personalizadas
 export interface FinanceRecord {
   id: string
   type: "entrada" | "saida"
-  category: "dizimo" | "oferta" | "doacao" | "despesa" | "salario"
+  categoryId: string
+  categoryName: string
   description: string
   amount: number
   date: string
@@ -224,7 +235,6 @@ export const fakeMembers: Member[] = [
   },
 ]
 
-// Atualizar os eventos fake para incluir cores
 export const fakeEvents: Event[] = [
   {
     id: "1",
@@ -293,11 +303,65 @@ export const fakeEvents: Event[] = [
   },
 ]
 
+// Categorias financeiras padrão
+export const fakeFinanceCategories: FinanceCategory[] = [
+  {
+    id: "1",
+    name: "Dízimo",
+    type: "entrada",
+    description: "Dízimos dos membros",
+    isActive: true,
+    createdAt: "2024-01-01",
+  },
+  {
+    id: "2",
+    name: "Oferta",
+    type: "entrada",
+    description: "Ofertas dos cultos",
+    isActive: true,
+    createdAt: "2024-01-01",
+  },
+  {
+    id: "3",
+    name: "Doação",
+    type: "entrada",
+    description: "Doações especiais",
+    isActive: true,
+    createdAt: "2024-01-01",
+  },
+  {
+    id: "4",
+    name: "Despesas Gerais",
+    type: "saida",
+    description: "Despesas operacionais",
+    isActive: true,
+    createdAt: "2024-01-01",
+  },
+  {
+    id: "5",
+    name: "Salários",
+    type: "saida",
+    description: "Pagamento de funcionários",
+    isActive: true,
+    createdAt: "2024-01-01",
+  },
+  {
+    id: "6",
+    name: "Manutenção",
+    type: "saida",
+    description: "Manutenção do templo",
+    isActive: true,
+    createdAt: "2024-01-01",
+  },
+]
+
+// Atualizar registros financeiros para usar as novas categorias
 export const fakeFinanceRecords: FinanceRecord[] = [
   {
     id: "1",
     type: "entrada",
-    category: "dizimo",
+    categoryId: "1",
+    categoryName: "Dízimo",
     description: "Dízimos Janeiro 2024",
     amount: 15420.5,
     date: "2024-01-15",
@@ -307,7 +371,8 @@ export const fakeFinanceRecords: FinanceRecord[] = [
   {
     id: "2",
     type: "entrada",
-    category: "oferta",
+    categoryId: "2",
+    categoryName: "Oferta",
     description: "Ofertas Culto Dominical",
     amount: 2340.0,
     date: "2024-01-14",
@@ -316,7 +381,8 @@ export const fakeFinanceRecords: FinanceRecord[] = [
   {
     id: "3",
     type: "saida",
-    category: "despesa",
+    categoryId: "4",
+    categoryName: "Despesas Gerais",
     description: "Conta de Luz",
     amount: 890.45,
     date: "2024-01-10",
@@ -325,7 +391,8 @@ export const fakeFinanceRecords: FinanceRecord[] = [
   {
     id: "4",
     type: "entrada",
-    category: "doacao",
+    categoryId: "3",
+    categoryName: "Doação",
     description: "Doação para reforma do templo",
     amount: 5000.0,
     date: "2024-01-12",
@@ -335,7 +402,8 @@ export const fakeFinanceRecords: FinanceRecord[] = [
   {
     id: "5",
     type: "saida",
-    category: "salario",
+    categoryId: "5",
+    categoryName: "Salários",
     description: "Salário Pastor",
     amount: 4500.0,
     date: "2024-01-05",
@@ -517,6 +585,10 @@ export const getMembers = (): Member[] => {
 
 export const getFinanceRecords = (): FinanceRecord[] => {
   return fakeFinanceRecords
+}
+
+export const getFinanceCategories = (): FinanceCategory[] => {
+  return fakeFinanceCategories
 }
 
 export const formatTimeAgo = (timestamp: string): string => {
