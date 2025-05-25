@@ -49,9 +49,9 @@ export function Sidebar({ className = "" }: SidebarProps) {
     { icon: Home, label: "Dashboard", href: "/dashboard", active: true, accessLevel: "member" },
     { icon: Users, label: "Membros", href: "/dashboard/membros", accessLevel: "member" },
     { icon: Calendar, label: "Eventos", href: "/dashboard/eventos", accessLevel: "member" },
-    { icon: MessageSquare, label: "Comunicação", href: "/dashboard/comunicacao", accessLevel: "member" },
     { icon: Bell, label: "Notificações", href: "/dashboard/notificacoes", accessLevel: "member" },
     // Itens apenas para admin
+    { icon: MessageSquare, label: "Comunicação", href: "/dashboard/comunicacao", accessLevel: "admin" },
     { icon: DollarSign, label: "Financeiro", href: "/dashboard/financeiro", accessLevel: "admin" },
     { icon: BarChart3, label: "Relatórios", href: "/dashboard/relatorios", accessLevel: "admin" },
     { icon: Heart, label: "Ministérios", href: "/dashboard/ministerios", accessLevel: "admin" },

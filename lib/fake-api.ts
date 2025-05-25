@@ -30,6 +30,29 @@ export interface Notification {
   image?: string
 }
 
+export interface Event {
+  id: string
+  title: string
+  description: string
+  date: string
+  time: string
+  location: string
+  type: "culto" | "evento" | "reuniao" | "estudo"
+  organizer: string
+  attendees?: number
+}
+
+export interface FinanceRecord {
+  id: string
+  type: "entrada" | "saida"
+  category: "dizimo" | "oferta" | "doacao" | "despesa" | "salario"
+  description: string
+  amount: number
+  date: string
+  method: "dinheiro" | "pix" | "cartao" | "transferencia"
+  member?: string
+}
+
 export const fakeChurchData: ChurchData = {
   id: "1",
   name: "Igreja Batista Central",
@@ -58,6 +81,114 @@ export const fakeUsers = {
     accessLevel: "member" as const,
   },
 }
+
+export const fakeEvents: Event[] = [
+  {
+    id: "1",
+    title: "Culto Dominical",
+    description: "Culto de adoração e pregação da palavra",
+    date: "2024-01-21",
+    time: "19:00",
+    location: "Templo Principal",
+    type: "culto",
+    organizer: "Pastor João Silva",
+    attendees: 320,
+  },
+  {
+    id: "2",
+    title: "Retiro de Jovens",
+    description: "Retiro espiritual para jovens de 15 a 30 anos",
+    date: "2024-03-15",
+    time: "08:00",
+    location: "Campos do Jordão - SP",
+    type: "evento",
+    organizer: "Maria Santos",
+    attendees: 45,
+  },
+  {
+    id: "3",
+    title: "Reunião de Oração",
+    description: "Momento de intercessão e oração pela igreja",
+    date: "2024-01-24",
+    time: "19:30",
+    location: "Sala de Oração",
+    type: "reuniao",
+    organizer: "Ministério de Intercessão",
+    attendees: 25,
+  },
+  {
+    id: "4",
+    title: "Estudo Bíblico",
+    description: "Estudo do livro de Romanos - Capítulo 8",
+    date: "2024-01-25",
+    time: "20:00",
+    location: "Sala 2",
+    type: "estudo",
+    organizer: "Pastor João Silva",
+    attendees: 35,
+  },
+  {
+    id: "5",
+    title: "Culto de Quarta",
+    description: "Culto de meio de semana com foco em ensino",
+    date: "2024-01-24",
+    time: "19:30",
+    location: "Templo Principal",
+    type: "culto",
+    organizer: "Pastor João Silva",
+    attendees: 180,
+  },
+]
+
+export const fakeFinanceRecords: FinanceRecord[] = [
+  {
+    id: "1",
+    type: "entrada",
+    category: "dizimo",
+    description: "Dízimos Janeiro 2024",
+    amount: 15420.5,
+    date: "2024-01-15",
+    method: "pix",
+    member: "Vários membros",
+  },
+  {
+    id: "2",
+    type: "entrada",
+    category: "oferta",
+    description: "Ofertas Culto Dominical",
+    amount: 2340.0,
+    date: "2024-01-14",
+    method: "dinheiro",
+  },
+  {
+    id: "3",
+    type: "saida",
+    category: "despesa",
+    description: "Conta de Luz",
+    amount: 890.45,
+    date: "2024-01-10",
+    method: "transferencia",
+  },
+  {
+    id: "4",
+    type: "entrada",
+    category: "doacao",
+    description: "Doação para reforma do templo",
+    amount: 5000.0,
+    date: "2024-01-12",
+    method: "pix",
+    member: "João Carlos Silva",
+  },
+  {
+    id: "5",
+    type: "saida",
+    category: "salario",
+    description: "Salário Pastor",
+    amount: 4500.0,
+    date: "2024-01-05",
+    method: "transferencia",
+  },
+]
 
 export const fakeNotifications: Notification[] = [
   {
@@ -182,6 +313,14 @@ export const getNotifications = (): Notification[] => {
   return fakeNotifications
 }
 
+export const getEvents = (): Event[] => {
+  return fakeEvents
+}
+
+export const getFinanceRecords = (): FinanceRecord[] => {
+  return fakeFinanceRecords
+}
+
 export const formatTimeAgo = (timestamp: string): string => {
   const now = new Date()
   const time = new Date(timestamp)
@@ -193,6 +332,13 @@ export const formatTimeAgo = (timestamp: string): string => {
   if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d atrás`
 
   return time.toLocaleDateString("pt-BR")
+}
+
+export const formatCurrency = (value: number): string => {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(value)
 }
 
 // Função para verificar permissões
