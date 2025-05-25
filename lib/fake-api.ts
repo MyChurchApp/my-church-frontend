@@ -42,6 +42,26 @@ export interface Event {
   attendees?: number
 }
 
+export interface Member {
+  id: string
+  name: string
+  email: string
+  phone: string
+  cpf: string
+  birthDate: string
+  address: string
+  city: string
+  state: string
+  zipCode: string
+  maritalStatus: "solteiro" | "casado" | "divorciado" | "viuvo"
+  baptized: boolean
+  memberSince: string
+  ministry: string
+  photo?: string
+  isActive: boolean
+  notes?: string
+}
+
 export interface FinanceRecord {
   id: string
   type: "entrada" | "saida"
@@ -81,6 +101,123 @@ export const fakeUsers = {
     accessLevel: "member" as const,
   },
 }
+
+export const fakeMembers: Member[] = [
+  {
+    id: "1",
+    name: "Pastor João Silva",
+    email: "joao.silva@igreja.com.br",
+    phone: "(11) 99999-0001",
+    cpf: "123.456.789-01",
+    birthDate: "1975-03-15",
+    address: "Rua das Palmeiras, 456",
+    city: "São Paulo",
+    state: "SP",
+    zipCode: "01234-567",
+    maritalStatus: "casado",
+    baptized: true,
+    memberSince: "2010-01-15",
+    ministry: "Liderança",
+    photo: "/placeholder.svg?height=100&width=100&query=pastor+profile",
+    isActive: true,
+    notes: "Pastor principal da igreja",
+  },
+  {
+    id: "2",
+    name: "Maria Santos",
+    email: "maria.santos@email.com",
+    phone: "(11) 99999-0002",
+    cpf: "987.654.321-02",
+    birthDate: "1988-07-22",
+    address: "Av. Paulista, 1000",
+    city: "São Paulo",
+    state: "SP",
+    zipCode: "01310-100",
+    maritalStatus: "solteiro",
+    baptized: true,
+    memberSince: "2018-05-10",
+    ministry: "Jovens",
+    photo: "/placeholder.svg?height=100&width=100&query=young+woman+church",
+    isActive: true,
+    notes: "Líder do ministério de jovens",
+  },
+  {
+    id: "3",
+    name: "Carlos Oliveira",
+    email: "carlos.oliveira@email.com",
+    phone: "(11) 99999-0003",
+    cpf: "456.789.123-03",
+    birthDate: "1965-12-08",
+    address: "Rua da Consolação, 789",
+    city: "São Paulo",
+    state: "SP",
+    zipCode: "01302-001",
+    maritalStatus: "casado",
+    baptized: true,
+    memberSince: "2005-03-20",
+    ministry: "Música",
+    photo: "/placeholder.svg?height=100&width=100&query=man+musician+church",
+    isActive: true,
+    notes: "Regente do coral da igreja",
+  },
+  {
+    id: "4",
+    name: "Ana Costa",
+    email: "ana.costa@email.com",
+    phone: "(11) 99999-0004",
+    cpf: "789.123.456-04",
+    birthDate: "1992-01-16",
+    address: "Rua Augusta, 321",
+    city: "São Paulo",
+    state: "SP",
+    zipCode: "01305-000",
+    maritalStatus: "solteiro",
+    baptized: false,
+    memberSince: "2023-08-15",
+    ministry: "Visitação",
+    photo: "/placeholder.svg?height=100&width=100&query=young+woman+smile",
+    isActive: true,
+    notes: "Nova convertida, em processo de batismo",
+  },
+  {
+    id: "5",
+    name: "Pedro Mendes",
+    email: "pedro.mendes@email.com",
+    phone: "(11) 99999-0005",
+    cpf: "321.654.987-05",
+    birthDate: "1980-09-30",
+    address: "Rua Liberdade, 654",
+    city: "São Paulo",
+    state: "SP",
+    zipCode: "01503-001",
+    maritalStatus: "divorciado",
+    baptized: true,
+    memberSince: "2015-11-05",
+    ministry: "Intercessão",
+    photo: "/placeholder.svg?height=100&width=100&query=man+prayer+church",
+    isActive: false,
+    notes: "Afastado temporariamente por motivos pessoais",
+  },
+  {
+    id: "6",
+    name: "Rosa Silva",
+    email: "rosa.silva@email.com",
+    phone: "(11) 99999-0006",
+    cpf: "654.987.321-06",
+    birthDate: "1955-04-12",
+    address: "Rua do Carmo, 987",
+    city: "São Paulo",
+    state: "SP",
+    zipCode: "01020-010",
+    maritalStatus: "viuvo",
+    baptized: true,
+    memberSince: "1985-06-30",
+    ministry: "Oração",
+    photo: "/placeholder.svg?height=100&width=100&query=elderly+woman+church",
+    isActive: true,
+    notes: "Membro fundador da igreja",
+  },
+]
 
 export const fakeEvents: Event[] = [
   {
@@ -315,6 +452,10 @@ export const getNotifications = (): Notification[] => {
 
 export const getEvents = (): Event[] => {
   return fakeEvents
+}
+
+export const getMembers = (): Member[] => {
+  return fakeMembers
 }
 
 export const getFinanceRecords = (): FinanceRecord[] => {

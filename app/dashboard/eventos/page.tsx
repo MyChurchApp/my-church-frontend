@@ -13,7 +13,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Calendar, Clock, MapPin, Users, Plus, ChevronLeft, ChevronRight, CalendarDays, Filter } from "lucide-react"
+import {
+  Calendar,
+  Clock,
+  MapPin,
+  Users,
+  Plus,
+  ChevronLeft,
+  ChevronRight,
+  CalendarDays,
+  Filter,
+  Edit,
+  Trash2,
+} from "lucide-react"
 import { getUser, getEvents, type User, type Event } from "@/lib/fake-api"
 
 export default function EventosPage() {
@@ -25,8 +37,10 @@ export default function EventosPage() {
   const [viewMode, setViewMode] = useState<"calendar" | "list">("calendar")
   const [filterType, setFilterType] = useState<string>("all")
 
-  // Form state for new event
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  // Form state for new/edit event
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
   const [newEvent, setNewEvent] = useState({
     title: "",
     description: "",
@@ -105,7 +119,43 @@ export default function EventosPage() {
 
     setEvents([...events, event])
     setNewEvent({ title: "", description: "", date: "", time: "", location: "", type: "" })
-    setIsDialogOpen(false)
+    setIsCreateDialogOpen(false)
+  }
+
+  const handleEditEvent = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedEvent || !newEvent.title || !newEvent.date || !newEvent.time || !newEvent.type) return
+
+    const updatedEvent: Event = {
+      ...selectedEvent,
+      ...newEvent,
+    }
+
+    setEvents(events.map((event) => (event.id === selectedEvent.id ? updatedEvent : event)))
+    setNewEvent({ title: "", description: "", date: "", time: "", location: "", type: "" })
+    setSelectedEvent(null)
+    setIsEditDialogOpen(false)
+  }
+
+  const handleDeleteEvent = (eventId: string) => {
+    if (confirm("Tem certeza que deseja excluir este evento?")) {
+      setEvents(events.filter((event) => event.id !== eventId))
+      setIsEditDialogOpen(false)
+      setSelectedEvent(null)
+    }
+  }
+
+  const openEditDialog = (event: Event) => {
+    setSelectedEvent(event)
+    setNewEvent({
+      title: event.title,
+      description: event.description,
+      date: event.date,
+      time: event.time,
+      location: event.location,
+      type: event.type,
+    })
+    setIsEditDialogOpen(true)
   }
 
   const filteredEvents = events.filter((event) => {
@@ -148,7 +198,7 @@ export default function EventosPage() {
             </div>
             <div className="flex items-center gap-4">
               {user.accessLevel === "admin" && (
-                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
                   <DialogTrigger asChild>
                     <Button className="flex items-center gap-2">
                       <Plus className="h-4 w-4" />
@@ -261,6 +311,101 @@ export default function EventosPage() {
           </div>
         </header>
 
+        {/* Edit Event Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Editar Evento</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleEditEvent} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-event-title">Título</Label>
+                <Input
+                  id="edit-event-title"
+                  value={newEvent.title}
+                  onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
+                  placeholder="Nome do evento"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-event-type">Tipo</Label>
+                <Select value={newEvent.type} onValueChange={(value) => setNewEvent({ ...newEvent, type: value })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o tipo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="culto">Culto</SelectItem>
+                    <SelectItem value="evento">Evento</SelectItem>
+                    <SelectItem value="reuniao">Reunião</SelectItem>
+                    <SelectItem value="estudo">Estudo Bíblico</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-event-date">Data</Label>
+                  <Input
+                    id="edit-event-date"
+                    type="date"
+                    value={newEvent.date}
+                    onChange={(e) => setNewEvent({ ...newEvent, date: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-event-time">Horário</Label>
+                  <Input
+                    id="edit-event-time"
+                    type="time"
+                    value={newEvent.time}
+                    onChange={(e) => setNewEvent({ ...newEvent, time: e.target.value })}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-event-location">Local</Label>
+                <Input
+                  id="edit-event-location"
+                  value={newEvent.location}
+                  onChange={(e) => setNewEvent({ ...newEvent, location: e.target.value })}
+                  placeholder="Local do evento"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-event-description">Descrição</Label>
+                <Textarea
+                  id="edit-event-description"
+                  value={newEvent.description}
+                  onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
+                  placeholder="Descrição do evento"
+                  rows={3}
+                />
+              </div>
+
+              <div className="flex gap-2">
+                <Button type="submit" className="flex-1">
+                  Salvar Alterações
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={() => selectedEvent && handleDeleteEvent(selectedEvent.id)}
+                  className="flex items-center gap-2"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Excluir
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+
         {/* Main Content */}
         <div className="flex-1 overflow-y-auto">
           <div className="p-6">
@@ -338,7 +483,8 @@ export default function EventosPage() {
                                 .map((event) => (
                                   <div
                                     key={event.id}
-                                    className={`text-xs p-1 rounded border ${getEventTypeColor(event.type)}`}
+                                    className={`text-xs p-1 rounded border cursor-pointer hover:opacity-80 ${getEventTypeColor(event.type)}`}
+                                    onClick={() => user?.accessLevel === "admin" && openEditDialog(event)}
                                   >
                                     <div className="font-medium truncate">{event.title}</div>
                                     <div className="flex items-center gap-1">
@@ -369,8 +515,11 @@ export default function EventosPage() {
             ) : (
               <div className="space-y-4">
                 {filteredEvents.map((event) => (
-                  <Card key={event.id}>
-                    <CardContent className="p-4">
+                  <Card
+                    key={event.id}
+                    className={user?.accessLevel === "admin" ? "cursor-pointer hover:shadow-md transition-shadow" : ""}
+                  >
+                    <CardContent className="p-4" onClick={() => user?.accessLevel === "admin" && openEditDialog(event)}>
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
@@ -378,6 +527,7 @@ export default function EventosPage() {
                             <Badge className={getEventTypeColor(event.type)}>
                               {event.type.charAt(0).toUpperCase() + event.type.slice(1)}
                             </Badge>
+                            {user?.accessLevel === "admin" && <Edit className="h-4 w-4 text-gray-400" />}
                           </div>
                           <p className="text-gray-600 mb-3">{event.description}</p>
                           <div className="flex items-center gap-4 text-sm text-gray-500">

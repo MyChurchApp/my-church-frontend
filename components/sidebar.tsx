@@ -10,16 +10,12 @@ import {
   Users,
   Calendar,
   DollarSign,
-  BarChart3,
   MessageSquare,
   Settings,
   LogOut,
   ChevronLeft,
   ChevronRight,
   Bell,
-  FileText,
-  Heart,
-  Shield,
 } from "lucide-react"
 import { getUser } from "@/lib/fake-api"
 
@@ -53,10 +49,6 @@ export function Sidebar({ className = "" }: SidebarProps) {
     // Itens apenas para admin
     { icon: MessageSquare, label: "Comunicação", href: "/dashboard/comunicacao", accessLevel: "admin" },
     { icon: DollarSign, label: "Financeiro", href: "/dashboard/financeiro", accessLevel: "admin" },
-    { icon: BarChart3, label: "Relatórios", href: "/dashboard/relatorios", accessLevel: "admin" },
-    { icon: Heart, label: "Ministérios", href: "/dashboard/ministerios", accessLevel: "admin" },
-    { icon: FileText, label: "Documentos", href: "/dashboard/documentos", accessLevel: "admin" },
-    { icon: Shield, label: "Permissões", href: "/dashboard/permissoes", accessLevel: "admin" },
     { icon: Settings, label: "Configurações", href: "/dashboard/configuracoes", accessLevel: "admin" },
   ]
 
