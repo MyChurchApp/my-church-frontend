@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -30,6 +30,8 @@ import {
   Send,
   UserCheck,
   UserX,
+  Download,
+  FileText,
 } from "lucide-react"
 import { getUser, getMembers, type User, type Member } from "@/lib/fake-api"
 
@@ -95,6 +97,115 @@ export default function MembrosPage() {
 
     setFilteredMembers(filtered)
   }, [members, searchTerm, statusFilter])
+
+  const generateMembersPDFReport = () => {
+    const activeMembers = members.filter((member) => member.isActive)
+    const inactiveMembers = members.filter((member) => !member.isActive)
+
+    // Criar conteúdo HTML para o PDF
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Relatório de Membros</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; }
+          .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 10px; }
+          .summary { margin-bottom: 30px; background: #f5f5f5; padding: 15px; border-radius: 5px; }
+          .member-section { margin-bottom: 30px; }
+          .member-item { margin-bottom: 15px; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
+          .member-name { font-weight: bold; font-size: 16px; color: #333; }
+          .member-details { margin-top: 5px; color: #666; }
+          .status-active { color: #22c55e; font-weight: bold; }
+          .status-inactive { color: #ef4444; font-weight: bold; }
+          h2 { color: #333; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>RELATÓRIO DE MEMBROS</h1>
+          <p>Igreja Batista Central</p>
+          <p>Gerado em: ${new Date().toLocaleDateString("pt-BR")} às ${new Date().toLocaleTimeString("pt-BR")}</p>
+        </div>
+
+        <div class="summary">
+          <h2>RESUMO GERAL</h2>
+          <p><strong>Total de Membros:</strong> ${members.length}</p>
+          <p><strong>Membros Ativos:</strong> ${activeMembers.length}</p>
+          <p><strong>Membros Inativos:</strong> ${inactiveMembers.length}</p>
+          <p><strong>Taxa de Atividade:</strong> ${((activeMembers.length / members.length) * 100).toFixed(1)}%</p>
+        </div>
+
+        <div class="member-section">
+          <h2>MEMBROS ATIVOS (${activeMembers.length})</h2>
+          ${activeMembers
+            .map(
+              (member) => `
+            <div class="member-item">
+              <div class="member-name">${member.name} <span class="status-active">[ATIVO]</span></div>
+              <div class="member-details">
+                <p><strong>Email:</strong> ${member.email}</p>
+                <p><strong>Telefone:</strong> ${member.phone}</p>
+                <p><strong>CPF:</strong> ${member.cpf}</p>
+                <p><strong>Data de Nascimento:</strong> ${new Date(member.birthDate).toLocaleDateString("pt-BR")}</p>
+                <p><strong>Estado Civil:</strong> ${member.maritalStatus}</p>
+                <p><strong>Endereço:</strong> ${member.address}, ${member.city} - ${member.state}, ${member.zipCode}</p>
+                <p><strong>Membro desde:</strong> ${new Date(member.memberSince).toLocaleDateString("pt-BR")}</p>
+                <p><strong>Ministério:</strong> ${member.ministry}</p>
+                <p><strong>Batizado:</strong> ${member.baptized ? "Sim" : "Não"}</p>
+                ${member.notes ? `<p><strong>Observações:</strong> ${member.notes}</p>` : ""}
+              </div>
+            </div>
+          `,
+            )
+            .join("")}
+        </div>
+
+        ${
+          inactiveMembers.length > 0
+            ? `
+        <div class="member-section">
+          <h2>MEMBROS INATIVOS (${inactiveMembers.length})</h2>
+          ${inactiveMembers
+            .map(
+              (member) => `
+            <div class="member-item">
+              <div class="member-name">${member.name} <span class="status-inactive">[INATIVO]</span></div>
+              <div class="member-details">
+                <p><strong>Email:</strong> ${member.email}</p>
+                <p><strong>Telefone:</strong> ${member.phone}</p>
+                <p><strong>Membro desde:</strong> ${new Date(member.memberSince).toLocaleDateString("pt-BR")}</p>
+                ${member.notes ? `<p><strong>Observações:</strong> ${member.notes}</p>` : ""}
+              </div>
+            </div>
+          `,
+            )
+            .join("")}
+        </div>
+        `
+            : ""
+        }
+      </body>
+      </html>
+    `
+
+    // Criar e baixar o arquivo HTML que pode ser convertido para PDF
+    const blob = new Blob([htmlContent], { type: "text/html;charset=utf-8" })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = `relatorio-membros-${new Date().toISOString().split("T")[0]}.html`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+
+    // Mostrar instruções para o usuário
+    alert(
+      "Relatório gerado! Para converter para PDF:\n1. Abra o arquivo HTML baixado\n2. Use Ctrl+P (ou Cmd+P no Mac)\n3. Selecione 'Salvar como PDF' como destino",
+    )
+  }
 
   const handleCreateMember = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -209,182 +320,190 @@ export default function MembrosPage() {
               <h1 className="text-2xl font-bold text-gray-900">Membros</h1>
               <p className="text-gray-600">Gerencie os membros da igreja</p>
             </div>
-            {user.accessLevel === "admin" && (
-              <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button className="flex items-center gap-2">
-                    <Plus className="h-4 w-4" />
-                    Novo Membro
+            <div className="flex gap-2">
+              {user.accessLevel === "admin" && (
+                <>
+                  <Button onClick={generateMembersPDFReport} variant="outline" className="flex items-center gap-2">
+                    <Download className="h-4 w-4" />
+                    Relatório PDF
                   </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle>Cadastrar Novo Membro</DialogTitle>
-                  </DialogHeader>
-                  <form onSubmit={handleCreateMember} className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="member-name">Nome Completo *</Label>
-                        <Input
-                          id="member-name"
-                          value={memberForm.name}
-                          onChange={(e) => setMemberForm({ ...memberForm, name: e.target.value })}
-                          placeholder="Nome completo"
-                          required
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="member-cpf">CPF</Label>
-                        <Input
-                          id="member-cpf"
-                          value={memberForm.cpf}
-                          onChange={(e) => setMemberForm({ ...memberForm, cpf: e.target.value })}
-                          placeholder="000.000.000-00"
-                        />
-                      </div>
-                    </div>
+                  <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button className="flex items-center gap-2">
+                        <Plus className="h-4 w-4" />
+                        Novo Membro
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Cadastrar Novo Membro</DialogTitle>
+                      </DialogHeader>
+                      <form onSubmit={handleCreateMember} className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="member-name">Nome Completo *</Label>
+                            <Input
+                              id="member-name"
+                              value={memberForm.name}
+                              onChange={(e) => setMemberForm({ ...memberForm, name: e.target.value })}
+                              placeholder="Nome completo"
+                              required
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="member-cpf">CPF</Label>
+                            <Input
+                              id="member-cpf"
+                              value={memberForm.cpf}
+                              onChange={(e) => setMemberForm({ ...memberForm, cpf: e.target.value })}
+                              placeholder="000.000.000-00"
+                            />
+                          </div>
+                        </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="member-email">Email *</Label>
-                        <Input
-                          id="member-email"
-                          type="email"
-                          value={memberForm.email}
-                          onChange={(e) => setMemberForm({ ...memberForm, email: e.target.value })}
-                          placeholder="email@exemplo.com"
-                          required
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="member-phone">Telefone *</Label>
-                        <Input
-                          id="member-phone"
-                          value={memberForm.phone}
-                          onChange={(e) => setMemberForm({ ...memberForm, phone: e.target.value })}
-                          placeholder="(11) 99999-9999"
-                          required
-                        />
-                      </div>
-                    </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="member-email">Email *</Label>
+                            <Input
+                              id="member-email"
+                              type="email"
+                              value={memberForm.email}
+                              onChange={(e) => setMemberForm({ ...memberForm, email: e.target.value })}
+                              placeholder="email@exemplo.com"
+                              required
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="member-phone">Telefone *</Label>
+                            <Input
+                              id="member-phone"
+                              value={memberForm.phone}
+                              onChange={(e) => setMemberForm({ ...memberForm, phone: e.target.value })}
+                              placeholder="(11) 99999-9999"
+                              required
+                            />
+                          </div>
+                        </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="member-birth">Data de Nascimento</Label>
-                        <Input
-                          id="member-birth"
-                          type="date"
-                          value={memberForm.birthDate}
-                          onChange={(e) => setMemberForm({ ...memberForm, birthDate: e.target.value })}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="member-marital">Estado Civil</Label>
-                        <Select
-                          value={memberForm.maritalStatus}
-                          onValueChange={(value) => setMemberForm({ ...memberForm, maritalStatus: value })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="solteiro">Solteiro(a)</SelectItem>
-                            <SelectItem value="casado">Casado(a)</SelectItem>
-                            <SelectItem value="divorciado">Divorciado(a)</SelectItem>
-                            <SelectItem value="viuvo">Viúvo(a)</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="member-birth">Data de Nascimento</Label>
+                            <Input
+                              id="member-birth"
+                              type="date"
+                              value={memberForm.birthDate}
+                              onChange={(e) => setMemberForm({ ...memberForm, birthDate: e.target.value })}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="member-marital">Estado Civil</Label>
+                            <Select
+                              value={memberForm.maritalStatus}
+                              onValueChange={(value) => setMemberForm({ ...memberForm, maritalStatus: value })}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="solteiro">Solteiro(a)</SelectItem>
+                                <SelectItem value="casado">Casado(a)</SelectItem>
+                                <SelectItem value="divorciado">Divorciado(a)</SelectItem>
+                                <SelectItem value="viuvo">Viúvo(a)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="member-address">Endereço</Label>
-                      <Input
-                        id="member-address"
-                        value={memberForm.address}
-                        onChange={(e) => setMemberForm({ ...memberForm, address: e.target.value })}
-                        placeholder="Rua, número, complemento"
-                      />
-                    </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="member-address">Endereço</Label>
+                          <Input
+                            id="member-address"
+                            value={memberForm.address}
+                            onChange={(e) => setMemberForm({ ...memberForm, address: e.target.value })}
+                            placeholder="Rua, número, complemento"
+                          />
+                        </div>
 
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="member-city">Cidade</Label>
-                        <Input
-                          id="member-city"
-                          value={memberForm.city}
-                          onChange={(e) => setMemberForm({ ...memberForm, city: e.target.value })}
-                          placeholder="Cidade"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="member-state">Estado</Label>
-                        <Input
-                          id="member-state"
-                          value={memberForm.state}
-                          onChange={(e) => setMemberForm({ ...memberForm, state: e.target.value })}
-                          placeholder="UF"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="member-zip">CEP</Label>
-                        <Input
-                          id="member-zip"
-                          value={memberForm.zipCode}
-                          onChange={(e) => setMemberForm({ ...memberForm, zipCode: e.target.value })}
-                          placeholder="00000-000"
-                        />
-                      </div>
-                    </div>
+                        <div className="grid grid-cols-3 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="member-city">Cidade</Label>
+                            <Input
+                              id="member-city"
+                              value={memberForm.city}
+                              onChange={(e) => setMemberForm({ ...memberForm, city: e.target.value })}
+                              placeholder="Cidade"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="member-state">Estado</Label>
+                            <Input
+                              id="member-state"
+                              value={memberForm.state}
+                              onChange={(e) => setMemberForm({ ...memberForm, state: e.target.value })}
+                              placeholder="UF"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="member-zip">CEP</Label>
+                            <Input
+                              id="member-zip"
+                              value={memberForm.zipCode}
+                              onChange={(e) => setMemberForm({ ...memberForm, zipCode: e.target.value })}
+                              placeholder="00000-000"
+                            />
+                          </div>
+                        </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="member-since">Membro desde</Label>
-                        <Input
-                          id="member-since"
-                          type="date"
-                          value={memberForm.memberSince}
-                          onChange={(e) => setMemberForm({ ...memberForm, memberSince: e.target.value })}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="member-ministry">Ministério</Label>
-                        <Input
-                          id="member-ministry"
-                          value={memberForm.ministry}
-                          onChange={(e) => setMemberForm({ ...memberForm, ministry: e.target.value })}
-                          placeholder="Ministério que participa"
-                        />
-                      </div>
-                    </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="member-since">Membro desde</Label>
+                            <Input
+                              id="member-since"
+                              type="date"
+                              value={memberForm.memberSince}
+                              onChange={(e) => setMemberForm({ ...memberForm, memberSince: e.target.value })}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="member-ministry">Ministério</Label>
+                            <Input
+                              id="member-ministry"
+                              value={memberForm.ministry}
+                              onChange={(e) => setMemberForm({ ...memberForm, ministry: e.target.value })}
+                              placeholder="Ministério que participa"
+                            />
+                          </div>
+                        </div>
 
-                    <div className="flex items-center space-x-2">
-                      <Switch
-                        id="member-baptized"
-                        checked={memberForm.baptized}
-                        onCheckedChange={(checked) => setMemberForm({ ...memberForm, baptized: checked })}
-                      />
-                      <Label htmlFor="member-baptized">Batizado</Label>
-                    </div>
+                        <div className="flex items-center space-x-2">
+                          <Switch
+                            id="member-baptized"
+                            checked={memberForm.baptized}
+                            onCheckedChange={(checked) => setMemberForm({ ...memberForm, baptized: checked })}
+                          />
+                          <Label htmlFor="member-baptized">Batizado</Label>
+                        </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="member-notes">Observações</Label>
-                      <Textarea
-                        id="member-notes"
-                        value={memberForm.notes}
-                        onChange={(e) => setMemberForm({ ...memberForm, notes: e.target.value })}
-                        placeholder="Observações sobre o membro"
-                        rows={3}
-                      />
-                    </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="member-notes">Observações</Label>
+                          <Textarea
+                            id="member-notes"
+                            value={memberForm.notes}
+                            onChange={(e) => setMemberForm({ ...memberForm, notes: e.target.value })}
+                            placeholder="Observações sobre o membro"
+                            rows={3}
+                          />
+                        </div>
 
-                    <Button type="submit" className="w-full">
-                      Cadastrar Membro
-                    </Button>
-                  </form>
-                </DialogContent>
-              </Dialog>
-            )}
+                        <Button type="submit" className="w-full">
+                          Cadastrar Membro
+                        </Button>
+                      </form>
+                    </DialogContent>
+                  </Dialog>
+                </>
+              )}
+            </div>
           </div>
         </header>
 
@@ -596,6 +715,36 @@ export default function MembrosPage() {
         {/* Main Content */}
         <div className="flex-1 overflow-y-auto">
           <div className="p-6">
+            {/* Members Summary */}
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Resumo de Membros
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-blue-600">{members.length}</div>
+                    <p className="text-sm text-gray-600">Total de Membros</p>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-green-600">{members.filter((m) => m.isActive).length}</div>
+                    <p className="text-sm text-gray-600">Membros Ativos</p>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-red-600">{members.filter((m) => !m.isActive).length}</div>
+                    <p className="text-sm text-gray-600">Membros Inativos</p>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-purple-600">{filteredMembers.length}</div>
+                    <p className="text-sm text-gray-600">Resultados da Busca</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Search and Filters */}
             <div className="mb-6 flex flex-col sm:flex-row gap-4">
               <div className="flex-1 relative">

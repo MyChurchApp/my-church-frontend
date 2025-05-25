@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Logo } from "@/components/logo"
 import {
@@ -15,7 +15,6 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
-  Bell,
 } from "lucide-react"
 import { getUser } from "@/lib/fake-api"
 
@@ -27,13 +26,13 @@ interface MenuItem {
   icon: any
   label: string
   href: string
-  active?: boolean
   accessLevel: "admin" | "member"
 }
 
 export function Sidebar({ className = "" }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const router = useRouter()
+  const pathname = usePathname()
   const user = getUser()
 
   const handleLogout = () => {
@@ -42,10 +41,9 @@ export function Sidebar({ className = "" }: SidebarProps) {
   }
 
   const allMenuItems: MenuItem[] = [
-    { icon: Home, label: "Dashboard", href: "/dashboard", active: true, accessLevel: "member" },
+    { icon: Home, label: "Dashboard", href: "/dashboard", accessLevel: "member" },
     { icon: Users, label: "Membros", href: "/dashboard/membros", accessLevel: "member" },
     { icon: Calendar, label: "Eventos", href: "/dashboard/eventos", accessLevel: "member" },
-    { icon: Bell, label: "Notificações", href: "/dashboard/notificacoes", accessLevel: "member" },
     // Itens apenas para admin
     { icon: MessageSquare, label: "Comunicação", href: "/dashboard/comunicacao", accessLevel: "admin" },
     { icon: DollarSign, label: "Financeiro", href: "/dashboard/financeiro", accessLevel: "admin" },
@@ -58,6 +56,13 @@ export function Sidebar({ className = "" }: SidebarProps) {
     if (user.accessLevel === "admin") return true
     return item.accessLevel === "member"
   })
+
+  const isActiveRoute = (href: string) => {
+    if (href === "/dashboard") {
+      return pathname === "/dashboard"
+    }
+    return pathname.startsWith(href)
+  }
 
   return (
     <div
@@ -99,8 +104,11 @@ export function Sidebar({ className = "" }: SidebarProps) {
                 <Link
                   href={item.href}
                   className={`flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${
-                    item.active ? "bg-primary text-primary-foreground" : "text-gray-700 hover:bg-gray-100"
+                    isActiveRoute(item.href)
+                      ? "text-white shadow-md"
+                      : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
                   }`}
+                  style={isActiveRoute(item.href) ? { backgroundColor: "#89f0e6" } : {}}
                 >
                   <item.icon className="h-5 w-5 flex-shrink-0" />
                   {!isCollapsed && <span className="font-medium">{item.label}</span>}

@@ -155,44 +155,108 @@ export default function FinanceiroPage() {
     const totalSaidas = getTotalSaidas()
     const saldo = getSaldo()
 
-    // Criar conteúdo do relatório
-    const reportContent = `
-RELATÓRIO FINANCEIRO - IGREJA BATISTA CENTRAL
-Gerado em: ${new Date().toLocaleDateString("pt-BR")}
+    // Criar conteúdo HTML para o PDF
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Relatório Financeiro</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; }
+          .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 10px; }
+          .summary { margin-bottom: 30px; background: #f5f5f5; padding: 15px; border-radius: 5px; }
+          .summary-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
+          .summary-item { text-align: center; }
+          .summary-value { font-size: 24px; font-weight: bold; margin-bottom: 5px; }
+          .entrada { color: #22c55e; }
+          .saida { color: #ef4444; }
+          .saldo { color: #3b82f6; }
+          .transaction-section { margin-bottom: 30px; }
+          .transaction-item { margin-bottom: 15px; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+          .transaction-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+          .transaction-title { font-weight: bold; font-size: 16px; }
+          .transaction-amount { font-size: 18px; font-weight: bold; }
+          .transaction-details { color: #666; font-size: 14px; }
+          .category-badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; margin-right: 10px; }
+          .category-entrada { background: #dcfce7; color: #166534; }
+          .category-saida { background: #fee2e2; color: #991b1b; }
+          h2 { color: #333; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>RELATÓRIO FINANCEIRO</h1>
+          <p>Igreja Batista Central</p>
+          <p>Gerado em: ${new Date().toLocaleDateString("pt-BR")} às ${new Date().toLocaleTimeString("pt-BR")}</p>
+        </div>
 
-RESUMO FINANCEIRO:
-- Total de Entradas: ${formatCurrency(totalEntradas)}
-- Total de Saídas: ${formatCurrency(totalSaidas)}
-- Saldo: ${formatCurrency(saldo)}
-- Total de Transações: ${filteredRecords.length}
+        <div class="summary">
+          <h2>RESUMO FINANCEIRO</h2>
+          <div class="summary-grid">
+            <div class="summary-item">
+              <div class="summary-value entrada">${formatCurrency(totalEntradas)}</div>
+              <p>Total de Entradas</p>
+            </div>
+            <div class="summary-item">
+              <div class="summary-value saida">${formatCurrency(totalSaidas)}</div>
+              <p>Total de Saídas</p>
+            </div>
+            <div class="summary-item">
+              <div class="summary-value ${saldo >= 0 ? "entrada" : "saida"}">${formatCurrency(saldo)}</div>
+              <p>Saldo Final</p>
+            </div>
+            <div class="summary-item">
+              <div class="summary-value">${filteredRecords.length}</div>
+              <p>Total de Transações</p>
+            </div>
+          </div>
+        </div>
 
-DETALHAMENTO DAS TRANSAÇÕES:
-${filteredRecords
-  .map(
-    (record) => `
-Data: ${new Date(record.date).toLocaleDateString("pt-BR")}
-Tipo: ${record.type === "entrada" ? "ENTRADA" : "SAÍDA"}
-Categoria: ${record.categoryName}
-Descrição: ${record.description}
-Valor: ${formatCurrency(record.amount)}
-Método: ${record.method}
-${record.member ? `Membro: ${record.member}` : ""}
----
-`,
-  )
-  .join("")}
+        <div class="transaction-section">
+          <h2>DETALHAMENTO DAS TRANSAÇÕES</h2>
+          ${filteredRecords
+            .map(
+              (record) => `
+            <div class="transaction-item">
+              <div class="transaction-header">
+                <div class="transaction-title">${record.description}</div>
+                <div class="transaction-amount ${record.type}">${record.type === "entrada" ? "+" : "-"}${formatCurrency(record.amount)}</div>
+              </div>
+              <div class="transaction-details">
+                <span class="category-badge category-${record.type}">${record.categoryName}</span>
+                <strong>Data:</strong> ${new Date(record.date).toLocaleDateString("pt-BR")} | 
+                <strong>Método:</strong> ${record.method} 
+                ${record.member ? `| <strong>Membro:</strong> ${record.member}` : ""}
+              </div>
+            </div>
+          `,
+            )
+            .join("")}
+        </div>
+
+        <div style="margin-top: 40px; text-align: center; color: #666; font-size: 12px;">
+          <p>Relatório gerado automaticamente pelo Sistema MyChurch</p>
+        </div>
+      </body>
+      </html>
     `
 
-    // Criar e baixar o arquivo
-    const blob = new Blob([reportContent], { type: "text/plain;charset=utf-8" })
+    // Criar e baixar o arquivo HTML que pode ser convertido para PDF
+    const blob = new Blob([htmlContent], { type: "text/html;charset=utf-8" })
     const url = URL.createObjectURL(blob)
     const link = document.createElement("a")
     link.href = url
-    link.download = `relatorio-financeiro-${new Date().toISOString().split("T")[0]}.txt`
+    link.download = `relatorio-financeiro-${new Date().toISOString().split("T")[0]}.html`
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
+
+    // Mostrar instruções para o usuário
+    alert(
+      "Relatório gerado! Para converter para PDF:\n1. Abra o arquivo HTML baixado\n2. Use Ctrl+P (ou Cmd+P no Mac)\n3. Selecione 'Salvar como PDF' como destino",
+    )
   }
 
   const getFilteredRecords = () => {
@@ -270,7 +334,7 @@ ${record.member ? `Membro: ${record.member}` : ""}
             <div className="flex gap-2">
               <Button onClick={generatePDFReport} variant="outline" className="flex items-center gap-2">
                 <Download className="h-4 w-4" />
-                Gerar Relatório
+                Relatório PDF
               </Button>
               <Dialog open={isCategoryDialogOpen} onOpenChange={setIsCategoryDialogOpen}>
                 <DialogTrigger asChild>
