@@ -23,7 +23,6 @@ import {
 import { Logo } from "@/components/logo"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { LanguageSwitcher } from "@/components/language-switcher"
-import { MobileMenu } from "@/components/mobile-menu"
 import { useLanguage } from "@/contexts/language-context"
 import { PricingSection } from "@/components/pricing-section"
 
@@ -60,15 +59,14 @@ export default function HomePage() {
             </a>
           </nav>
           <div className="flex items-center gap-2">
-            <LanguageSwitcher className="hidden md:flex" />
-            <ThemeToggle className="hidden md:flex" />
-            <Button variant="outline" asChild className="hidden md:flex">
+            <LanguageSwitcher />
+            <ThemeToggle />
+            <Button variant="outline" asChild>
               <Link href="/login">{t("btn.login")}</Link>
             </Button>
-            <Button asChild>
+            <Button asChild className="hidden md:flex">
               <Link href="/cadastro">{t("btn.getStarted")}</Link>
             </Button>
-            <MobileMenu />
           </div>
         </div>
       </header>
