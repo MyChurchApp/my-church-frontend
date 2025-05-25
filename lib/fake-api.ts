@@ -66,7 +66,6 @@ export interface Member {
   notes?: string
 }
 
-// Adicionar interface para categorias financeiras
 export interface FinanceCategory {
   id: string
   name: string
@@ -76,7 +75,6 @@ export interface FinanceCategory {
   createdAt: string
 }
 
-// Atualizar interface FinanceRecord para usar categorias personalizadas
 export interface FinanceRecord {
   id: string
   type: "entrada" | "saida"
@@ -303,7 +301,6 @@ export const fakeEvents: Event[] = [
   },
 ]
 
-// Categorias financeiras padrão
 export const fakeFinanceCategories: FinanceCategory[] = [
   {
     id: "1",
@@ -355,16 +352,15 @@ export const fakeFinanceCategories: FinanceCategory[] = [
   },
 ]
 
-// Atualizar registros financeiros para usar as novas categorias
 export const fakeFinanceRecords: FinanceRecord[] = [
   {
     id: "1",
     type: "entrada",
     categoryId: "1",
     categoryName: "Dízimo",
-    description: "Dízimos Janeiro 2024",
+    description: "Dízimos Janeiro 2025",
     amount: 15420.5,
-    date: "2024-01-15",
+    date: "2025-01-15",
     method: "pix",
     member: "Vários membros",
   },
@@ -375,7 +371,7 @@ export const fakeFinanceRecords: FinanceRecord[] = [
     categoryName: "Oferta",
     description: "Ofertas Culto Dominical",
     amount: 2340.0,
-    date: "2024-01-14",
+    date: "2025-01-14",
     method: "dinheiro",
   },
   {
@@ -385,7 +381,7 @@ export const fakeFinanceRecords: FinanceRecord[] = [
     categoryName: "Despesas Gerais",
     description: "Conta de Luz",
     amount: 890.45,
-    date: "2024-01-10",
+    date: "2025-01-10",
     method: "transferencia",
   },
   {
@@ -395,7 +391,7 @@ export const fakeFinanceRecords: FinanceRecord[] = [
     categoryName: "Doação",
     description: "Doação para reforma do templo",
     amount: 5000.0,
-    date: "2024-01-12",
+    date: "2025-01-12",
     method: "pix",
     member: "João Carlos Silva",
   },
@@ -406,7 +402,7 @@ export const fakeFinanceRecords: FinanceRecord[] = [
     categoryName: "Salários",
     description: "Salário Pastor",
     amount: 4500.0,
-    date: "2024-01-05",
+    date: "2025-01-05",
     method: "transferencia",
   },
 ]
@@ -419,7 +415,7 @@ export const fakeNotifications: Notification[] = [
     content:
       "Neste domingo teremos um culto especial de ação de graças. Venha com sua família celebrar as bênçãos que Deus tem derramado sobre nossas vidas. Haverá também um almoço comunitário após o culto.",
     author: "Pastor João Silva",
-    timestamp: "2024-01-15T10:30:00Z",
+    timestamp: "2025-01-15T10:30:00Z",
     likes: 24,
     comments: 8,
     image: "/placeholder.svg?height=300&width=500&query=church+thanksgiving+service",
@@ -427,11 +423,11 @@ export const fakeNotifications: Notification[] = [
   {
     id: "2",
     type: "event",
-    title: "Retiro de Jovens 2024",
+    title: "Retiro de Jovens 2025",
     content:
       "Inscrições abertas para o retiro de jovens! Será nos dias 15-17 de março em Campos do Jordão. Tema: 'Renovando a Esperança'. Valor: R$ 180,00 (inclui hospedagem e alimentação).",
     author: "Líder de Jovens - Maria Santos",
-    timestamp: "2024-01-14T15:45:00Z",
+    timestamp: "2025-01-14T15:45:00Z",
     likes: 42,
     comments: 15,
     image: "/placeholder.svg?height=300&width=500&query=youth+retreat+mountains",
@@ -443,7 +439,7 @@ export const fakeNotifications: Notification[] = [
     content:
       "Vamos parabenizar nossos irmãos que fazem aniversário esta semana: Ana Costa (16/01), Pedro Oliveira (18/01) e Carla Mendes (20/01). Que Deus abençoe cada um com muita saúde e alegria!",
     author: "Secretaria da Igreja",
-    timestamp: "2024-01-14T09:00:00Z",
+    timestamp: "2025-01-14T09:00:00Z",
     likes: 18,
     comments: 12,
   },
@@ -454,7 +450,7 @@ export const fakeNotifications: Notification[] = [
     content:
       "Pedimos orações pela irmã Rosa Silva que está internada no Hospital São Paulo. Ela passará por uma cirurgia na próxima terça-feira. Oremos para que Deus guie as mãos dos médicos e conceda uma recuperação rápida.",
     author: "Ministério de Intercessão",
-    timestamp: "2024-01-13T20:15:00Z",
+    timestamp: "2025-01-13T20:15:00Z",
     likes: 35,
     comments: 22,
   },
@@ -465,56 +461,9 @@ export const fakeNotifications: Notification[] = [
     content:
       "Compartilhamos com alegria que conseguimos atingir 105% da meta de dízimos e ofertas em dezembro. Isso nos permitiu quitar todas as contas e ainda destinar R$ 5.000 para obras sociais. Obrigado pela fidelidade!",
     author: "Tesouraria",
-    timestamp: "2024-01-12T14:30:00Z",
+    timestamp: "2025-01-12T14:30:00Z",
     likes: 28,
     comments: 6,
-  },
-  {
-    id: "6",
-    type: "event",
-    title: "Escola Bíblica Dominical",
-    content:
-      "Nova classe para novos convertidos! A partir deste domingo, teremos uma classe especial para quem aceitou Jesus recentemente. O estudo será sobre 'Primeiros Passos na Fé'. Horário: 9h às 9h45.",
-    author: "Coordenação EBD",
-    timestamp: "2024-01-11T16:20:00Z",
-    likes: 31,
-    comments: 9,
-  },
-  {
-    id: "7",
-    type: "announcement",
-    title: "Novo Ministério de Visitação",
-    content:
-      "Com grande alegria anunciamos o lançamento do Ministério de Visitação! Este ministério será responsável por visitar membros enfermos, idosos e novos convertidos. Se você tem o coração para cuidar das pessoas, venha fazer parte! Reunião de apresentação na quarta-feira às 19h30.",
-    author: "Pastor João Silva",
-    timestamp: "2024-01-10T18:45:00Z",
-    likes: 19,
-    comments: 7,
-    image: "/placeholder.svg?height=300&width=500&query=church+ministry+visiting+people",
-  },
-  {
-    id: "8",
-    type: "finance",
-    title: "Campanha Reforma do Templo",
-    content:
-      "Iniciamos hoje a campanha para reforma do nosso templo! Meta: R$ 50.000 para renovação do sistema de som, pintura e melhorias na acessibilidade. Já arrecadamos R$ 12.500 (25% da meta). Cada contribuição, por menor que seja, faz a diferença. Que Deus abençoe a generosidade de cada um!",
-    author: "Comissão de Obras",
-    timestamp: "2024-01-09T12:20:00Z",
-    likes: 33,
-    comments: 18,
-    image: "/placeholder.svg?height=300&width=500&query=church+renovation+construction+progress",
-  },
-  {
-    id: "9",
-    type: "announcement",
-    title: "Testemunho de Transformação",
-    content:
-      "Glória a Deus! A irmã Fernanda compartilhou um testemunho emocionante no culto de domingo sobre como Deus restaurou sua família. Após 2 anos de oração e perseverança, seu esposo entregou a vida a Jesus e hoje eles servem juntos no ministério de louvor. Que testemunho inspirador de fé e perseverança!",
-    author: "Ministério de Testemunhos",
-    timestamp: "2024-01-08T21:10:00Z",
-    likes: 47,
-    comments: 25,
-    image: "/placeholder.svg?height=300&width=500&query=happy+family+testimony+church",
   },
 ]
 
@@ -526,11 +475,9 @@ export const generateRecurringEvents = (baseEvent: Event): Event[] => {
 
   const events: Event[] = [baseEvent]
   const startDate = new Date(baseEvent.date)
-  const endOfYear = new Date(startDate.getFullYear(), 11, 31) // 31 de dezembro do mesmo ano
+  const endOfYear = new Date(startDate.getFullYear(), 11, 31)
 
   let currentDate = new Date(startDate)
-
-  // Determinar o intervalo baseado na recorrência
   const intervalDays = baseEvent.recurrence === "weekly" ? 7 : 14
 
   while (currentDate < endOfYear) {
@@ -568,14 +515,11 @@ export const getNotifications = (): Notification[] => {
 }
 
 export const getEvents = (): Event[] => {
-  // Gerar todos os eventos recorrentes
   const allEvents: Event[] = []
-
   fakeEvents.forEach((event) => {
     const recurringEvents = generateRecurringEvents(event)
     allEvents.push(...recurringEvents)
   })
-
   return allEvents
 }
 
@@ -611,14 +555,12 @@ export const formatCurrency = (value: number): string => {
   }).format(value)
 }
 
-// Função para verificar permissões
 export const hasPermission = (userAccessLevel: string, requiredLevel: string): boolean => {
   if (userAccessLevel === "admin") return true
   if (requiredLevel === "member") return true
   return false
 }
 
-// Cores predefinidas para eventos
 export const eventColors = [
   { name: "Azul", value: "#3b82f6" },
   { name: "Verde", value: "#10b981" },
@@ -631,3 +573,35 @@ export const eventColors = [
   { name: "Ciano", value: "#06b6d4" },
   { name: "Esmeralda", value: "#059669" },
 ]
+
+// Novas funções para a página de configurações
+export function getChurchInfo() {
+  return {
+    name: "Igreja Batista Central",
+    pastor: "Pastor João Silva",
+    email: "contato@igrejabatistacentral.com.br",
+    phone: "(11) 99999-9999",
+    address: "Rua das Flores, 123 - Centro\nSão Paulo - SP\nCEP: 01234-567",
+  }
+}
+
+export function getSubscriptionInfo() {
+  return {
+    plan: "Plano Premium",
+    status: "Ativo",
+    price: "89,90",
+    nextBilling: "15 de Fevereiro de 2025",
+    paymentMethod: "Cartão **** 1234",
+    features: ["Até 500 membros", "Eventos ilimitados", "Relatórios avançados"],
+    includedFeatures: [
+      "Gestão completa de membros",
+      "Sistema de eventos e agenda",
+      "Controle financeiro avançado",
+      "Relatórios em PDF",
+      "Comunicação interna",
+      "Backup automático",
+      "Suporte prioritário",
+      "Acesso mobile",
+    ],
+  }
+}

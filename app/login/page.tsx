@@ -11,11 +11,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Eye, EyeOff, AlertCircle } from "lucide-react"
-import { useLanguage } from "@/contexts/language-context"
-import { fakeUsers } from "@/lib/fake-api"
+// Remover esta linha:
+// import { useLanguage } from "@/contexts/language-context"
 
 export default function LoginPage() {
-  const { t } = useLanguage()
+  // Remover esta linha:
+  // const { t } = useLanguage()
   const router = useRouter()
   const searchParams = useSearchParams()
   const planoParam = searchParams.get("plano")
@@ -54,29 +55,54 @@ export default function LoginPage() {
     setIsLoading(true)
     setError("")
 
-    // Simular delay de autenticação
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    try {
+      // Simular delay de autenticação
+      await new Promise((resolve) => setTimeout(resolve, 1000))
 
-    // Login fake - CPF: 123456 (admin) e 654321 (membro), senha: 123
-    const cleanCpf = cpf.replace(/\D/g, "")
+      // Login fake - CPF: 123456 (admin) e 654321 (membro), senha: 123
+      const cleanCpf = cpf.replace(/\D/g, "")
 
-    if ((cleanCpf === "123456" || cleanCpf === "654321") && password === "123") {
-      const userData = fakeUsers[cleanCpf as keyof typeof fakeUsers]
+      console.log("Tentativa de login:", { cleanCpf, password }) // Debug
 
-      // Salvar dados do usuário no localStorage
-      localStorage.setItem("user", JSON.stringify(userData))
+      if ((cleanCpf === "123456" || cleanCpf === "654321") && password === "123") {
+        // Criar dados do usuário baseado no CPF
+        const userData =
+          cleanCpf === "123456"
+            ? {
+                cpf: "123456",
+                name: "Pastor João Silva",
+                church: "Igreja Batista Central",
+                role: "Pastor Principal",
+                accessLevel: "admin" as const,
+              }
+            : {
+                cpf: "654321",
+                name: "Maria Santos",
+                church: "Igreja Batista Central",
+                role: "Membro",
+                accessLevel: "member" as const,
+              }
 
-      // Redirecionar conforme parâmetros ou para dashboard
-      if (redirectParam === "checkout" && planoParam) {
-        router.push(`/planos/checkout?plano=${planoParam}`)
+        // Salvar dados do usuário no localStorage
+        if (typeof window !== "undefined") {
+          localStorage.setItem("user", JSON.stringify(userData))
+        }
+
+        // Redirecionar conforme parâmetros ou para dashboard
+        if (redirectParam === "checkout" && planoParam) {
+          router.push(`/planos/checkout?plano=${planoParam}`)
+        } else {
+          router.push("/dashboard")
+        }
       } else {
-        router.push("/dashboard")
+        setError("CPF ou senha incorretos. Use CPF: 123456 (admin) ou 654321 (membro) e senha: 123")
       }
-    } else {
-      setError("CPF ou senha incorretos. Use CPF: 123456 (admin) ou 654321 (membro) e senha: 123")
+    } catch (error) {
+      console.error("Erro no login:", error)
+      setError("Erro interno. Tente novamente.")
+    } finally {
+      setIsLoading(false)
     }
-
-    setIsLoading(false)
   }
 
   return (
