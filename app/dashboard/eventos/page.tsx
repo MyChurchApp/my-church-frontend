@@ -25,8 +25,23 @@ import {
   Filter,
   Edit,
   Trash2,
+  Palette,
 } from "lucide-react"
-import { getUser, getEvents, type User, type Event } from "@/lib/fake-api"
+import { getUser, getEvents, generateRecurringEvents, eventColors, type User, type Event } from "@/lib/fake-api"
+
+function getDaysInMonth(date: Date) {
+  const year = date.getFullYear()
+  const month = date.getMonth()
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+  const firstDayOfMonth = new Date(year, month, 1).getDay()
+  const days: (Date | null)[] = Array(firstDayOfMonth).fill(null)
+
+  for (let i = 1; i <= daysInMonth; i++) {
+    days.push(new Date(year, month, i))
+  }
+
+  return days
+}
 
 export default function EventosPage() {
   const router = useRouter()
@@ -41,6 +56,7 @@ export default function EventosPage() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
+  // Atualizar o estado do formulário para incluir cor
   const [newEvent, setNewEvent] = useState({
     title: "",
     description: "",
@@ -48,6 +64,8 @@ export default function EventosPage() {
     time: "",
     location: "",
     type: "",
+    recurrence: "once",
+    color: "#3b82f6", // Cor padrão azul
   })
 
   useEffect(() => {
@@ -61,36 +79,17 @@ export default function EventosPage() {
     setEvents(getEvents())
   }, [router])
 
-  const getDaysInMonth = (date: Date) => {
-    const year = date.getFullYear()
-    const month = date.getMonth()
-    const firstDay = new Date(year, month, 1)
-    const lastDay = new Date(year, month + 1, 0)
-    const daysInMonth = lastDay.getDate()
-    const startingDayOfWeek = firstDay.getDay()
-
-    const days = []
-
-    // Add empty cells for days before the first day of the month
-    for (let i = 0; i < startingDayOfWeek; i++) {
-      days.push(null)
-    }
-
-    // Add days of the month
-    for (let day = 1; day <= daysInMonth; day++) {
-      days.push(new Date(year, month, day))
-    }
-
-    return days
-  }
-
+  // Corrigir a função getEventsForDate para usar UTC e evitar problemas de timezone
   const getEventsForDate = (date: Date) => {
     return events.filter((event) => {
-      const eventDate = new Date(event.date)
+      // Usar UTC para evitar problemas de timezone
+      const eventDate = new Date(event.date + "T00:00:00")
+      const compareDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+
       return (
-        eventDate.getDate() === date.getDate() &&
-        eventDate.getMonth() === date.getMonth() &&
-        eventDate.getFullYear() === date.getFullYear()
+        eventDate.getDate() === compareDate.getDate() &&
+        eventDate.getMonth() === compareDate.getMonth() &&
+        eventDate.getFullYear() === compareDate.getFullYear()
       )
     })
   }
@@ -105,46 +104,159 @@ export default function EventosPage() {
     return colors[type as keyof typeof colors] || "bg-gray-100 text-gray-800 border-gray-200"
   }
 
+  // Função para obter estilo personalizado baseado na cor do evento
+  const getCustomEventStyle = (event: Event) => {
+    if (event.color) {
+      return {
+        backgroundColor: event.color + "20", // 20% de opacidade
+        borderColor: event.color,
+        color: event.color,
+      }
+    }
+    return {}
+  }
+
+  // Atualizar handleCreateEvent para incluir cor e gerar eventos recorrentes
   const handleCreateEvent = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newEvent.title || !newEvent.date || !newEvent.time || !newEvent.type) return
 
-    // Simular criação do evento
-    const event: Event = {
+    // Criar evento base
+    const baseEvent: Event = {
       id: Date.now().toString(),
       ...newEvent,
       organizer: user?.name || "",
       attendees: 0,
+      recurrence: newEvent.recurrence as "once" | "weekly" | "biweekly",
+      color: newEvent.color,
     }
 
-    setEvents([...events, event])
-    setNewEvent({ title: "", description: "", date: "", time: "", location: "", type: "" })
+    // Gerar eventos recorrentes se necessário
+    const recurringEvents = generateRecurringEvents(baseEvent)
+
+    // Adicionar todos os eventos (base + recorrentes) à lista
+    setEvents([...events, ...recurringEvents])
+    setNewEvent({
+      title: "",
+      description: "",
+      date: "",
+      time: "",
+      location: "",
+      type: "",
+      recurrence: "once",
+      color: "#3b82f6",
+    })
     setIsCreateDialogOpen(false)
   }
 
+  // Atualizar handleEditEvent para incluir cor
   const handleEditEvent = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedEvent || !newEvent.title || !newEvent.date || !newEvent.time || !newEvent.type) return
 
-    const updatedEvent: Event = {
-      ...selectedEvent,
-      ...newEvent,
+    // Se for um evento recorrente, perguntar se quer editar apenas este ou toda a série
+    if (selectedEvent.isRecurring && selectedEvent.parentEventId) {
+      const editSeries = confirm("Deseja editar toda a série de eventos recorrentes ou apenas este evento?")
+
+      if (editSeries) {
+        // Editar toda a série - remover todos os eventos da série e criar novos
+        const filteredEvents = events.filter(
+          (event) =>
+            event.id !== selectedEvent.parentEventId &&
+            event.parentEventId !== selectedEvent.parentEventId &&
+            event.id !== selectedEvent.id,
+        )
+
+        // Criar novo evento base com as alterações
+        const newBaseEvent: Event = {
+          id: selectedEvent.parentEventId,
+          ...newEvent,
+          organizer: selectedEvent.organizer,
+          attendees: selectedEvent.attendees,
+          recurrence: newEvent.recurrence as "once" | "weekly" | "biweekly",
+          color: newEvent.color,
+        }
+
+        // Gerar nova série de eventos recorrentes
+        const newRecurringEvents = generateRecurringEvents(newBaseEvent)
+        setEvents([...filteredEvents, ...newRecurringEvents])
+      } else {
+        // Editar apenas este evento
+        const updatedEvent: Event = {
+          ...selectedEvent,
+          ...newEvent,
+          recurrence: "once", // Evento individual não é mais recorrente
+          isRecurring: false,
+          parentEventId: undefined,
+          color: newEvent.color,
+        }
+        setEvents(events.map((event) => (event.id === selectedEvent.id ? updatedEvent : event)))
+      }
+    } else {
+      // Evento normal ou evento base de uma série
+      const updatedEvent: Event = {
+        ...selectedEvent,
+        ...newEvent,
+        recurrence: newEvent.recurrence as "once" | "weekly" | "biweekly",
+        color: newEvent.color,
+      }
+
+      if (selectedEvent.recurrence !== "once" && newEvent.recurrence !== "once") {
+        // Se era recorrente e continua sendo, regenerar a série
+        const filteredEvents = events.filter(
+          (event) => event.id !== selectedEvent.id && event.parentEventId !== selectedEvent.id,
+        )
+        const newRecurringEvents = generateRecurringEvents(updatedEvent)
+        setEvents([...filteredEvents, ...newRecurringEvents])
+      } else {
+        setEvents(events.map((event) => (event.id === selectedEvent.id ? updatedEvent : event)))
+      }
     }
 
-    setEvents(events.map((event) => (event.id === selectedEvent.id ? updatedEvent : event)))
-    setNewEvent({ title: "", description: "", date: "", time: "", location: "", type: "" })
+    setNewEvent({
+      title: "",
+      description: "",
+      date: "",
+      time: "",
+      location: "",
+      type: "",
+      recurrence: "once",
+      color: "#3b82f6",
+    })
     setSelectedEvent(null)
     setIsEditDialogOpen(false)
   }
 
   const handleDeleteEvent = (eventId: string) => {
-    if (confirm("Tem certeza que deseja excluir este evento?")) {
-      setEvents(events.filter((event) => event.id !== eventId))
-      setIsEditDialogOpen(false)
-      setSelectedEvent(null)
+    const eventToDelete = events.find((e) => e.id === eventId)
+
+    if (eventToDelete?.isRecurring && eventToDelete.parentEventId) {
+      const deleteSeries = confirm("Deseja excluir toda a série de eventos recorrentes ou apenas este evento?")
+
+      if (deleteSeries) {
+        // Excluir toda a série
+        setEvents(
+          events.filter(
+            (event) =>
+              event.id !== eventToDelete.parentEventId &&
+              event.parentEventId !== eventToDelete.parentEventId &&
+              event.id !== eventId,
+          ),
+        )
+      } else {
+        // Excluir apenas este evento
+        setEvents(events.filter((event) => event.id !== eventId))
+      }
+    } else {
+      // Evento normal ou evento base - excluir ele e todos os recorrentes
+      setEvents(events.filter((event) => event.id !== eventId && event.parentEventId !== eventId))
     }
+
+    setIsEditDialogOpen(false)
+    setSelectedEvent(null)
   }
 
+  // Atualizar openEditDialog para incluir cor
   const openEditDialog = (event: Event) => {
     setSelectedEvent(event)
     setNewEvent({
@@ -154,6 +266,8 @@ export default function EventosPage() {
       time: event.time,
       location: event.location,
       type: event.type,
+      recurrence: event.recurrence,
+      color: event.color || "#3b82f6",
     })
     setIsEditDialogOpen(true)
   }
@@ -180,6 +294,34 @@ export default function EventosPage() {
 
   const weekDays = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"]
 
+  // Função para obter o texto da recorrência
+  const getRecurrenceText = (recurrence: string) => {
+    switch (recurrence) {
+      case "weekly":
+        return "Semanal"
+      case "biweekly":
+        return "Quinzenal"
+      case "once":
+        return "Único"
+      default:
+        return "Único"
+    }
+  }
+
+  // Função para obter a cor da badge de recorrência
+  const getRecurrenceBadge = (recurrence: string) => {
+    switch (recurrence) {
+      case "weekly":
+        return "bg-blue-100 text-blue-800"
+      case "biweekly":
+        return "bg-purple-100 text-purple-800"
+      case "once":
+        return "bg-gray-100 text-gray-800"
+      default:
+        return "bg-gray-100 text-gray-800"
+    }
+  }
+
   if (!user) {
     return <div>Carregando...</div>
   }
@@ -205,7 +347,7 @@ export default function EventosPage() {
                       Novo Evento
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="max-w-md">
+                  <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                       <DialogTitle>Criar Novo Evento</DialogTitle>
                     </DialogHeader>
@@ -283,6 +425,56 @@ export default function EventosPage() {
                         />
                       </div>
 
+                      <div className="space-y-2">
+                        <Label htmlFor="event-recurrence">Recorrência</Label>
+                        <Select
+                          value={newEvent.recurrence}
+                          onValueChange={(value) => setNewEvent({ ...newEvent, recurrence: value })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione a recorrência" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="once">Apenas uma vez</SelectItem>
+                            <SelectItem value="weekly">Toda semana</SelectItem>
+                            <SelectItem value="biweekly">A cada duas semanas</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Adicionar seletor de cor */}
+                      <div className="space-y-2">
+                        <Label className="flex items-center gap-2">
+                          <Palette className="h-4 w-4" />
+                          Cor do Evento
+                        </Label>
+                        <div className="grid grid-cols-5 gap-2">
+                          {eventColors.map((color) => (
+                            <button
+                              key={color.value}
+                              type="button"
+                              className={`w-8 h-8 rounded-full border-2 transition-all ${
+                                newEvent.color === color.value
+                                  ? "border-gray-800 scale-110"
+                                  : "border-gray-300 hover:border-gray-500"
+                              }`}
+                              style={{ backgroundColor: color.value }}
+                              onClick={() => setNewEvent({ ...newEvent, color: color.value })}
+                              title={color.name}
+                            />
+                          ))}
+                        </div>
+                        <div className="flex items-center gap-2 mt-2">
+                          <span className="text-sm text-gray-600">Cor personalizada:</span>
+                          <input
+                            type="color"
+                            value={newEvent.color}
+                            onChange={(e) => setNewEvent({ ...newEvent, color: e.target.value })}
+                            className="w-8 h-8 rounded border border-gray-300"
+                          />
+                        </div>
+                      </div>
+
                       <Button type="submit" className="w-full">
                         Criar Evento
                       </Button>
@@ -313,7 +505,7 @@ export default function EventosPage() {
 
         {/* Edit Event Dialog */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Editar Evento</DialogTitle>
             </DialogHeader>
@@ -386,6 +578,56 @@ export default function EventosPage() {
                   placeholder="Descrição do evento"
                   rows={3}
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-event-recurrence">Recorrência</Label>
+                <Select
+                  value={newEvent.recurrence}
+                  onValueChange={(value) => setNewEvent({ ...newEvent, recurrence: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione a recorrência" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="once">Apenas uma vez</SelectItem>
+                    <SelectItem value="weekly">Toda semana</SelectItem>
+                    <SelectItem value="biweekly">A cada duas semanas</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Adicionar seletor de cor no formulário de edição */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Palette className="h-4 w-4" />
+                  Cor do Evento
+                </Label>
+                <div className="grid grid-cols-5 gap-2">
+                  {eventColors.map((color) => (
+                    <button
+                      key={color.value}
+                      type="button"
+                      className={`w-8 h-8 rounded-full border-2 transition-all ${
+                        newEvent.color === color.value
+                          ? "border-gray-800 scale-110"
+                          : "border-gray-300 hover:border-gray-500"
+                      }`}
+                      style={{ backgroundColor: color.value }}
+                      onClick={() => setNewEvent({ ...newEvent, color: color.value })}
+                      title={color.name}
+                    />
+                  ))}
+                </div>
+                <div className="flex items-center gap-2 mt-2">
+                  <span className="text-sm text-gray-600">Cor personalizada:</span>
+                  <input
+                    type="color"
+                    value={newEvent.color}
+                    onChange={(e) => setNewEvent({ ...newEvent, color: e.target.value })}
+                    className="w-8 h-8 rounded border border-gray-300"
+                  />
+                </div>
               </div>
 
               <div className="flex gap-2">
@@ -481,15 +723,18 @@ export default function EventosPage() {
                                 .filter((event) => filterType === "all" || event.type === filterType)
                                 .slice(0, 2)
                                 .map((event) => (
+                                  // Aplicar cor personalizada no calendário
                                   <div
                                     key={event.id}
-                                    className={`text-xs p-1 rounded border cursor-pointer hover:opacity-80 ${getEventTypeColor(event.type)}`}
+                                    className="text-xs p-1 rounded border cursor-pointer hover:opacity-80"
+                                    style={getCustomEventStyle(event)}
                                     onClick={() => user?.accessLevel === "admin" && openEditDialog(event)}
                                   >
                                     <div className="font-medium truncate">{event.title}</div>
                                     <div className="flex items-center gap-1">
                                       <Clock className="h-3 w-3" />
                                       {event.time}
+                                      {event.recurrence !== "once" && <span className="ml-1 text-xs">🔄</span>}
                                     </div>
                                   </div>
                                 ))}
@@ -518,6 +763,7 @@ export default function EventosPage() {
                   <Card
                     key={event.id}
                     className={user?.accessLevel === "admin" ? "cursor-pointer hover:shadow-md transition-shadow" : ""}
+                    style={{ borderLeft: `4px solid ${event.color || "#3b82f6"}` }}
                   >
                     <CardContent className="p-4" onClick={() => user?.accessLevel === "admin" && openEditDialog(event)}>
                       <div className="flex items-start justify-between">
@@ -527,6 +773,14 @@ export default function EventosPage() {
                             <Badge className={getEventTypeColor(event.type)}>
                               {event.type.charAt(0).toUpperCase() + event.type.slice(1)}
                             </Badge>
+                            <Badge className={getRecurrenceBadge(event.recurrence)}>
+                              {getRecurrenceText(event.recurrence)}
+                            </Badge>
+                            {event.isRecurring && (
+                              <Badge variant="outline" className="text-xs">
+                                Série
+                              </Badge>
+                            )}
                             {user?.accessLevel === "admin" && <Edit className="h-4 w-4 text-gray-400" />}
                           </div>
                           <p className="text-gray-600 mb-3">{event.description}</p>

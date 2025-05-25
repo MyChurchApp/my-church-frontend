@@ -30,6 +30,7 @@ export interface Notification {
   image?: string
 }
 
+// Atualizar a interface Event para incluir cor personalizada
 export interface Event {
   id: string
   title: string
@@ -40,6 +41,10 @@ export interface Event {
   type: "culto" | "evento" | "reuniao" | "estudo"
   organizer: string
   attendees?: number
+  recurrence: "once" | "weekly" | "biweekly"
+  color?: string
+  isRecurring?: boolean
+  parentEventId?: string
 }
 
 export interface Member {
@@ -219,6 +224,7 @@ export const fakeMembers: Member[] = [
   },
 ]
 
+// Atualizar os eventos fake para incluir cores
 export const fakeEvents: Event[] = [
   {
     id: "1",
@@ -230,6 +236,8 @@ export const fakeEvents: Event[] = [
     type: "culto",
     organizer: "Pastor João Silva",
     attendees: 320,
+    recurrence: "weekly",
+    color: "#3b82f6",
   },
   {
     id: "2",
@@ -241,6 +249,8 @@ export const fakeEvents: Event[] = [
     type: "evento",
     organizer: "Maria Santos",
     attendees: 45,
+    recurrence: "once",
+    color: "#10b981",
   },
   {
     id: "3",
@@ -252,6 +262,8 @@ export const fakeEvents: Event[] = [
     type: "reuniao",
     organizer: "Ministério de Intercessão",
     attendees: 25,
+    recurrence: "weekly",
+    color: "#8b5cf6",
   },
   {
     id: "4",
@@ -263,6 +275,8 @@ export const fakeEvents: Event[] = [
     type: "estudo",
     organizer: "Pastor João Silva",
     attendees: 35,
+    recurrence: "weekly",
+    color: "#f59e0b",
   },
   {
     id: "5",
@@ -274,6 +288,8 @@ export const fakeEvents: Event[] = [
     type: "culto",
     organizer: "Pastor João Silva",
     attendees: 180,
+    recurrence: "weekly",
+    color: "#ef4444",
   },
 ]
 
@@ -434,6 +450,39 @@ export const fakeNotifications: Notification[] = [
   },
 ]
 
+// Função para gerar eventos recorrentes
+export const generateRecurringEvents = (baseEvent: Event): Event[] => {
+  if (baseEvent.recurrence === "once") {
+    return [baseEvent]
+  }
+
+  const events: Event[] = [baseEvent]
+  const startDate = new Date(baseEvent.date)
+  const endOfYear = new Date(startDate.getFullYear(), 11, 31) // 31 de dezembro do mesmo ano
+
+  let currentDate = new Date(startDate)
+
+  // Determinar o intervalo baseado na recorrência
+  const intervalDays = baseEvent.recurrence === "weekly" ? 7 : 14
+
+  while (currentDate < endOfYear) {
+    currentDate = new Date(currentDate.getTime() + intervalDays * 24 * 60 * 60 * 1000)
+
+    if (currentDate <= endOfYear) {
+      const recurringEvent: Event = {
+        ...baseEvent,
+        id: `${baseEvent.id}_${currentDate.toISOString().split("T")[0]}`,
+        date: currentDate.toISOString().split("T")[0],
+        isRecurring: true,
+        parentEventId: baseEvent.id,
+      }
+      events.push(recurringEvent)
+    }
+  }
+
+  return events
+}
+
 export const getUser = (): User | null => {
   if (typeof window !== "undefined") {
     const userData = localStorage.getItem("user")
@@ -451,7 +500,15 @@ export const getNotifications = (): Notification[] => {
 }
 
 export const getEvents = (): Event[] => {
-  return fakeEvents
+  // Gerar todos os eventos recorrentes
+  const allEvents: Event[] = []
+
+  fakeEvents.forEach((event) => {
+    const recurringEvents = generateRecurringEvents(event)
+    allEvents.push(...recurringEvents)
+  })
+
+  return allEvents
 }
 
 export const getMembers = (): Member[] => {
@@ -488,3 +545,17 @@ export const hasPermission = (userAccessLevel: string, requiredLevel: string): b
   if (requiredLevel === "member") return true
   return false
 }
+
+// Cores predefinidas para eventos
+export const eventColors = [
+  { name: "Azul", value: "#3b82f6" },
+  { name: "Verde", value: "#10b981" },
+  { name: "Roxo", value: "#8b5cf6" },
+  { name: "Laranja", value: "#f59e0b" },
+  { name: "Vermelho", value: "#ef4444" },
+  { name: "Rosa", value: "#ec4899" },
+  { name: "Índigo", value: "#6366f1" },
+  { name: "Amarelo", value: "#eab308" },
+  { name: "Ciano", value: "#06b6d4" },
+  { name: "Esmeralda", value: "#059669" },
+]
