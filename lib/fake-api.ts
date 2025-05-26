@@ -522,6 +522,86 @@ export const fakeNotifications: Notification[] = [
     likes: 28,
     comments: 6,
   },
+  {
+    id: "6",
+    type: "announcement",
+    title: "Nova Programação de Cultos",
+    content:
+      "A partir de fevereiro, teremos uma nova programação de cultos. Domingos às 9h e 18h, quartas às 19h30. Venham participar e trazer suas famílias para adorarmos juntos ao Senhor!",
+    author: "Pastor João Silva",
+    timestamp: "2025-01-11T16:20:00Z",
+    likes: 31,
+    comments: 9,
+  },
+  {
+    id: "7",
+    type: "event",
+    title: "Batismo nas Águas",
+    content:
+      "No próximo domingo, dia 2 de fevereiro, teremos batismo nas águas. Se você deseja se batizar ou conhece alguém interessado, procure a secretaria da igreja para mais informações.",
+    author: "Ministério de Batismo",
+    timestamp: "2025-01-10T11:15:00Z",
+    likes: 45,
+    comments: 18,
+    image: "/placeholder.svg?height=300&width=500&query=baptism+water+church",
+  },
+  {
+    id: "8",
+    type: "announcement",
+    title: "Grupo de Estudos Bíblicos",
+    content:
+      "Iniciamos um novo grupo de estudos bíblicos às terças-feiras, às 20h. O tema será 'As Parábolas de Jesus'. Todos estão convidados a participar. Local: Sala 3 do templo.",
+    author: "Ministério de Ensino",
+    timestamp: "2025-01-09T19:45:00Z",
+    likes: 22,
+    comments: 7,
+  },
+  {
+    id: "9",
+    type: "prayer",
+    title: "Vigília de Oração",
+    content:
+      "Convocamos toda a igreja para uma vigília de oração na sexta-feira, das 22h às 6h. Vamos interceder pela nossa nação, pelas famílias e pelo crescimento espiritual da igreja.",
+    author: "Ministério de Intercessão",
+    timestamp: "2025-01-08T14:30:00Z",
+    likes: 38,
+    comments: 14,
+  },
+  {
+    id: "10",
+    type: "event",
+    title: "Festa Junina da Igreja",
+    content:
+      "Já podem marcar na agenda! Nossa tradicional festa junina será no dia 21 de junho. Haverá comidas típicas, quadrilha, pescaria e muita diversão para toda a família!",
+    author: "Comissão de Eventos",
+    timestamp: "2025-01-07T10:00:00Z",
+    likes: 67,
+    comments: 25,
+    image: "/placeholder.svg?height=300&width=500&query=church+festa+junina",
+  },
+  {
+    id: "11",
+    type: "finance",
+    title: "Campanha de Arrecadação",
+    content:
+      "Iniciamos uma campanha para arrecadar fundos para a reforma do telhado do templo. Meta: R$ 15.000. Já arrecadamos R$ 3.500. Contamos com a colaboração de todos!",
+    author: "Tesouraria",
+    timestamp: "2025-01-06T13:20:00Z",
+    likes: 29,
+    comments: 11,
+  },
+  {
+    id: "12",
+    type: "birthday",
+    title: "Parabéns Pastora Ana!",
+    content:
+      "Hoje comemoramos o aniversário da nossa querida Pastora Ana, esposa do Pastor João. Que Deus continue abençoando sua vida e ministério. Parabéns!",
+    author: "Secretaria da Igreja",
+    timestamp: "2025-01-05T08:00:00Z",
+    likes: 89,
+    comments: 34,
+    image: "/placeholder.svg?height=300&width=500&query=pastor+wife+birthday",
+  },
 ]
 
 // Função para gerar eventos recorrentes

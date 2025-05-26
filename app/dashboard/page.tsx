@@ -27,6 +27,7 @@ export default function DashboardPage() {
   const [birthdays, setBirthdays] = useState<any[]>([])
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0)
   const [currentPromoIndex, setCurrentPromoIndex] = useState(0)
+  const [visibleNotifications, setVisibleNotifications] = useState(3)
 
   // Banners de eventos
   const banners = [
@@ -184,6 +185,13 @@ export default function DashboardPage() {
     setCurrentPromoIndex((prev) => (prev - 1 + promoBanners.length) % promoBanners.length)
   }
 
+  const loadMoreNotifications = () => {
+    setVisibleNotifications((prev) => prev + 5)
+  }
+
+  const displayedNotifications = notifications.slice(0, visibleNotifications)
+  const hasMoreNotifications = visibleNotifications < notifications.length
+
   if (!user || !churchData) {
     return <div>Carregando...</div>
   }
@@ -277,7 +285,7 @@ export default function DashboardPage() {
                 <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-4 md:mb-6">Mural da Igreja</h2>
 
                 <div className="space-y-4 md:space-y-6">
-                  {notifications.map((notification) => (
+                  {displayedNotifications.map((notification) => (
                     <Card key={notification.id} className="overflow-hidden">
                       <CardHeader className="pb-3">
                         <div className="flex items-center gap-3">
@@ -324,6 +332,26 @@ export default function DashboardPage() {
                       </CardContent>
                     </Card>
                   ))}
+
+                  {/* Botão Ver Mais */}
+                  {hasMoreNotifications && (
+                    <div className="text-center py-6">
+                      <Button
+                        onClick={loadMoreNotifications}
+                        variant="outline"
+                        className="px-8 py-2 text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-300"
+                      >
+                        Ver mais posts ({notifications.length - visibleNotifications} restantes)
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Mensagem quando todos os posts foram carregados */}
+                  {!hasMoreNotifications && notifications.length > 3 && (
+                    <div className="text-center py-6">
+                      <p className="text-gray-500 text-sm">Você viu todos os posts do mural! 🎉</p>
+                    </div>
+                  )}
                 </div>
               </div>
 
