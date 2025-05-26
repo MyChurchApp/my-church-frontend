@@ -83,8 +83,8 @@ export function Sidebar({ className = "" }: SidebarProps) {
     // Itens apenas para admin
     { icon: MessageSquare, label: "Comunicação", href: "/dashboard/comunicacao", accessLevel: "admin" },
     { icon: DollarSign, label: "Financeiro", href: "/dashboard/financeiro", accessLevel: "admin" },
-    { icon: Settings, label: "Configurações", href: "/dashboard/configuracoes", accessLevel: "admin" },
     { icon: Package, label: "Ativos", href: "/dashboard/ativos", accessLevel: "admin" },
+    { icon: Settings, label: "Configurações", href: "/dashboard/configuracoes", accessLevel: "admin" },
   ]
 
   // Filtrar itens baseado no nível de acesso do usuário
