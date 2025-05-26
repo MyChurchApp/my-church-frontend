@@ -475,7 +475,6 @@ export const fakeNotifications: Notification[] = [
     timestamp: "2025-01-15T10:30:00Z",
     likes: 24,
     comments: 8,
-    image: "/placeholder.svg?height=300&width=500&query=church+thanksgiving+service",
   },
   {
     id: "2",
@@ -487,7 +486,6 @@ export const fakeNotifications: Notification[] = [
     timestamp: "2025-01-14T15:45:00Z",
     likes: 42,
     comments: 15,
-    image: "/placeholder.svg?height=300&width=500&query=youth+retreat+mountains",
   },
   {
     id: "3",
@@ -543,7 +541,6 @@ export const fakeNotifications: Notification[] = [
     timestamp: "2025-01-10T11:15:00Z",
     likes: 45,
     comments: 18,
-    image: "/placeholder.svg?height=300&width=500&query=baptism+water+church",
   },
   {
     id: "8",
@@ -577,7 +574,6 @@ export const fakeNotifications: Notification[] = [
     timestamp: "2025-01-07T10:00:00Z",
     likes: 67,
     comments: 25,
-    image: "/placeholder.svg?height=300&width=500&query=church+festa+junina",
   },
   {
     id: "11",
@@ -600,7 +596,6 @@ export const fakeNotifications: Notification[] = [
     timestamp: "2025-01-05T08:00:00Z",
     likes: 89,
     comments: 34,
-    image: "/placeholder.svg?height=300&width=500&query=pastor+wife+birthday",
   },
 ]
 

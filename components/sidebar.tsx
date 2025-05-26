@@ -17,6 +17,7 @@ import {
   ChevronRight,
   Menu,
   X,
+  Package,
 } from "lucide-react"
 import { getUser } from "@/lib/fake-api"
 
@@ -83,6 +84,7 @@ export function Sidebar({ className = "" }: SidebarProps) {
     { icon: MessageSquare, label: "Comunicação", href: "/dashboard/comunicacao", accessLevel: "admin" },
     { icon: DollarSign, label: "Financeiro", href: "/dashboard/financeiro", accessLevel: "admin" },
     { icon: Settings, label: "Configurações", href: "/dashboard/configuracoes", accessLevel: "admin" },
+    { icon: Package, label: "Ativos", href: "/dashboard/ativos", accessLevel: "admin" },
   ]
 
   // Filtrar itens baseado no nível de acesso do usuário

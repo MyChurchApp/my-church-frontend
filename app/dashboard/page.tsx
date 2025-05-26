@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import Image from "next/image"
 import { Sidebar } from "@/components/sidebar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -317,18 +316,6 @@ export default function DashboardPage() {
                         </div>
 
                         <p className="text-gray-700 mb-4 text-sm md:text-base">{notification.content}</p>
-
-                        {notification.image && (
-                          <div className="mb-4 rounded-lg overflow-hidden">
-                            <Image
-                              src={notification.image || "/placeholder.svg"}
-                              alt={notification.title}
-                              width={500}
-                              height={300}
-                              className="w-full h-48 md:h-64 object-cover"
-                            />
-                          </div>
-                        )}
                       </CardContent>
                     </Card>
                   ))}
