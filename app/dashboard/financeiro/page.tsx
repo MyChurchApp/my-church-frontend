@@ -325,25 +325,33 @@ export default function FinanceiroPage() {
 
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0">
+        <header className="bg-white border-b border-gray-200 px-4 md:px-6 py-4 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Financeiro</h1>
-              <p className="text-gray-600">Controle financeiro da igreja</p>
+              <h1 className="text-xl md:text-2xl font-bold text-gray-900">Financeiro</h1>
+              <p className="text-sm md:text-base text-gray-600">Controle financeiro da igreja</p>
             </div>
-            <div className="flex gap-2">
-              <Button onClick={generatePDFReport} variant="outline" className="flex items-center gap-2">
-                <Download className="h-4 w-4" />
-                Relatório PDF
+            <div className="flex gap-1 md:gap-2">
+              <Button
+                onClick={generatePDFReport}
+                variant="outline"
+                className="flex items-center gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-4"
+              >
+                <Download className="h-3 w-3 md:h-4 md:w-4" />
+                <span className="hidden sm:inline">Relatório</span>
+                <span className="sm:hidden">PDF</span>
               </Button>
               <Dialog open={isCategoryDialogOpen} onOpenChange={setIsCategoryDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="outline" className="flex items-center gap-2">
-                    <Settings className="h-4 w-4" />
-                    Categorias
+                  <Button
+                    variant="outline"
+                    className="flex items-center gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-4"
+                  >
+                    <Settings className="h-3 w-3 md:h-4 md:w-4" />
+                    <span className="hidden sm:inline">Categorias</span>
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-md">
+                <DialogContent className="w-[95vw] max-w-md mx-auto">
                   <DialogHeader>
                     <DialogTitle>Gerenciar Categorias</DialogTitle>
                   </DialogHeader>
@@ -414,12 +422,13 @@ export default function FinanceiroPage() {
               </Dialog>
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button className="flex items-center gap-2">
-                    <Plus className="h-4 w-4" />
-                    Nova Transação
+                  <Button className="flex items-center gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-4">
+                    <Plus className="h-3 w-3 md:h-4 md:w-4" />
+                    <span className="hidden sm:inline">Nova Transação</span>
+                    <span className="sm:hidden">Nova</span>
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
+                <DialogContent className="w-[95vw] max-w-md mx-auto max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>Nova Transação</DialogTitle>
                   </DialogHeader>
@@ -538,62 +547,66 @@ export default function FinanceiroPage() {
 
         {/* Main Content */}
         <div className="flex-1 overflow-y-auto">
-          <div className="p-6">
+          <div className="p-4 md:p-6">
             {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 mb-4 md:mb-6">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Entradas</CardTitle>
-                  <TrendingUp className="h-4 w-4 text-green-600" />
+                  <CardTitle className="text-xs md:text-sm font-medium">Total Entradas</CardTitle>
+                  <TrendingUp className="h-3 w-3 md:h-4 md:w-4 text-green-600" />
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-green-600">{formatCurrency(getTotalEntradas())}</div>
-                  <p className="text-xs text-muted-foreground">Dízimos, ofertas e doações</p>
+                <CardContent className="p-3 md:p-6 pt-0">
+                  <div className="text-lg md:text-2xl font-bold text-green-600">
+                    {formatCurrency(getTotalEntradas())}
+                  </div>
+                  <p className="text-xs text-muted-foreground hidden md:block">Dízimos, ofertas e doações</p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Saídas</CardTitle>
-                  <TrendingDown className="h-4 w-4 text-red-600" />
+                  <CardTitle className="text-xs md:text-sm font-medium">Total Saídas</CardTitle>
+                  <TrendingDown className="h-3 w-3 md:h-4 md:w-4 text-red-600" />
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-red-600">{formatCurrency(getTotalSaidas())}</div>
-                  <p className="text-xs text-muted-foreground">Despesas e salários</p>
+                <CardContent className="p-3 md:p-6 pt-0">
+                  <div className="text-lg md:text-2xl font-bold text-red-600">{formatCurrency(getTotalSaidas())}</div>
+                  <p className="text-xs text-muted-foreground hidden md:block">Despesas e salários</p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Saldo</CardTitle>
-                  <DollarSign className="h-4 w-4 text-blue-600" />
+                  <CardTitle className="text-xs md:text-sm font-medium">Saldo</CardTitle>
+                  <DollarSign className="h-3 w-3 md:h-4 md:w-4 text-blue-600" />
                 </CardHeader>
-                <CardContent>
-                  <div className={`text-2xl font-bold ${getSaldo() >= 0 ? "text-green-600" : "text-red-600"}`}>
+                <CardContent className="p-3 md:p-6 pt-0">
+                  <div
+                    className={`text-lg md:text-2xl font-bold ${getSaldo() >= 0 ? "text-green-600" : "text-red-600"}`}
+                  >
                     {formatCurrency(getSaldo())}
                   </div>
-                  <p className="text-xs text-muted-foreground">Entradas - Saídas</p>
+                  <p className="text-xs text-muted-foreground hidden md:block">Entradas - Saídas</p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Transações</CardTitle>
-                  <Receipt className="h-4 w-4 text-purple-600" />
+                  <CardTitle className="text-xs md:text-sm font-medium">Transações</CardTitle>
+                  <Receipt className="h-3 w-3 md:h-4 md:w-4 text-purple-600" />
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{getFilteredRecords().length}</div>
-                  <p className="text-xs text-muted-foreground">Total de registros</p>
+                <CardContent className="p-3 md:p-6 pt-0">
+                  <div className="text-lg md:text-2xl font-bold">{getFilteredRecords().length}</div>
+                  <p className="text-xs text-muted-foreground hidden md:block">Total de registros</p>
                 </CardContent>
               </Card>
             </div>
 
             {/* Filters */}
-            <div className="mb-6 flex items-center gap-4 flex-wrap">
+            <div className="mb-4 md:mb-6 flex items-center gap-2 md:gap-4 flex-wrap">
               <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4 text-gray-500" />
+                <Filter className="h-3 w-3 md:h-4 md:w-4 text-gray-500" />
                 <Select value={filterType} onValueChange={setFilterType}>
-                  <SelectTrigger className="w-40">
+                  <SelectTrigger className="w-28 md:w-40 text-xs md:text-sm">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -604,31 +617,31 @@ export default function FinanceiroPage() {
                 </Select>
               </div>
               <Select value={filterMonth} onValueChange={setFilterMonth}>
-                <SelectTrigger className="w-40">
+                <SelectTrigger className="w-28 md:w-40 text-xs md:text-sm">
                   <SelectValue placeholder="Mês" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todos os meses</SelectItem>
-                  <SelectItem value="0">Janeiro</SelectItem>
-                  <SelectItem value="1">Fevereiro</SelectItem>
-                  <SelectItem value="2">Março</SelectItem>
-                  <SelectItem value="3">Abril</SelectItem>
-                  <SelectItem value="4">Maio</SelectItem>
-                  <SelectItem value="5">Junho</SelectItem>
-                  <SelectItem value="6">Julho</SelectItem>
-                  <SelectItem value="7">Agosto</SelectItem>
-                  <SelectItem value="8">Setembro</SelectItem>
-                  <SelectItem value="9">Outubro</SelectItem>
-                  <SelectItem value="10">Novembro</SelectItem>
-                  <SelectItem value="11">Dezembro</SelectItem>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="0">Jan</SelectItem>
+                  <SelectItem value="1">Fev</SelectItem>
+                  <SelectItem value="2">Mar</SelectItem>
+                  <SelectItem value="3">Abr</SelectItem>
+                  <SelectItem value="4">Mai</SelectItem>
+                  <SelectItem value="5">Jun</SelectItem>
+                  <SelectItem value="6">Jul</SelectItem>
+                  <SelectItem value="7">Ago</SelectItem>
+                  <SelectItem value="8">Set</SelectItem>
+                  <SelectItem value="9">Out</SelectItem>
+                  <SelectItem value="10">Nov</SelectItem>
+                  <SelectItem value="11">Dez</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={filterCategory} onValueChange={setFilterCategory}>
-                <SelectTrigger className="w-40">
+                <SelectTrigger className="w-32 md:w-40 text-xs md:text-sm">
                   <SelectValue placeholder="Categoria" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todas categorias</SelectItem>
+                  <SelectItem value="all">Todas</SelectItem>
                   {financeCategories.map((category) => (
                     <SelectItem key={category.id} value={category.id}>
                       {category.name}
@@ -640,49 +653,56 @@ export default function FinanceiroPage() {
 
             {/* Transactions List */}
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Receipt className="h-5 w-5" />
+              <CardHeader className="p-4 md:p-6">
+                <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+                  <Receipt className="h-4 w-4 md:h-5 md:w-5" />
                   Histórico de Transações
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
+              <CardContent className="p-4 md:p-6 pt-0">
+                <div className="space-y-3 md:space-y-4">
                   {getFilteredRecords().map((record) => (
                     <div
                       key={record.id}
-                      className="flex items-center justify-between p-4 border border-gray-100 rounded-lg"
+                      className="flex flex-col md:flex-row md:items-center justify-between p-3 md:p-4 border border-gray-100 rounded-lg gap-3 md:gap-4"
                     >
-                      <div className="flex items-center gap-4">
+                      <div className="flex items-start md:items-center gap-3 md:gap-4 flex-1">
                         <div
-                          className={`p-2 rounded-full ${record.type === "entrada" ? "bg-green-100" : "bg-red-100"}`}
+                          className={`p-2 rounded-full flex-shrink-0 ${record.type === "entrada" ? "bg-green-100" : "bg-red-100"}`}
                         >
                           {record.type === "entrada" ? (
-                            <TrendingUp className="h-4 w-4 text-green-600" />
+                            <TrendingUp className="h-3 w-3 md:h-4 md:w-4 text-green-600" />
                           ) : (
-                            <TrendingDown className="h-4 w-4 text-red-600" />
+                            <TrendingDown className="h-3 w-3 md:h-4 md:w-4 text-red-600" />
                           )}
                         </div>
-                        <div>
-                          <h4 className="font-medium">{record.description}</h4>
-                          <div className="flex items-center gap-2 mt-1">
-                            <Badge className={getCategoryColor(record.categoryName)}>{record.categoryName}</Badge>
-                            <span className="text-sm text-gray-500">
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium text-sm md:text-base truncate">{record.description}</h4>
+                          <div className="flex flex-wrap items-center gap-1 md:gap-2 mt-1">
+                            <Badge className={`${getCategoryColor(record.categoryName)} text-xs`}>
+                              {record.categoryName}
+                            </Badge>
+                            <span className="text-xs md:text-sm text-gray-500">
                               {getMethodIcon(record.method)} {record.method}
                             </span>
-                            {record.member && <span className="text-sm text-gray-500">• {record.member}</span>}
+                            {record.member && (
+                              <span className="text-xs md:text-sm text-gray-500">• {record.member}</span>
+                            )}
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1 md:hidden">
+                            {new Date(record.date).toLocaleDateString("pt-BR")}
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <div className="text-right">
+                      <div className="flex items-center justify-between md:justify-end gap-2 md:gap-2">
+                        <div className="text-left md:text-right">
                           <div
-                            className={`text-lg font-bold ${record.type === "entrada" ? "text-green-600" : "text-red-600"}`}
+                            className={`text-base md:text-lg font-bold ${record.type === "entrada" ? "text-green-600" : "text-red-600"}`}
                           >
                             {record.type === "entrada" ? "+" : "-"}
                             {formatCurrency(record.amount)}
                           </div>
-                          <div className="text-sm text-gray-500">
+                          <div className="text-xs md:text-sm text-gray-500 hidden md:block">
                             {new Date(record.date).toLocaleDateString("pt-BR")}
                           </div>
                         </div>
@@ -690,17 +710,17 @@ export default function FinanceiroPage() {
                           variant="ghost"
                           size="sm"
                           onClick={() => handleDeleteRecord(record.id)}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50 p-1 md:p-2"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-3 w-3 md:h-4 md:w-4" />
                         </Button>
                       </div>
                     </div>
                   ))}
                   {getFilteredRecords().length === 0 && (
                     <div className="text-center py-8 text-gray-500">
-                      <PiggyBank className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>Nenhuma transação encontrada</p>
+                      <PiggyBank className="h-8 w-8 md:h-12 md:w-12 mx-auto mb-4 opacity-50" />
+                      <p className="text-sm md:text-base">Nenhuma transação encontrada</p>
                     </div>
                   )}
                 </div>

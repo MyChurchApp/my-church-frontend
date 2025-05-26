@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -15,6 +15,8 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
+  Menu,
+  X,
 } from "lucide-react"
 import { getUser } from "@/lib/fake-api"
 
@@ -31,9 +33,42 @@ interface MenuItem {
 
 export function Sidebar({ className = "" }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false)
+  const [isMobileOpen, setIsMobileOpen] = useState(false)
   const router = useRouter()
   const pathname = usePathname()
   const user = getUser()
+
+  // Close mobile menu when route changes
+  useEffect(() => {
+    setIsMobileOpen(false)
+  }, [pathname])
+
+  // Prevent body scroll when mobile menu is open
+  useEffect(() => {
+    if (isMobileOpen) {
+      const scrollY = window.scrollY
+      document.body.style.position = "fixed"
+      document.body.style.top = `-${scrollY}px`
+      document.body.style.width = "100%"
+      document.body.style.overflow = "hidden"
+    } else {
+      const scrollY = document.body.style.top
+      document.body.style.position = ""
+      document.body.style.top = ""
+      document.body.style.width = ""
+      document.body.style.overflow = ""
+      if (scrollY) {
+        window.scrollTo(0, Number.parseInt(scrollY || "0") * -1)
+      }
+    }
+
+    return () => {
+      document.body.style.position = ""
+      document.body.style.top = ""
+      document.body.style.width = ""
+      document.body.style.overflow = ""
+    }
+  }, [isMobileOpen])
 
   const handleLogout = () => {
     localStorage.removeItem("user")
@@ -64,74 +99,115 @@ export function Sidebar({ className = "" }: SidebarProps) {
     return pathname.startsWith(href)
   }
 
-  return (
-    <div
-      className={`bg-white border-r border-gray-200 transition-all duration-300 ${isCollapsed ? "w-16" : "w-64"} ${className}`}
-    >
-      <div className="flex flex-col h-full">
-        {/* Header */}
-        <div className="p-4 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            {!isCollapsed && <Logo size="md" />}
-            <Button variant="ghost" size="icon" onClick={() => setIsCollapsed(!isCollapsed)} className="ml-auto">
-              {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-            </Button>
-          </div>
-        </div>
-
-        {/* User Info */}
-        {!isCollapsed && user && (
-          <div className="p-4 border-b border-gray-200 bg-gray-50">
-            <div className="text-sm">
-              <p className="font-medium text-gray-900">{user.name}</p>
-              <p className="text-gray-600">{user.role}</p>
-              <span
-                className={`inline-block px-2 py-1 text-xs rounded-full mt-1 ${
-                  user.accessLevel === "admin" ? "bg-blue-100 text-blue-800" : "bg-green-100 text-green-800"
-                }`}
-              >
-                {user.accessLevel === "admin" ? "Administrador" : "Membro"}
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* Navigation */}
-        <nav className="flex-1 p-4">
-          <ul className="space-y-2">
-            {menuItems.map((item) => (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${
-                    isActiveRoute(item.href)
-                      ? "text-white shadow-md"
-                      : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
-                  }`}
-                  style={isActiveRoute(item.href) ? { backgroundColor: "#89f0e6" } : {}}
-                >
-                  <item.icon className="h-5 w-5 flex-shrink-0" />
-                  {!isCollapsed && <span className="font-medium">{item.label}</span>}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
-
-        {/* Footer */}
-        <div className="p-4 border-t border-gray-200">
+  const SidebarContent = () => (
+    <div className="flex flex-col h-full">
+      {/* Header */}
+      <div className="p-4 border-b border-gray-200">
+        <div className="flex items-center justify-between">
+          {!isCollapsed && <Logo size="md" />}
           <Button
             variant="ghost"
-            onClick={handleLogout}
-            className={`w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 ${
-              isCollapsed ? "px-2" : "px-3"
-            }`}
+            size="icon"
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="ml-auto hidden md:flex"
           >
-            <LogOut className="h-5 w-5 flex-shrink-0" />
-            {!isCollapsed && <span className="ml-3">Sair</span>}
+            {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => setIsMobileOpen(false)} className="ml-auto md:hidden">
+            <X className="h-4 w-4" />
           </Button>
         </div>
       </div>
+
+      {/* User Info */}
+      {!isCollapsed && user && (
+        <div className="p-4 border-b border-gray-200 bg-gray-50">
+          <div className="text-sm">
+            <p className="font-medium text-gray-900">{user.name}</p>
+            <p className="text-gray-600">{user.role}</p>
+            <span
+              className={`inline-block px-2 py-1 text-xs rounded-full mt-1 ${
+                user.accessLevel === "admin" ? "bg-blue-100 text-blue-800" : "bg-green-100 text-green-800"
+              }`}
+            >
+              {user.accessLevel === "admin" ? "Administrador" : "Membro"}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Navigation */}
+      <nav className="flex-1 p-4">
+        <ul className="space-y-2">
+          {menuItems.map((item) => (
+            <li key={item.href}>
+              <Link
+                href={item.href}
+                className={`flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${
+                  isActiveRoute(item.href)
+                    ? "text-white shadow-md"
+                    : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                }`}
+                style={isActiveRoute(item.href) ? { backgroundColor: "#89f0e6" } : {}}
+              >
+                <item.icon className="h-5 w-5 flex-shrink-0" />
+                {!isCollapsed && <span className="font-medium">{item.label}</span>}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </nav>
+
+      {/* Footer */}
+      <div className="p-4 border-t border-gray-200">
+        <Button
+          variant="ghost"
+          onClick={handleLogout}
+          className={`w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 ${
+            isCollapsed ? "px-2" : "px-3"
+          }`}
+        >
+          <LogOut className="h-5 w-5 flex-shrink-0" />
+          {!isCollapsed && <span className="ml-3">Sair</span>}
+        </Button>
+      </div>
     </div>
+  )
+
+  return (
+    <>
+      {/* Mobile Menu Button */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="md:hidden fixed top-4 left-4 z-50 bg-white shadow-md"
+        onClick={() => setIsMobileOpen(true)}
+      >
+        <Menu className="h-5 w-5" />
+      </Button>
+
+      {/* Desktop Sidebar */}
+      <div
+        className={`hidden md:block bg-white border-r border-gray-200 transition-all duration-300 ${
+          isCollapsed ? "w-16" : "w-64"
+        } ${className}`}
+      >
+        <SidebarContent />
+      </div>
+
+      {/* Mobile Overlay */}
+      {isMobileOpen && (
+        <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setIsMobileOpen(false)} />
+      )}
+
+      {/* Mobile Sidebar */}
+      <div
+        className={`fixed top-0 left-0 h-full w-64 bg-white z-50 transform transition-transform duration-300 md:hidden ${
+          isMobileOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <SidebarContent />
+      </div>
+    </>
   )
 }

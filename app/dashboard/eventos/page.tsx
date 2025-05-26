@@ -332,26 +332,27 @@ export default function EventosPage() {
 
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0">
+        <header className="bg-white border-b border-gray-200 px-4 md:px-6 py-4 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Eventos</h1>
-              <p className="text-gray-600">Gerencie os eventos da igreja</p>
+              <h1 className="text-xl md:text-2xl font-bold text-gray-900">Eventos</h1>
+              <p className="text-sm md:text-base text-gray-600">Gerencie os eventos da igreja</p>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 md:gap-4">
               {user.accessLevel === "admin" && (
                 <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
                   <DialogTrigger asChild>
-                    <Button className="flex items-center gap-2">
+                    <Button className="flex items-center gap-2 text-sm md:text-base px-3 md:px-4">
                       <Plus className="h-4 w-4" />
-                      Novo Evento
+                      <span className="hidden sm:inline">Novo Evento</span>
+                      <span className="sm:hidden">Novo</span>
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+                  <DialogContent className="max-w-[95vw] md:max-w-md max-h-[90vh] overflow-y-auto mx-4">
                     <DialogHeader>
-                      <DialogTitle>Criar Novo Evento</DialogTitle>
+                      <DialogTitle className="text-lg md:text-xl">Criar Novo Evento</DialogTitle>
                     </DialogHeader>
-                    <form onSubmit={handleCreateEvent} className="space-y-4">
+                    <form onSubmit={handleCreateEvent} className="space-y-3 md:space-y-4">
                       <div className="space-y-2">
                         <Label htmlFor="event-title">Título</Label>
                         <Input
@@ -444,16 +445,16 @@ export default function EventosPage() {
 
                       {/* Adicionar seletor de cor */}
                       <div className="space-y-2">
-                        <Label className="flex items-center gap-2">
+                        <Label className="flex items-center gap-2 text-sm md:text-base">
                           <Palette className="h-4 w-4" />
                           Cor do Evento
                         </Label>
-                        <div className="grid grid-cols-5 gap-2">
+                        <div className="grid grid-cols-6 md:grid-cols-5 gap-2">
                           {eventColors.map((color) => (
                             <button
                               key={color.value}
                               type="button"
-                              className={`w-8 h-8 rounded-full border-2 transition-all ${
+                              className={`w-6 h-6 md:w-8 md:h-8 rounded-full border-2 transition-all ${
                                 newEvent.color === color.value
                                   ? "border-gray-800 scale-110"
                                   : "border-gray-300 hover:border-gray-500"
@@ -465,12 +466,12 @@ export default function EventosPage() {
                           ))}
                         </div>
                         <div className="flex items-center gap-2 mt-2">
-                          <span className="text-sm text-gray-600">Cor personalizada:</span>
+                          <span className="text-xs md:text-sm text-gray-600">Cor personalizada:</span>
                           <input
                             type="color"
                             value={newEvent.color}
                             onChange={(e) => setNewEvent({ ...newEvent, color: e.target.value })}
-                            className="w-8 h-8 rounded border border-gray-300"
+                            className="w-6 h-6 md:w-8 md:h-8 rounded border border-gray-300"
                           />
                         </div>
                       </div>
@@ -483,20 +484,24 @@ export default function EventosPage() {
                 </Dialog>
               )}
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 md:gap-2">
                 <Button
                   variant={viewMode === "calendar" ? "default" : "outline"}
                   size="sm"
                   onClick={() => setViewMode("calendar")}
+                  className="px-2 md:px-3"
                 >
                   <Calendar className="h-4 w-4" />
+                  <span className="hidden md:inline ml-1">Calendário</span>
                 </Button>
                 <Button
                   variant={viewMode === "list" ? "default" : "outline"}
                   size="sm"
                   onClick={() => setViewMode("list")}
+                  className="px-2 md:px-3"
                 >
                   <CalendarDays className="h-4 w-4" />
+                  <span className="hidden md:inline ml-1">Lista</span>
                 </Button>
               </div>
             </div>
@@ -505,9 +510,9 @@ export default function EventosPage() {
 
         {/* Edit Event Dialog */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-[95vw] md:max-w-md max-h-[90vh] overflow-y-auto mx-4">
             <DialogHeader>
-              <DialogTitle>Editar Evento</DialogTitle>
+              <DialogTitle className="text-lg md:text-xl">Editar Evento</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleEditEvent} className="space-y-4">
               <div className="space-y-2">
@@ -650,13 +655,13 @@ export default function EventosPage() {
 
         {/* Main Content */}
         <div className="flex-1 overflow-y-auto">
-          <div className="p-6">
+          <div className="p-4 md:p-6">
             {/* Filters */}
-            <div className="mb-6 flex items-center gap-4">
+            <div className="mb-4 md:mb-6 flex items-center gap-2 md:gap-4">
               <div className="flex items-center gap-2">
                 <Filter className="h-4 w-4 text-gray-500" />
                 <Select value={filterType} onValueChange={setFilterType}>
-                  <SelectTrigger className="w-40">
+                  <SelectTrigger className="w-32 md:w-40 text-sm">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -672,38 +677,51 @@ export default function EventosPage() {
 
             {viewMode === "calendar" ? (
               <Card>
-                <CardHeader>
+                <CardHeader className="pb-3 md:pb-6">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="flex items-center gap-2">
-                      <Calendar className="h-5 w-5" />
-                      {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
+                    <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
+                      <Calendar className="h-4 w-4 md:h-5 md:w-5" />
+                      <span className="hidden sm:inline">
+                        {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
+                      </span>
+                      <span className="sm:hidden text-sm">
+                        {monthNames[currentDate.getMonth()].slice(0, 3)} {currentDate.getFullYear()}
+                      </span>
                     </CardTitle>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 md:gap-2">
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1))}
+                        className="px-2 md:px-3"
                       >
-                        <ChevronLeft className="h-4 w-4" />
+                        <ChevronLeft className="h-3 w-3 md:h-4 md:w-4" />
                       </Button>
-                      <Button variant="outline" size="sm" onClick={() => setCurrentDate(new Date())}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentDate(new Date())}
+                        className="px-2 md:px-3 text-xs md:text-sm"
+                      >
                         Hoje
                       </Button>
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1))}
+                        className="px-2 md:px-3"
                       >
-                        <ChevronRight className="h-4 w-4" />
+                        <ChevronRight className="h-3 w-3 md:h-4 md:w-4" />
                       </Button>
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-7 gap-1 mb-4">
+                <CardContent className="p-2 md:p-6">
+                  <div className="grid grid-cols-7 gap-1 mb-2 md:mb-4">
                     {weekDays.map((day) => (
-                      <div key={day} className="p-2 text-center text-sm font-medium text-gray-500">
-                        {day}
+                      <div key={day} className="p-1 md:p-2 text-center text-xs md:text-sm font-medium text-gray-500">
+                        <span className="hidden sm:inline">{day}</span>
+                        <span className="sm:hidden">{day.slice(0, 1)}</span>
                       </div>
                     ))}
                   </div>
@@ -711,41 +729,41 @@ export default function EventosPage() {
                     {getDaysInMonth(currentDate).map((day, index) => (
                       <div
                         key={index}
-                        className={`min-h-24 p-1 border border-gray-100 ${
+                        className={`min-h-16 md:min-h-24 p-1 border border-gray-100 ${
                           day ? "bg-white hover:bg-gray-50" : "bg-gray-50"
                         }`}
                       >
                         {day && (
                           <>
-                            <div className="text-sm font-medium mb-1">{day.getDate()}</div>
+                            <div className="text-xs md:text-sm font-medium mb-1">{day.getDate()}</div>
                             <div className="space-y-1">
                               {getEventsForDate(day)
                                 .filter((event) => filterType === "all" || event.type === filterType)
-                                .slice(0, 2)
+                                .slice(0, window.innerWidth < 768 ? 1 : 2)
                                 .map((event) => (
-                                  // Aplicar cor personalizada no calendário
                                   <div
                                     key={event.id}
                                     className="text-xs p-1 rounded border cursor-pointer hover:opacity-80"
                                     style={getCustomEventStyle(event)}
                                     onClick={() => user?.accessLevel === "admin" && openEditDialog(event)}
                                   >
-                                    <div className="font-medium truncate">{event.title}</div>
-                                    <div className="flex items-center gap-1">
-                                      <Clock className="h-3 w-3" />
-                                      {event.time}
+                                    <div className="font-medium truncate text-xs">{event.title}</div>
+                                    <div className="flex items-center gap-1 text-xs">
+                                      <Clock className="h-2 w-2 md:h-3 md:w-3" />
+                                      <span className="hidden sm:inline">{event.time}</span>
+                                      <span className="sm:hidden">{event.time.slice(0, 5)}</span>
                                       {event.recurrence !== "once" && <span className="ml-1 text-xs">🔄</span>}
                                     </div>
                                   </div>
                                 ))}
                               {getEventsForDate(day).filter(
                                 (event) => filterType === "all" || event.type === filterType,
-                              ).length > 2 && (
+                              ).length > (window.innerWidth < 768 ? 1 : 2) && (
                                 <div className="text-xs text-gray-500">
                                   +
                                   {getEventsForDate(day).filter(
                                     (event) => filterType === "all" || event.type === filterType,
-                                  ).length - 2}{" "}
+                                  ).length - (window.innerWidth < 768 ? 1 : 2)}{" "}
                                   mais
                                 </div>
                               )}
@@ -758,22 +776,25 @@ export default function EventosPage() {
                 </CardContent>
               </Card>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3 md:space-y-4">
                 {filteredEvents.map((event) => (
                   <Card
                     key={event.id}
                     className={user?.accessLevel === "admin" ? "cursor-pointer hover:shadow-md transition-shadow" : ""}
                     style={{ borderLeft: `4px solid ${event.color || "#3b82f6"}` }}
                   >
-                    <CardContent className="p-4" onClick={() => user?.accessLevel === "admin" && openEditDialog(event)}>
+                    <CardContent
+                      className="p-3 md:p-4"
+                      onClick={() => user?.accessLevel === "admin" && openEditDialog(event)}
+                    >
                       <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <h3 className="font-semibold text-lg">{event.title}</h3>
-                            <Badge className={getEventTypeColor(event.type)}>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-2 flex-wrap">
+                            <h3 className="font-semibold text-base md:text-lg truncate">{event.title}</h3>
+                            <Badge className={`${getEventTypeColor(event.type)} text-xs`}>
                               {event.type.charAt(0).toUpperCase() + event.type.slice(1)}
                             </Badge>
-                            <Badge className={getRecurrenceBadge(event.recurrence)}>
+                            <Badge className={`${getRecurrenceBadge(event.recurrence)} text-xs`}>
                               {getRecurrenceText(event.recurrence)}
                             </Badge>
                             {event.isRecurring && (
@@ -781,36 +802,41 @@ export default function EventosPage() {
                                 Série
                               </Badge>
                             )}
-                            {user?.accessLevel === "admin" && <Edit className="h-4 w-4 text-gray-400" />}
+                            {user?.accessLevel === "admin" && <Edit className="h-3 w-3 md:h-4 md:w-4 text-gray-400" />}
                           </div>
-                          <p className="text-gray-600 mb-3">{event.description}</p>
-                          <div className="flex items-center gap-4 text-sm text-gray-500">
+                          <p className="text-gray-600 mb-3 text-sm md:text-base line-clamp-2">{event.description}</p>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-xs md:text-sm text-gray-500">
                             <div className="flex items-center gap-1">
-                              <Calendar className="h-4 w-4" />
+                              <Calendar className="h-3 w-3 md:h-4 md:w-4" />
                               {new Date(event.date).toLocaleDateString("pt-BR")}
                             </div>
                             <div className="flex items-center gap-1">
-                              <Clock className="h-4 w-4" />
+                              <Clock className="h-3 w-3 md:h-4 md:w-4" />
                               {event.time}
                             </div>
                             {event.location && (
                               <div className="flex items-center gap-1">
-                                <MapPin className="h-4 w-4" />
-                                {event.location}
+                                <MapPin className="h-3 w-3 md:h-4 md:w-4" />
+                                <span className="truncate">{event.location}</span>
                               </div>
                             )}
                             {event.attendees !== undefined && (
                               <div className="flex items-center gap-1">
-                                <Users className="h-4 w-4" />
+                                <Users className="h-3 w-3 md:h-4 md:w-4" />
                                 {event.attendees} participantes
                               </div>
                             )}
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-sm text-gray-500">Organizado por</p>
-                          <p className="font-medium">{event.organizer}</p>
+                        <div className="text-right ml-2 hidden md:block">
+                          <p className="text-xs text-gray-500">Organizado por</p>
+                          <p className="font-medium text-sm">{event.organizer}</p>
                         </div>
+                      </div>
+                      <div className="mt-2 md:hidden">
+                        <p className="text-xs text-gray-500">
+                          Organizado por: <span className="font-medium">{event.organizer}</span>
+                        </p>
                       </div>
                     </CardContent>
                   </Card>

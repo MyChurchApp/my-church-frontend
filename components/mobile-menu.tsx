@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Menu, X, Layers, Users, Calendar, BarChart, Settings } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Logo } from "@/components/logo"
@@ -12,16 +12,69 @@ import Link from "next/link"
 export function MobileMenu() {
   const [isOpen, setIsOpen] = useState(false)
   const { t } = useLanguage()
+  const menuRef = useRef<HTMLDivElement>(null)
 
   // Prevent scrolling when menu is open
   useEffect(() => {
     if (isOpen) {
+      // Salva a posição atual do scroll
+      const scrollY = window.scrollY
+      document.body.style.position = "fixed"
+      document.body.style.top = `-${scrollY}px`
+      document.body.style.width = "100%"
       document.body.style.overflow = "hidden"
     } else {
-      document.body.style.overflow = "auto"
+      // Restaura o scroll
+      const scrollY = document.body.style.top
+      document.body.style.position = ""
+      document.body.style.top = ""
+      document.body.style.width = ""
+      document.body.style.overflow = ""
+      if (scrollY) {
+        window.scrollTo(0, Number.parseInt(scrollY || "0") * -1)
+      }
     }
+
+    // Cleanup function
     return () => {
-      document.body.style.overflow = "auto"
+      document.body.style.position = ""
+      document.body.style.top = ""
+      document.body.style.width = ""
+      document.body.style.overflow = ""
+    }
+  }, [isOpen])
+
+  // Handle click outside to close menu
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (isOpen && menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsOpen(false)
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+    }
+  }, [isOpen])
+
+  // Handle escape key to close menu
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && isOpen) {
+        setIsOpen(false)
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener("keydown", handleEscape)
+    }
+
+    return () => {
+      document.removeEventListener("keydown", handleEscape)
     }
   }, [isOpen])
 
@@ -42,14 +95,22 @@ export function MobileMenu() {
       </Button>
 
       {/* Overlay */}
-      {isOpen && <div className="fixed inset-0 bg-black/50 z-[99999]" onClick={closeMenu} />}
+      {isOpen && (
+        <div className="fixed inset-0 bg-black/50 z-[99998]" onClick={closeMenu} style={{ touchAction: "none" }} />
+      )}
 
       {/* Mobile Menu Panel */}
       <div
-        className={`fixed top-0 bottom-0 right-0 w-[90%] max-w-sm z-[999999] shadow-2xl transition-transform duration-300 ease-in-out h-screen ${
+        ref={menuRef}
+        className={`fixed top-0 bottom-0 right-0 w-[90%] max-w-sm z-[99999] shadow-2xl transition-transform duration-300 ease-in-out ${
           isOpen ? "translate-x-0" : "translate-x-full"
         }`}
-        style={{ height: "100vh", display: "flex", flexDirection: "column" }}
+        style={{
+          height: "100vh",
+          display: "flex",
+          flexDirection: "column",
+          touchAction: "none",
+        }}
       >
         {/* Header */}
         <div className="flex items-center justify-between p-5 bg-gray-500 border-b border-gray-600">
@@ -61,7 +122,7 @@ export function MobileMenu() {
         </div>
 
         {/* Navigation */}
-        <div className="flex-grow bg-gray-500 overflow-y-auto">
+        <div className="flex-grow bg-gray-500 overflow-y-auto" style={{ touchAction: "pan-y" }}>
           <nav className="h-full">
             <ul className="space-y-1 p-4">
               <li>
@@ -125,9 +186,9 @@ export function MobileMenu() {
               {t("btn.login")}
             </Link>
           </Button>
-          <Button asChild className="w-full h-11">
+          <Button variant="outline" asChild className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 h-11">
             <Link href="/cadastro" onClick={closeMenu} className="font-medium">
-              {t("btn.getStarted")}
+              Criar Conta
             </Link>
           </Button>
         </div>
