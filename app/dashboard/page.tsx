@@ -6,12 +6,14 @@ import Image from "next/image"
 import { Sidebar } from "@/components/sidebar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Calendar, Users, DollarSign, TrendingUp } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Calendar, Users, DollarSign, TrendingUp, ChevronLeft, ChevronRight, Star, Heart, Gift } from "lucide-react"
 import {
   getUser,
   getChurchData,
   getNotifications,
   formatTimeAgo,
+  fakeMembers,
   type User,
   type ChurchData,
   type Notification,
@@ -22,6 +24,62 @@ export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null)
   const [churchData, setChurchData] = useState<ChurchData | null>(null)
   const [notifications, setNotifications] = useState<Notification[]>([])
+  const [birthdays, setBirthdays] = useState<any[]>([])
+  const [currentBannerIndex, setCurrentBannerIndex] = useState(0)
+  const [currentPromoIndex, setCurrentPromoIndex] = useState(0)
+
+  // Banners de eventos
+  const banners = [
+    {
+      id: 1,
+      title: "Retiro de Jovens 2025",
+      subtitle: "15-17 de Março",
+      image: "/placeholder.svg?height=200&width=300&query=youth+retreat+banner",
+      color: "from-blue-500 to-purple-600",
+    },
+    {
+      id: 2,
+      title: "Campanha de Oração",
+      subtitle: "21 dias de jejum",
+      image: "/placeholder.svg?height=200&width=300&query=prayer+campaign+banner",
+      color: "from-green-500 to-teal-600",
+    },
+    {
+      id: 3,
+      title: "Escola Bíblica",
+      subtitle: "Inscrições abertas",
+      image: "/placeholder.svg?height=200&width=300&query=bible+school+banner",
+      color: "from-orange-500 to-red-600",
+    },
+  ]
+
+  // Banners de propaganda
+  const promoBanners = [
+    {
+      id: 1,
+      title: "Livraria Cristã",
+      subtitle: "20% OFF em livros",
+      icon: <Star className="h-6 w-6" />,
+      color: "from-pink-500 to-rose-600",
+      action: "Comprar Agora",
+    },
+    {
+      id: 2,
+      title: "Café da Igreja",
+      subtitle: "Novos sabores disponíveis",
+      icon: <Heart className="h-6 w-6" />,
+      color: "from-amber-500 to-orange-600",
+      action: "Ver Cardápio",
+    },
+    {
+      id: 3,
+      title: "Bazar Beneficente",
+      subtitle: "Ajude nossa comunidade",
+      icon: <Gift className="h-6 w-6" />,
+      color: "from-emerald-500 to-green-600",
+      action: "Participar",
+    },
+  ]
 
   useEffect(() => {
     const userData = getUser()
@@ -33,7 +91,24 @@ export default function DashboardPage() {
     setUser(userData)
     setChurchData(getChurchData())
     setNotifications(getNotifications())
+    setBirthdays(getBirthdaysThisWeek())
   }, [router])
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentBannerIndex((prev) => (prev + 1) % banners.length)
+    }, 5000) // Troca a cada 5 segundos
+
+    return () => clearInterval(interval)
+  }, [banners.length])
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentPromoIndex((prev) => (prev + 1) % promoBanners.length)
+    }, 4000) // Troca a cada 4 segundos (diferente do primeiro)
+
+    return () => clearInterval(interval)
+  }, [promoBanners.length])
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
@@ -67,6 +142,46 @@ export default function DashboardPage() {
       default:
         return "Notificação"
     }
+  }
+
+  const getBirthdaysThisWeek = () => {
+    const today = new Date()
+    const weekStart = new Date(today)
+    weekStart.setDate(today.getDate() - today.getDay())
+    const weekEnd = new Date(weekStart)
+    weekEnd.setDate(weekStart.getDate() + 6)
+
+    return fakeMembers
+      .filter((member) => {
+        const birthDate = new Date(member.birthDate)
+        const thisYearBirthday = new Date(today.getFullYear(), birthDate.getMonth(), birthDate.getDate())
+        return thisYearBirthday >= weekStart && thisYearBirthday <= weekEnd
+      })
+      .map((member) => ({
+        ...member,
+        birthdayThisYear: new Date(
+          today.getFullYear(),
+          new Date(member.birthDate).getMonth(),
+          new Date(member.birthDate).getDate(),
+        ),
+      }))
+      .sort((a, b) => a.birthdayThisYear.getTime() - b.birthdayThisYear.getTime())
+  }
+
+  const nextBanner = () => {
+    setCurrentBannerIndex((prev) => (prev + 1) % banners.length)
+  }
+
+  const prevBanner = () => {
+    setCurrentBannerIndex((prev) => (prev - 1 + banners.length) % banners.length)
+  }
+
+  const nextPromo = () => {
+    setCurrentPromoIndex((prev) => (prev + 1) % promoBanners.length)
+  }
+
+  const prevPromo = () => {
+    setCurrentPromoIndex((prev) => (prev - 1 + promoBanners.length) % promoBanners.length)
   }
 
   if (!user || !churchData) {
@@ -155,58 +270,213 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* Feed de Notificações */}
-            <div className="max-w-2xl mx-auto pb-8">
-              <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-4 md:mb-6">Mural da Igreja</h2>
+            {/* Conteúdo Principal */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pb-8">
+              {/* Feed de Notificações */}
+              <div className="lg:col-span-2">
+                <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-4 md:mb-6">Mural da Igreja</h2>
 
-              <div className="space-y-4 md:space-y-6">
-                {notifications.map((notification) => (
-                  <Card key={notification.id} className="overflow-hidden">
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-8 w-8 md:h-10 md:w-10">
-                          <AvatarImage src="/placeholder.svg?height=40&width=40&query=church+member" />
-                          <AvatarFallback className="text-xs md:text-sm">
-                            {notification.author
-                              .split(" ")
-                              .map((n) => n[0])
-                              .join("")}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <p className="font-medium text-gray-900 text-sm md:text-base">{notification.author}</p>
-                            <span className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded-full">
-                              {getNotificationBadge(notification.type)}
-                            </span>
+                <div className="space-y-4 md:space-y-6">
+                  {notifications.map((notification) => (
+                    <Card key={notification.id} className="overflow-hidden">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-8 w-8 md:h-10 md:w-10">
+                            <AvatarImage src="/placeholder.svg?height=40&width=40&query=church+member" />
+                            <AvatarFallback className="text-xs md:text-sm">
+                              {notification.author
+                                .split(" ")
+                                .map((n) => n[0])
+                                .join("")}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium text-gray-900 text-sm md:text-base">{notification.author}</p>
+                              <span className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded-full">
+                                {getNotificationBadge(notification.type)}
+                              </span>
+                            </div>
+                            <p className="text-xs md:text-sm text-gray-600">{formatTimeAgo(notification.timestamp)}</p>
                           </div>
-                          <p className="text-xs md:text-sm text-gray-600">{formatTimeAgo(notification.timestamp)}</p>
                         </div>
+                      </CardHeader>
+
+                      <CardContent className="pt-0">
+                        <div className="flex items-center gap-2 mb-3">
+                          {getNotificationIcon(notification.type)}
+                          <h3 className="font-semibold text-gray-900 text-sm md:text-base">{notification.title}</h3>
+                        </div>
+
+                        <p className="text-gray-700 mb-4 text-sm md:text-base">{notification.content}</p>
+
+                        {notification.image && (
+                          <div className="mb-4 rounded-lg overflow-hidden">
+                            <Image
+                              src={notification.image || "/placeholder.svg"}
+                              alt={notification.title}
+                              width={500}
+                              height={300}
+                              className="w-full h-48 md:h-64 object-cover"
+                            />
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+
+              {/* Sidebar - Aniversários e Banners */}
+              <div className="lg:col-span-1">
+                <div className="lg:sticky lg:top-6 space-y-6">
+                  {/* Aniversários da Semana */}
+                  <Card>
+                    <CardHeader className="pb-4">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-5 w-5 text-purple-500" />
+                        <CardTitle className="text-lg">Aniversários da Semana</CardTitle>
                       </div>
                     </CardHeader>
-
-                    <CardContent className="pt-0">
-                      <div className="flex items-center gap-2 mb-3">
-                        {getNotificationIcon(notification.type)}
-                        <h3 className="font-semibold text-gray-900 text-sm md:text-base">{notification.title}</h3>
-                      </div>
-
-                      <p className="text-gray-700 mb-4 text-sm md:text-base">{notification.content}</p>
-
-                      {notification.image && (
-                        <div className="mb-4 rounded-lg overflow-hidden">
-                          <Image
-                            src={notification.image || "/placeholder.svg"}
-                            alt={notification.title}
-                            width={500}
-                            height={300}
-                            className="w-full h-48 md:h-64 object-cover"
-                          />
+                    <CardContent>
+                      {birthdays.length > 0 ? (
+                        <div className="space-y-3">
+                          {birthdays.map((member) => (
+                            <div key={member.id} className="flex items-center gap-3 p-3 bg-purple-50 rounded-lg">
+                              <Avatar className="h-10 w-10">
+                                <AvatarImage
+                                  src={member.photo || "/placeholder.svg?height=40&width=40&query=church+member"}
+                                />
+                                <AvatarFallback className="bg-purple-100 text-purple-700">
+                                  {member.name
+                                    .split(" ")
+                                    .map((n) => n[0])
+                                    .join("")}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-gray-900 text-sm truncate">{member.name}</p>
+                                <p className="text-xs text-gray-600">
+                                  {member.birthdayThisYear.toLocaleDateString("pt-BR", {
+                                    weekday: "short",
+                                    day: "numeric",
+                                    month: "short",
+                                  })}
+                                </p>
+                                <p className="text-xs text-purple-600">
+                                  {new Date().getFullYear() - new Date(member.birthDate).getFullYear()} anos
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-6">
+                          <Calendar className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                          <p className="text-gray-500 text-sm">Nenhum aniversário esta semana</p>
                         </div>
                       )}
                     </CardContent>
                   </Card>
-                ))}
+
+                  {/* Carrossel de Banners de Eventos */}
+                  <Card className="overflow-hidden">
+                    <div className="relative h-48">
+                      <div
+                        className={`absolute inset-0 bg-gradient-to-br ${banners[currentBannerIndex].color} flex items-center justify-center text-white`}
+                      >
+                        <div className="text-center p-4">
+                          <h3 className="text-lg font-bold mb-2">{banners[currentBannerIndex].title}</h3>
+                          <p className="text-sm opacity-90">{banners[currentBannerIndex].subtitle}</p>
+                        </div>
+                      </div>
+
+                      {/* Controles do carrossel */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="absolute left-2 top-1/2 transform -translate-y-1/2 text-white hover:bg-white/20"
+                        onClick={prevBanner}
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 text-white hover:bg-white/20"
+                        onClick={nextBanner}
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+
+                      {/* Indicadores */}
+                      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2">
+                        {banners.map((_, index) => (
+                          <button
+                            key={index}
+                            className={`w-2 h-2 rounded-full transition-all ${
+                              index === currentBannerIndex ? "bg-white" : "bg-white/50"
+                            }`}
+                            onClick={() => setCurrentBannerIndex(index)}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </Card>
+
+                  {/* Carrossel de Banners de Propaganda */}
+                  <Card className="overflow-hidden">
+                    <div className="relative h-48">
+                      <div
+                        className={`absolute inset-0 bg-gradient-to-br ${promoBanners[currentPromoIndex].color} flex items-center justify-center text-white`}
+                      >
+                        <div className="text-center p-4">
+                          <div className="mb-3">{promoBanners[currentPromoIndex].icon}</div>
+                          <h3 className="text-lg font-bold mb-2">{promoBanners[currentPromoIndex].title}</h3>
+                          <p className="text-sm opacity-90 mb-3">{promoBanners[currentPromoIndex].subtitle}</p>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="bg-white/20 hover:bg-white/30 text-white border-white/30"
+                          >
+                            {promoBanners[currentPromoIndex].action}
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Controles do carrossel */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="absolute left-2 top-1/2 transform -translate-y-1/2 text-white hover:bg-white/20"
+                        onClick={prevPromo}
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 text-white hover:bg-white/20"
+                        onClick={nextPromo}
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+
+                      {/* Indicadores */}
+                      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2">
+                        {promoBanners.map((_, index) => (
+                          <button
+                            key={index}
+                            className={`w-2 h-2 rounded-full transition-all ${
+                              index === currentPromoIndex ? "bg-white" : "bg-white/50"
+                            }`}
+                            onClick={() => setCurrentPromoIndex(index)}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </Card>
+                </div>
               </div>
             </div>
           </div>
