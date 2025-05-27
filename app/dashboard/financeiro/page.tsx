@@ -34,6 +34,8 @@ import {
   Trash2,
   Settings,
   Download,
+  Grid3X3,
+  Table,
 } from "lucide-react"
 import {
   getUser,
@@ -55,8 +57,10 @@ export default function FinanceiroPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [recordToDelete, setRecordToDelete] = useState<string | null>(null)
   const [filterType, setFilterType] = useState<string>("all")
-  const [filterMonth, setFilterMonth] = useState<string>("all")
+  const [filterStartDate, setFilterStartDate] = useState<string>("")
+  const [filterEndDate, setFilterEndDate] = useState<string>("")
   const [filterCategory, setFilterCategory] = useState<string>("all")
+  const [viewMode, setViewMode] = useState<"cards" | "table">("cards")
 
   // Form state for new record
   const [newRecord, setNewRecord] = useState({
@@ -262,9 +266,23 @@ export default function FinanceiroPage() {
   const getFilteredRecords = () => {
     return financeRecords.filter((record) => {
       const typeMatch = filterType === "all" || record.type === filterType
-      const monthMatch = filterMonth === "all" || new Date(record.date).getMonth() === Number.parseInt(filterMonth)
       const categoryMatch = filterCategory === "all" || record.categoryId === filterCategory
-      return typeMatch && monthMatch && categoryMatch
+
+      // Filtro por data
+      let dateMatch = true
+      if (filterStartDate || filterEndDate) {
+        const recordDate = new Date(record.date)
+        if (filterStartDate) {
+          const startDate = new Date(filterStartDate)
+          dateMatch = dateMatch && recordDate >= startDate
+        }
+        if (filterEndDate) {
+          const endDate = new Date(filterEndDate)
+          dateMatch = dateMatch && recordDate <= endDate
+        }
+      }
+
+      return typeMatch && categoryMatch && dateMatch
     })
   }
 
@@ -332,6 +350,24 @@ export default function FinanceiroPage() {
               <p className="text-sm md:text-base text-gray-600">Controle financeiro da igreja</p>
             </div>
             <div className="flex gap-1 md:gap-2">
+              <div className="flex border rounded-md">
+                <Button
+                  onClick={() => setViewMode("cards")}
+                  variant={viewMode === "cards" ? "default" : "ghost"}
+                  size="sm"
+                  className="rounded-r-none px-2 md:px-3"
+                >
+                  <Grid3X3 className="h-3 w-3 md:h-4 md:w-4" />
+                </Button>
+                <Button
+                  onClick={() => setViewMode("table")}
+                  variant={viewMode === "table" ? "default" : "ghost"}
+                  size="sm"
+                  className="rounded-l-none px-2 md:px-3"
+                >
+                  <Table className="h-3 w-3 md:h-4 md:w-4" />
+                </Button>
+              </div>
               <Button
                 onClick={generatePDFReport}
                 variant="outline"
@@ -616,26 +652,25 @@ export default function FinanceiroPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <Select value={filterMonth} onValueChange={setFilterMonth}>
-                <SelectTrigger className="w-28 md:w-40 text-xs md:text-sm">
-                  <SelectValue placeholder="Mês" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="0">Jan</SelectItem>
-                  <SelectItem value="1">Fev</SelectItem>
-                  <SelectItem value="2">Mar</SelectItem>
-                  <SelectItem value="3">Abr</SelectItem>
-                  <SelectItem value="4">Mai</SelectItem>
-                  <SelectItem value="5">Jun</SelectItem>
-                  <SelectItem value="6">Jul</SelectItem>
-                  <SelectItem value="7">Ago</SelectItem>
-                  <SelectItem value="8">Set</SelectItem>
-                  <SelectItem value="9">Out</SelectItem>
-                  <SelectItem value="10">Nov</SelectItem>
-                  <SelectItem value="11">Dez</SelectItem>
-                </SelectContent>
-              </Select>
+
+              <div className="flex items-center gap-2">
+                <Input
+                  type="date"
+                  value={filterStartDate}
+                  onChange={(e) => setFilterStartDate(e.target.value)}
+                  placeholder="Data inicial"
+                  className="w-32 md:w-40 text-xs md:text-sm"
+                />
+                <span className="text-gray-500 text-xs">até</span>
+                <Input
+                  type="date"
+                  value={filterEndDate}
+                  onChange={(e) => setFilterEndDate(e.target.value)}
+                  placeholder="Data final"
+                  className="w-32 md:w-40 text-xs md:text-sm"
+                />
+              </div>
+
               <Select value={filterCategory} onValueChange={setFilterCategory}>
                 <SelectTrigger className="w-32 md:w-40 text-xs md:text-sm">
                   <SelectValue placeholder="Categoria" />
@@ -660,70 +695,159 @@ export default function FinanceiroPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-4 md:p-6 pt-0">
-                <div className="space-y-3 md:space-y-4">
-                  {getFilteredRecords().map((record) => (
-                    <div
-                      key={record.id}
-                      className="flex flex-col md:flex-row md:items-center justify-between p-3 md:p-4 border border-gray-100 rounded-lg gap-3 md:gap-4"
-                    >
-                      <div className="flex items-start md:items-center gap-3 md:gap-4 flex-1">
-                        <div
-                          className={`p-2 rounded-full flex-shrink-0 ${record.type === "entrada" ? "bg-green-100" : "bg-red-100"}`}
-                        >
-                          {record.type === "entrada" ? (
-                            <TrendingUp className="h-3 w-3 md:h-4 md:w-4 text-green-600" />
-                          ) : (
-                            <TrendingDown className="h-3 w-3 md:h-4 md:w-4 text-red-600" />
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-medium text-sm md:text-base truncate">{record.description}</h4>
-                          <div className="flex flex-wrap items-center gap-1 md:gap-2 mt-1">
-                            <Badge className={`${getCategoryColor(record.categoryName)} text-xs`}>
-                              {record.categoryName}
-                            </Badge>
-                            <span className="text-xs md:text-sm text-gray-500">
-                              {getMethodIcon(record.method)} {record.method}
-                            </span>
-                            {record.member && (
-                              <span className="text-xs md:text-sm text-gray-500">• {record.member}</span>
+                {viewMode === "cards" ? (
+                  // Visualização em Cards (código atual)
+                  <div className="space-y-3 md:space-y-4">
+                    {getFilteredRecords().map((record) => (
+                      <div
+                        key={record.id}
+                        className="flex flex-col md:flex-row md:items-center justify-between p-3 md:p-4 border border-gray-100 rounded-lg gap-3 md:gap-4"
+                      >
+                        <div className="flex items-start md:items-center gap-3 md:gap-4 flex-1">
+                          <div
+                            className={`p-2 rounded-full flex-shrink-0 ${record.type === "entrada" ? "bg-green-100" : "bg-red-100"}`}
+                          >
+                            {record.type === "entrada" ? (
+                              <TrendingUp className="h-3 w-3 md:h-4 md:w-4 text-green-600" />
+                            ) : (
+                              <TrendingDown className="h-3 w-3 md:h-4 md:w-4 text-red-600" />
                             )}
                           </div>
-                          <div className="text-xs text-gray-500 mt-1 md:hidden">
-                            {new Date(record.date).toLocaleDateString("pt-BR")}
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-medium text-sm md:text-base truncate">{record.description}</h4>
+                            <div className="flex flex-wrap items-center gap-1 md:gap-2 mt-1">
+                              <Badge className={`${getCategoryColor(record.categoryName)} text-xs`}>
+                                {record.categoryName}
+                              </Badge>
+                              <span className="text-xs md:text-sm text-gray-500">
+                                {getMethodIcon(record.method)} {record.method}
+                              </span>
+                              {record.member && (
+                                <span className="text-xs md:text-sm text-gray-500">• {record.member}</span>
+                              )}
+                            </div>
+                            <div className="text-xs text-gray-500 mt-1 md:hidden">
+                              {new Date(record.date).toLocaleDateString("pt-BR")}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      <div className="flex items-center justify-between md:justify-end gap-2 md:gap-2">
-                        <div className="text-left md:text-right">
-                          <div
-                            className={`text-base md:text-lg font-bold ${record.type === "entrada" ? "text-green-600" : "text-red-600"}`}
+                        <div className="flex items-center justify-between md:justify-end gap-2 md:gap-2">
+                          <div className="text-left md:text-right">
+                            <div
+                              className={`text-base md:text-lg font-bold ${record.type === "entrada" ? "text-green-600" : "text-red-600"}`}
+                            >
+                              {record.type === "entrada" ? "+" : "-"}
+                              {formatCurrency(record.amount)}
+                            </div>
+                            <div className="text-xs md:text-sm text-gray-500 hidden md:block">
+                              {new Date(record.date).toLocaleDateString("pt-BR")}
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteRecord(record.id)}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50 p-1 md:p-2"
                           >
-                            {record.type === "entrada" ? "+" : "-"}
-                            {formatCurrency(record.amount)}
-                          </div>
-                          <div className="text-xs md:text-sm text-gray-500 hidden md:block">
-                            {new Date(record.date).toLocaleDateString("pt-BR")}
-                          </div>
+                            <Trash2 className="h-3 w-3 md:h-4 md:w-4" />
+                          </Button>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteRecord(record.id)}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50 p-1 md:p-2"
-                        >
-                          <Trash2 className="h-3 w-3 md:h-4 md:w-4" />
-                        </Button>
                       </div>
-                    </div>
-                  ))}
-                  {getFilteredRecords().length === 0 && (
-                    <div className="text-center py-8 text-gray-500">
-                      <PiggyBank className="h-8 w-8 md:h-12 md:w-12 mx-auto mb-4 opacity-50" />
-                      <p className="text-sm md:text-base">Nenhuma transação encontrada</p>
-                    </div>
-                  )}
-                </div>
+                    ))}
+                    {getFilteredRecords().length === 0 && (
+                      <div className="text-center py-8 text-gray-500">
+                        <PiggyBank className="h-8 w-8 md:h-12 md:w-12 mx-auto mb-4 opacity-50" />
+                        <p className="text-sm md:text-base">Nenhuma transação encontrada</p>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  // Visualização em Tabela (estilo Excel)
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse">
+                      <thead>
+                        <tr className="border-b-2 border-gray-200">
+                          <th className="text-left p-3 font-semibold text-gray-700">Tipo</th>
+                          <th className="text-left p-3 font-semibold text-gray-700">Descrição</th>
+                          <th className="text-left p-3 font-semibold text-gray-700">Categoria</th>
+                          <th className="text-left p-3 font-semibold text-gray-700">Valor</th>
+                          <th className="text-left p-3 font-semibold text-gray-700">Data</th>
+                          <th className="text-left p-3 font-semibold text-gray-700">Método</th>
+                          <th className="text-left p-3 font-semibold text-gray-700">Membro</th>
+                          <th className="text-center p-3 font-semibold text-gray-700">Ações</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {getFilteredRecords().map((record, index) => (
+                          <tr
+                            key={record.id}
+                            className={`border-b border-gray-100 hover:bg-gray-50 ${index % 2 === 0 ? "bg-white" : "bg-gray-25"}`}
+                          >
+                            <td className="p-3">
+                              <div className="flex items-center gap-2">
+                                <div
+                                  className={`p-1 rounded-full ${record.type === "entrada" ? "bg-green-100" : "bg-red-100"}`}
+                                >
+                                  {record.type === "entrada" ? (
+                                    <TrendingUp className="h-3 w-3 text-green-600" />
+                                  ) : (
+                                    <TrendingDown className="h-3 w-3 text-red-600" />
+                                  )}
+                                </div>
+                                <span className="text-sm font-medium capitalize">{record.type}</span>
+                              </div>
+                            </td>
+                            <td className="p-3">
+                              <span className="text-sm font-medium">{record.description}</span>
+                            </td>
+                            <td className="p-3">
+                              <Badge className={`${getCategoryColor(record.categoryName)} text-xs`}>
+                                {record.categoryName}
+                              </Badge>
+                            </td>
+                            <td className="p-3">
+                              <span
+                                className={`text-sm font-bold ${record.type === "entrada" ? "text-green-600" : "text-red-600"}`}
+                              >
+                                {record.type === "entrada" ? "+" : "-"}
+                                {formatCurrency(record.amount)}
+                              </span>
+                            </td>
+                            <td className="p-3">
+                              <span className="text-sm text-gray-600">
+                                {new Date(record.date).toLocaleDateString("pt-BR")}
+                              </span>
+                            </td>
+                            <td className="p-3">
+                              <span className="text-sm text-gray-600">
+                                {getMethodIcon(record.method)} {record.method}
+                              </span>
+                            </td>
+                            <td className="p-3">
+                              <span className="text-sm text-gray-600">{record.member || "-"}</span>
+                            </td>
+                            <td className="p-3 text-center">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteRecord(record.id)}
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50 p-1"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {getFilteredRecords().length === 0 && (
+                      <div className="text-center py-8 text-gray-500">
+                        <PiggyBank className="h-8 w-8 md:h-12 md:w-12 mx-auto mb-4 opacity-50" />
+                        <p className="text-sm md:text-base">Nenhuma transação encontrada</p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
