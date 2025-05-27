@@ -4,7 +4,6 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Logo } from "@/components/logo"
 import {
   Home,
   Users,
@@ -19,7 +18,7 @@ import {
   X,
   Package,
 } from "lucide-react"
-import { getUser } from "@/lib/fake-api"
+import { getUser, getChurchData } from "@/lib/fake-api"
 
 interface SidebarProps {
   className?: string
@@ -30,14 +29,20 @@ interface MenuItem {
   label: string
   href: string
   accessLevel: "admin" | "member"
+  subItems?: {
+    label: string
+    href: string
+  }[]
 }
 
 export function Sidebar({ className = "" }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [isMobileOpen, setIsMobileOpen] = useState(false)
+  const [expandedMenus, setExpandedMenus] = useState<string[]>([])
   const router = useRouter()
   const pathname = usePathname()
   const user = getUser()
+  const churchData = getChurchData()
 
   // Close mobile menu when route changes
   useEffect(() => {
@@ -80,8 +85,17 @@ export function Sidebar({ className = "" }: SidebarProps) {
     { icon: Home, label: "Dashboard", href: "/dashboard", accessLevel: "member" },
     { icon: Users, label: "Membros", href: "/dashboard/membros", accessLevel: "member" },
     { icon: Calendar, label: "Eventos", href: "/dashboard/eventos", accessLevel: "member" },
-    // Itens apenas para admin
-    { icon: MessageSquare, label: "Comunicação", href: "/dashboard/comunicacao", accessLevel: "admin" },
+    // Comunicação com submenus
+    {
+      icon: MessageSquare,
+      label: "Comunicação",
+      href: "/dashboard/comunicacao",
+      accessLevel: "admin",
+      subItems: [
+        { label: "Nova Publicação", href: "/dashboard/comunicacao/nova-publicacao" },
+        { label: "WhatsApp", href: "/dashboard/comunicacao/whatsapp" },
+      ],
+    },
     { icon: DollarSign, label: "Financeiro", href: "/dashboard/financeiro", accessLevel: "admin" },
     { icon: Package, label: "Ativos", href: "/dashboard/ativos", accessLevel: "admin" },
     { icon: Settings, label: "Configurações", href: "/dashboard/configuracoes", accessLevel: "admin" },
@@ -94,9 +108,16 @@ export function Sidebar({ className = "" }: SidebarProps) {
     return item.accessLevel === "member"
   })
 
-  const isActiveRoute = (href: string) => {
+  const toggleSubmenu = (href: string) => {
+    setExpandedMenus((prev) => (prev.includes(href) ? prev.filter((item) => item !== href) : [...prev, href]))
+  }
+
+  const isActiveRoute = (href: string, subItems?: any[]) => {
     if (href === "/dashboard") {
       return pathname === "/dashboard"
+    }
+    if (subItems) {
+      return pathname.startsWith(href) || subItems.some((sub) => pathname.startsWith(sub.href))
     }
     return pathname.startsWith(href)
   }
@@ -106,7 +127,7 @@ export function Sidebar({ className = "" }: SidebarProps) {
       {/* Header */}
       <div className="p-4 border-b border-gray-200">
         <div className="flex items-center justify-between">
-          {!isCollapsed && <Logo size="md" />}
+          {!isCollapsed && <div className="text-lg font-bold text-gray-900 truncate">{churchData.name}</div>}
           <Button
             variant="ghost"
             size="icon"
@@ -143,18 +164,68 @@ export function Sidebar({ className = "" }: SidebarProps) {
         <ul className="space-y-2">
           {menuItems.map((item) => (
             <li key={item.href}>
-              <Link
-                href={item.href}
-                className={`flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${
-                  isActiveRoute(item.href)
-                    ? "text-white shadow-md"
-                    : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
-                }`}
-                style={isActiveRoute(item.href) ? { backgroundColor: "#89f0e6" } : {}}
-              >
-                <item.icon className="h-5 w-5 flex-shrink-0" />
-                {!isCollapsed && <span className="font-medium">{item.label}</span>}
-              </Link>
+              <div>
+                {item.subItems ? (
+                  // Item com submenu
+                  <div>
+                    <button
+                      onClick={() => toggleSubmenu(item.href)}
+                      className={`flex items-center justify-between w-full gap-3 px-3 py-2 rounded-md transition-colors ${
+                        isActiveRoute(item.href, item.subItems)
+                          ? "text-white shadow-md"
+                          : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                      }`}
+                      style={isActiveRoute(item.href, item.subItems) ? { backgroundColor: "#89f0e6" } : {}}
+                    >
+                      <div className="flex items-center gap-3">
+                        <item.icon className="h-5 w-5 flex-shrink-0" />
+                        {!isCollapsed && <span className="font-medium">{item.label}</span>}
+                      </div>
+                      {!isCollapsed && (
+                        <ChevronRight
+                          className={`h-4 w-4 transition-transform ${
+                            expandedMenus.includes(item.href) ? "rotate-90" : ""
+                          }`}
+                        />
+                      )}
+                    </button>
+
+                    {/* Submenus */}
+                    {!isCollapsed && expandedMenus.includes(item.href) && (
+                      <ul className="ml-8 mt-2 space-y-1">
+                        {item.subItems.map((subItem) => (
+                          <li key={subItem.href}>
+                            <Link
+                              href={subItem.href}
+                              className={`block px-3 py-2 rounded-md text-sm transition-colors ${
+                                pathname.startsWith(subItem.href)
+                                  ? "bg-teal-100 text-teal-800"
+                                  : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                              }`}
+                            >
+                              {subItem.label}
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                ) : (
+                  // Item normal sem submenu
+                  <Link
+                    href={item.href}
+                    className={`flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${
+                      isActiveRoute(item.href)
+                        ? "text-white shadow-md"
+                        : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                    }`}
+                    style={isActiveRoute(item.href) ? { backgroundColor: "#89f0e6" } : {}}
+                  >
+                    <item.icon className="h-5 w-5 flex-shrink-0" />
+                    {!isCollapsed && <span className="font-medium">{item.label}</span>}
+                  </Link>
+                )}
+              </div>
             </li>
           ))}
         </ul>

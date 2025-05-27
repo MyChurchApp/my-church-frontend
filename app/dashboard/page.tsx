@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Sidebar } from "@/components/sidebar"
@@ -17,6 +19,9 @@ import {
   type ChurchData,
   type Notification,
 } from "@/lib/fake-api"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -27,6 +32,14 @@ export default function DashboardPage() {
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0)
   const [currentPromoIndex, setCurrentPromoIndex] = useState(0)
   const [visibleNotifications, setVisibleNotifications] = useState(3)
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
+  const [editingUser, setEditingUser] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    role: "",
+  })
+  const [userPhoto, setUserPhoto] = useState<string>("")
 
   // Banners de eventos
   const banners = [
@@ -188,6 +201,36 @@ export default function DashboardPage() {
     setVisibleNotifications((prev) => prev + 5)
   }
 
+  const openProfileModal = () => {
+    if (user) {
+      setEditingUser({
+        name: user.name,
+        email: user.email || "",
+        phone: user.phone || "",
+        role: user.role,
+      })
+      setIsProfileModalOpen(true)
+    }
+  }
+
+  const saveProfile = () => {
+    // Aqui você implementaria a lógica para salvar os dados
+    console.log("Salvando perfil:", editingUser)
+    setIsProfileModalOpen(false)
+  }
+
+  const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const result = e.target?.result as string
+        setUserPhoto(result)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
   const displayedNotifications = notifications.slice(0, visibleNotifications)
   const hasMoreNotifications = visibleNotifications < notifications.length
 
@@ -207,20 +250,120 @@ export default function DashboardPage() {
               <h1 className="text-xl md:text-2xl font-bold text-gray-900">Dashboard</h1>
               <p className="text-gray-600 text-sm md:text-base">{churchData.name}</p>
             </div>
-            <div className="flex items-center gap-2 md:gap-4">
-              <div className="text-right hidden md:block">
-                <p className="font-medium text-gray-900">{user.name}</p>
-                <p className="text-sm text-gray-600">{user.role}</p>
-              </div>
-              <Avatar className="h-8 w-8 md:h-10 md:w-10">
-                <AvatarImage src="/placeholder.svg?height=40&width=40&query=pastor+profile" />
-                <AvatarFallback className="text-xs md:text-sm">
-                  {user.name
-                    .split(" ")
-                    .map((n) => n[0])
-                    .join("")}
-                </AvatarFallback>
-              </Avatar>
+            <div className="flex flex-col md:flex-row items-center gap-2 md:gap-4">
+              <Dialog open={isProfileModalOpen} onOpenChange={setIsProfileModalOpen}>
+                <DialogTrigger asChild>
+                  <div className="flex flex-col md:flex-row items-center gap-2 md:gap-4 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors">
+                    {/* Mobile: foto em cima, nome embaixo */}
+                    <div className="flex flex-col items-center md:hidden">
+                      <Avatar className="h-8 w-8 hover:opacity-80 transition-opacity">
+                        <AvatarImage src={userPhoto || "/placeholder.svg?height=40&width=40&query=pastor+profile"} />
+                        <AvatarFallback className="text-xs">
+                          {user.name
+                            .split(" ")
+                            .map((n) => n[0])
+                            .join("")}
+                        </AvatarFallback>
+                      </Avatar>
+                      <p className="font-medium text-gray-900 text-sm mt-1">{user.name}</p>
+                    </div>
+
+                    {/* Desktop: nome e foto lado a lado */}
+                    <div className="hidden md:flex items-center gap-3">
+                      <p className="font-medium text-gray-900">{user.name}</p>
+                      <Avatar className="h-10 w-10 hover:opacity-80 transition-opacity">
+                        <AvatarImage src={userPhoto || "/placeholder.svg?height=40&width=40&query=pastor+profile"} />
+                        <AvatarFallback className="text-sm">
+                          {user.name
+                            .split(" ")
+                            .map((n) => n[0])
+                            .join("")}
+                        </AvatarFallback>
+                      </Avatar>
+                    </div>
+                  </div>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Editar Perfil</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    {/* Seção de foto */}
+                    <div className="flex flex-col items-center space-y-4">
+                      <div className="relative">
+                        <Avatar className="h-20 w-20">
+                          <AvatarImage src={userPhoto || "/placeholder.svg?height=80&width=80&query=pastor+profile"} />
+                          <AvatarFallback className="text-lg">
+                            {user.name
+                              .split(" ")
+                              .map((n) => n[0])
+                              .join("")}
+                          </AvatarFallback>
+                        </Avatar>
+                      </div>
+                      <div>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handlePhotoUpload}
+                          className="hidden"
+                          id="photo-upload"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => document.getElementById("photo-upload")?.click()}
+                          className="text-sm"
+                        >
+                          Alterar Foto
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="name">Nome</Label>
+                      <Input
+                        id="name"
+                        value={editingUser.name}
+                        onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        value={editingUser.email}
+                        onChange={(e) => setEditingUser({ ...editingUser, email: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">Telefone</Label>
+                      <Input
+                        id="phone"
+                        value={editingUser.phone}
+                        onChange={(e) => setEditingUser({ ...editingUser, phone: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="role">Cargo</Label>
+                      <Input id="role" value={editingUser.role} disabled className="bg-gray-100" />
+                    </div>
+                    <div className="flex gap-2 pt-4">
+                      <Button
+                        onClick={saveProfile}
+                        className="flex-1"
+                        style={{ backgroundColor: "#89f0e6", color: "#000" }}
+                      >
+                        Salvar
+                      </Button>
+                      <Button variant="outline" onClick={() => setIsProfileModalOpen(false)} className="flex-1">
+                        Cancelar
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
           </div>
         </header>
@@ -345,6 +488,19 @@ export default function DashboardPage() {
               {/* Sidebar - Aniversários e Banners */}
               <div className="lg:col-span-1">
                 <div className="lg:sticky lg:top-6 space-y-6">
+                  {/* Versículo do Dia */}
+                  <Card className="bg-gradient-to-br from-blue-50 to-indigo-100 border-blue-200">
+                    <CardContent className="p-4">
+                      <div className="text-center space-y-3">
+                        <div className="text-sm font-medium text-blue-800 italic leading-relaxed">
+                          "Porque eu bem sei os pensamentos que tenho a vosso respeito, diz o Senhor; pensamentos de paz
+                          e não de mal, para vos dar o fim que esperais."
+                        </div>
+                        <div className="text-xs text-blue-600 font-semibold">Jeremias 29:11</div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
                   {/* Aniversários da Semana */}
                   <Card>
                     <CardHeader className="pb-4">

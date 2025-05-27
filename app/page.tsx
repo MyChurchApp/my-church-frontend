@@ -62,10 +62,10 @@ export default function HomePage() {
           <div className="flex items-center gap-2">
             <LanguageSwitcher className="hidden md:flex" />
             <ThemeToggle className="hidden md:flex" />
-            <Button variant="outline" asChild className="hidden md:flex">
+            <Button variant="outline" asChild>
               <Link href="/login">{t("btn.login")}</Link>
             </Button>
-            <Button asChild>
+            <Button asChild className="hidden md:flex">
               <Link href="/cadastro">{t("btn.getStarted")}</Link>
             </Button>
             <MobileMenu />
