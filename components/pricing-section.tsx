@@ -276,10 +276,6 @@ export function PricingSection() {
                   <Check className="h-4 w-4 mr-2 text-green-500 mt-0.5" />
                   <span>Treinamento e onboarding completo</span>
                 </li>
-                <li className="flex items-start">
-                  <Check className="h-4 w-4 mr-2 text-green-500 mt-0.5" />
-                  <span>Contrato e SLA sob medida</span>
-                </li>
               </ul>
             </CardContent>
             <CardFooter>
