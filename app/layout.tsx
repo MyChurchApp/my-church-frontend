@@ -12,8 +12,8 @@ export const metadata = {
   description: "Transforme a gestão da sua igreja com uma solução digital completa e integrada.",
   manifest: "/manifest.json",
   icons: {
-    icon: "/api/icon/32",
-    apple: "/api/icon/180",
+    icon: "/pwa-icons/favicon.ico",
+    apple: "/pwa-icons/apple-touch-icon.png",
   },
   themeColor: "#3b82f6",
   viewport: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no",
@@ -39,11 +39,12 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="msapplication-TileColor" content="#3b82f6" />
         <meta name="msapplication-tap-highlight" content="no" />
-        <link rel="apple-touch-icon" href="/api/icon/180" />
-        <link rel="mask-icon" href="/api/icon/192" color="#3b82f6" />
-        <link rel="icon" type="image/svg+xml" href="/api/icon/32" />
-        <link rel="icon" type="image/svg+xml" sizes="16x16" href="/api/icon/16" />
-        <link rel="icon" type="image/svg+xml" sizes="32x32" href="/api/icon/32" />
+        <link rel="apple-touch-icon" href="/pwa-icons/apple-touch-icon.png" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/pwa-icons/favicon-32x32.png" />
+        <link rel="icon" type="image/png" sizes="16x16" href="/pwa-icons/favicon-16x16.png" />
+        <link rel="mask-icon" href="/pwa-icons/safari-pinned-tab.svg" color="#3b82f6" />
+        <link rel="shortcut icon" href="/pwa-icons/favicon.ico" />
+        <meta name="msapplication-config" content="/pwa-icons/browserconfig.xml" />
       </head>
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
