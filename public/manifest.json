@@ -12,6 +12,12 @@
   "scope": "/",
   "icons": [
     {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
       "src": "/api/icon/72",
       "sizes": "72x72",
       "type": "image/svg+xml",
@@ -50,12 +56,6 @@
     {
       "src": "/api/icon/384",
       "sizes": "384x384",
-      "type": "image/svg+xml",
-      "purpose": "maskable any"
-    },
-    {
-      "src": "/api/icon/512",
-      "sizes": "512x512",
       "type": "image/svg+xml",
       "purpose": "maskable any"
     }
