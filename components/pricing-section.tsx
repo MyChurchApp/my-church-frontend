@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { AccountCheckModal } from "@/components/account-check-modal"
+import { Check } from "lucide-react"
 
 export function PricingSection() {
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -27,102 +28,257 @@ export function PricingSection() {
             </p>
           </div>
         </div>
-        <div className="mx-auto grid max-w-4xl gap-6 py-8 md:grid-cols-3">
-          <Card className="border-none shadow-md">
+        <div className="mx-auto grid gap-6 py-8 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          {/* Plano Gratuito - Descubra */}
+          <Card className="border-none shadow-md flex flex-col">
             <CardHeader>
-              <CardTitle>Plano Congregação</CardTitle>
+              <Badge className="self-start mb-2 bg-gray-200 text-gray-700 hover:bg-gray-300">Gratuito</Badge>
+              <CardTitle>Plano Descubra</CardTitle>
+              <div className="mt-4 flex items-baseline justify-center">
+                <span className="text-3xl font-bold">R$ 0</span>
+                <span className="ml-1 text-muted-foreground">/mês</span>
+              </div>
+            </CardHeader>
+            <CardContent className="flex-grow">
+              <p className="text-sm text-muted-foreground mb-4">Ideal para igrejas pequenas ou em fase de testes.</p>
+              <ul className="space-y-2 text-sm">
+                <li className="flex items-start">
+                  <Check className="h-4 w-4 mr-2 text-green-500 mt-0.5" />
+                  <span>Até 50 membros</span>
+                </li>
+                <li className="flex items-start">
+                  <Check className="h-4 w-4 mr-2 text-green-500 mt-0.5" />
+                  <span>1 filial</span>
+                </li>
+                <li className="flex items-start">
+                  <Check className="h-4 w-4 mr-2 text-green-500 mt-0.5" />
+                  <span>Gestão básica de membros e financeiro</span>
+                </li>
+                <li className="flex items-start">
+                  <Check className="h-4 w-4 mr-2 text-green-500 mt-0.5" />
+                  <span>Doações via link externo</span>
+                </li>
+                <li className="flex items-start">
+                  <Check className="h-4 w-4 mr-2 text-green-500 mt-0.5" />
+                  <span>Agenda da igreja (cadastro manual)</span>
+                </li>
+                <li className="flex items-start">
+                  <Check className="h-4 w-4 mr-2 text-green-500 mt-0.5" />
+                  <span>Relatórios básicos</span>
+                </li>
+                <li className="flex items-start">
+                  <Check className="h-4 w-4 mr-2 text-green-500 mt-0.5" />
+                  <span>Suporte via FAQ</span>
+                </li>
+              </ul>
+            </CardContent>
+            <CardFooter>
+              <Button className="w-full" onClick={() => handlePlanClick("descubra")}>
+                Começar Grátis
+              </Button>
+            </CardFooter>
+          </Card>
+
+          {/* Plano Essencial - Crescer */}
+          <Card className="border-none shadow-md flex flex-col">
+            <CardHeader>
+              <Badge className="self-start mb-2 bg-blue-100 text-blue-700 hover:bg-blue-200">Essencial</Badge>
+              <CardTitle>Plano Crescer</CardTitle>
+              <div className="mt-4 flex items-baseline justify-center">
+                <span className="text-3xl font-bold">R$ 69</span>
+                <span className="ml-1 text-muted-foreground">/mês</span>
+              </div>
+            </CardHeader>
+            <CardContent className="flex-grow">
+              <p className="text-sm text-muted-foreground mb-4">
+                Para igrejas em fase de estruturação e expansão digital.
+              </p>
+              <ul className="space-y-2 text-sm">
+                <li className="flex items-start">
+                  <Check className="h-4 w-4 mr-2 text-green-500 mt-0.5" />
+                  <span>Até 500 membros</span>
+                </li>
+                <li className="flex items-start">
+                  <Check className="h-4 w-4 mr-2 text-green-500 mt-0.5" />
+                  <span>2 filiais</span>
+                </li>
+                <li className="flex items-start">
+                  <Check className="h-4 w-4 mr-2 text-green-500 mt-0.5" />
+                  <span>Gestão completa de membros e financeiro</span>
+                </li>
+                <li className="flex items-start">
+                  <Check className="h-4 w-4 mr-2 text-green-500 mt-0.5" />
+                  <span>Gateway de pagamento integrado</span>
+                </li>
+                <li className="flex items-start">
+                  <Check className="h-4 w-4 mr-2 text-green-500 mt-0.5" />
+                  <span>Agenda com avisos simples</span>
+                </li>
+                <li className="flex items-start">
+                  <Check className="h-4 w-4 mr-2 text-green-500 mt-0.5" />
+                  <span>Integração com e-mail e WhatsApp</span>
+                </li>
+                <li className="flex items-start">
+                  <Check className="h-4 w-4 mr-2 text-green-500 mt-0.5" />
+                  <span>Suporte via e-mail</span>
+                </li>
+              </ul>
+            </CardContent>
+            <CardFooter>
+              <Button className="w-full" onClick={() => handlePlanClick("crescer")}>
+                Assinar Agora
+              </Button>
+            </CardFooter>
+          </Card>
+
+          {/* Plano Avançado - Multiplicar */}
+          <Card className="border-none shadow-xl relative flex flex-col">
+            <div className="absolute top-0 right-0 left-0">
+              <Badge className="absolute top-0 right-0 m-4 bg-primary">Popular</Badge>
+            </div>
+            <CardHeader>
+              <Badge className="self-start mb-2 bg-green-100 text-green-700 hover:bg-green-200">Avançado</Badge>
+              <CardTitle>Plano Multiplicar</CardTitle>
               <div className="mt-4 flex items-baseline justify-center">
                 <span className="text-3xl font-bold">R$ 149</span>
                 <span className="ml-1 text-muted-foreground">/mês</span>
               </div>
             </CardHeader>
-            <CardContent>
-              <ul className="space-y-2">
-                <li className="flex items-center justify-between">
-                  <span>Membros</span>
-                  <span className="font-medium">Até 200</span>
+            <CardContent className="flex-grow">
+              <p className="text-sm text-muted-foreground mb-4">
+                Ideal para igrejas com múltiplas filiais e foco em engajamento ao vivo.
+              </p>
+              <ul className="space-y-2 text-sm">
+                <li className="flex items-start">
+                  <Check className="h-4 w-4 mr-2 text-green-500 mt-0.5" />
+                  <span>Até 3.000 membros</span>
                 </li>
-                <li className="flex items-center justify-between">
-                  <span>Módulos</span>
-                  <span className="font-medium">Básicos</span>
+                <li className="flex items-start">
+                  <Check className="h-4 w-4 mr-2 text-green-500 mt-0.5" />
+                  <span>5 filiais</span>
                 </li>
-                <li className="flex items-center justify-between">
-                  <span>Filiais</span>
-                  <span className="font-medium">1</span>
+                <li className="flex items-start">
+                  <Check className="h-4 w-4 mr-2 text-green-500 mt-0.5" />
+                  <span>Gestor de Culto Ao Vivo</span>
                 </li>
-                <li className="flex items-center justify-between">
-                  <span>Suporte</span>
-                  <span className="font-medium">E-mail</span>
+                <li className="flex items-start">
+                  <Check className="h-4 w-4 mr-2 text-green-500 mt-0.5" />
+                  <span>Exibição de leitura bíblica em tempo real</span>
+                </li>
+                <li className="flex items-start">
+                  <Check className="h-4 w-4 mr-2 text-green-500 mt-0.5" />
+                  <span>Doações ao vivo durante o culto</span>
+                </li>
+                <li className="flex items-start">
+                  <Check className="h-4 w-4 mr-2 text-green-500 mt-0.5" />
+                  <span>Integração com WhatsApp Business</span>
+                </li>
+                <li className="flex items-start">
+                  <Check className="h-4 w-4 mr-2 text-green-500 mt-0.5" />
+                  <span>Suporte prioritário</span>
                 </li>
               </ul>
             </CardContent>
             <CardFooter>
-              <Button className="w-full" onClick={() => handlePlanClick("congregacao")}>
-                Começar Agora
+              <Button className="w-full" onClick={() => handlePlanClick("multiplicar")}>
+                Assinar Agora
               </Button>
             </CardFooter>
           </Card>
-          <Card className="border-none shadow-xl relative">
-            <div className="absolute top-0 right-0 left-0">
-              <Badge className="absolute top-0 right-0 m-4 bg-primary">Popular</Badge>
-            </div>
+
+          {/* Plano Premium - Influenciar */}
+          <Card className="border-none shadow-md flex flex-col">
             <CardHeader>
-              <CardTitle>Plano Comunidade</CardTitle>
+              <Badge className="self-start mb-2 bg-purple-100 text-purple-700 hover:bg-purple-200">Premium</Badge>
+              <CardTitle>Plano Influenciar</CardTitle>
               <div className="mt-4 flex items-baseline justify-center">
-                <span className="text-3xl font-bold">R$ 249</span>
+                <span className="text-3xl font-bold">R$ 279</span>
                 <span className="ml-1 text-muted-foreground">/mês</span>
               </div>
             </CardHeader>
-            <CardContent>
-              <ul className="space-y-2">
-                <li className="flex items-center justify-between">
-                  <span>Membros</span>
-                  <span className="font-medium">Até 1.000</span>
+            <CardContent className="flex-grow">
+              <p className="text-sm text-muted-foreground mb-4">
+                Para grandes igrejas com alta demanda de gestão e integração.
+              </p>
+              <ul className="space-y-2 text-sm">
+                <li className="flex items-start">
+                  <Check className="h-4 w-4 mr-2 text-green-500 mt-0.5" />
+                  <span>Até 10.000 membros</span>
                 </li>
-                <li className="flex items-center justify-between">
-                  <span>Módulos</span>
-                  <span className="font-medium">Completos</span>
+                <li className="flex items-start">
+                  <Check className="h-4 w-4 mr-2 text-green-500 mt-0.5" />
+                  <span>Filiais ilimitadas</span>
                 </li>
-                <li className="flex items-center justify-between">
-                  <span>Filiais</span>
-                  <span className="font-medium">2-3</span>
+                <li className="flex items-start">
+                  <Check className="h-4 w-4 mr-2 text-green-500 mt-0.5" />
+                  <span>Automação administrativa</span>
                 </li>
-                <li className="flex items-center justify-between">
-                  <span>Suporte</span>
-                  <span className="font-medium">E-mail e Chat</span>
+                <li className="flex items-start">
+                  <Check className="h-4 w-4 mr-2 text-green-500 mt-0.5" />
+                  <span>Dashboards com KPIs</span>
+                </li>
+                <li className="flex items-start">
+                  <Check className="h-4 w-4 mr-2 text-green-500 mt-0.5" />
+                  <span>Presença via QR Code ou geolocalização</span>
+                </li>
+                <li className="flex items-start">
+                  <Check className="h-4 w-4 mr-2 text-green-500 mt-0.5" />
+                  <span>App com ícone e nome da igreja nas lojas</span>
+                </li>
+                <li className="flex items-start">
+                  <Check className="h-4 w-4 mr-2 text-green-500 mt-0.5" />
+                  <span>Suporte via WhatsApp dedicado</span>
                 </li>
               </ul>
             </CardContent>
             <CardFooter>
-              <Button className="w-full" onClick={() => handlePlanClick("comunidade")}>
-                Começar Agora
+              <Button className="w-full" onClick={() => handlePlanClick("influenciar")}>
+                Assinar Agora
               </Button>
             </CardFooter>
           </Card>
-          <Card className="border-none shadow-md">
+
+          {/* Plano Negociado - Visão Apostólica */}
+          <Card className="border-none shadow-md flex flex-col">
             <CardHeader>
-              <CardTitle>Plano Rede</CardTitle>
+              <Badge className="self-start mb-2 bg-amber-100 text-amber-700 hover:bg-amber-200">Personalizado</Badge>
+              <CardTitle>Visão Apostólica</CardTitle>
               <div className="mt-4 flex items-baseline justify-center">
                 <span className="text-3xl font-bold">Consulte</span>
               </div>
             </CardHeader>
-            <CardContent>
-              <ul className="space-y-2">
-                <li className="flex items-center justify-between">
-                  <span>Membros</span>
-                  <span className="font-medium">Ilimitado</span>
+            <CardContent className="flex-grow">
+              <p className="text-sm text-muted-foreground mb-4">
+                Para convenções, redes e igrejas com alta complexidade.
+              </p>
+              <ul className="space-y-2 text-sm">
+                <li className="flex items-start">
+                  <Check className="h-4 w-4 mr-2 text-green-500 mt-0.5" />
+                  <span>Membros e filiais ilimitados</span>
                 </li>
-                <li className="flex items-center justify-between">
-                  <span>Módulos</span>
-                  <span className="font-medium">Avançados</span>
+                <li className="flex items-start">
+                  <Check className="h-4 w-4 mr-2 text-green-500 mt-0.5" />
+                  <span>Infraestrutura dedicada</span>
                 </li>
-                <li className="flex items-center justify-between">
-                  <span>Filiais</span>
-                  <span className="font-medium">Ilimitadas</span>
+                <li className="flex items-start">
+                  <Check className="h-4 w-4 mr-2 text-green-500 mt-0.5" />
+                  <span>Funcionalidades sob demanda</span>
                 </li>
-                <li className="flex items-center justify-between">
-                  <span>Suporte</span>
-                  <span className="font-medium">Prioritário</span>
+                <li className="flex items-start">
+                  <Check className="h-4 w-4 mr-2 text-green-500 mt-0.5" />
+                  <span>App 100% personalizado</span>
+                </li>
+                <li className="flex items-start">
+                  <Check className="h-4 w-4 mr-2 text-green-500 mt-0.5" />
+                  <span>Suporte presencial ou remoto</span>
+                </li>
+                <li className="flex items-start">
+                  <Check className="h-4 w-4 mr-2 text-green-500 mt-0.5" />
+                  <span>Treinamento e onboarding completo</span>
+                </li>
+                <li className="flex items-start">
+                  <Check className="h-4 w-4 mr-2 text-green-500 mt-0.5" />
+                  <span>Contrato e SLA sob medida</span>
                 </li>
               </ul>
             </CardContent>
