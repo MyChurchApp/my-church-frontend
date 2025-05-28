@@ -104,14 +104,32 @@ export default function HomePage() {
               </div>
             </div>
             <div className="mt-12 max-w-4xl mx-auto">
-              <div className="aspect-video overflow-hidden rounded-xl shadow-xl">
-                <Image
-                  src="/dashboard-preview.png"
-                  alt="Dashboard do MyChurch"
-                  width={1200}
-                  height={675}
-                  className="object-cover w-full h-full"
-                />
+              <div className="aspect-video overflow-hidden rounded-xl shadow-xl bg-gradient-to-br from-primary/10 via-primary/5 to-secondary/10 border border-primary/20">
+                <div className="flex flex-col items-center justify-center h-full text-center p-8">
+                  <div className="mb-6">
+                    <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
+                      <svg className="w-10 h-10 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
+                      </svg>
+                    </div>
+                    <h3 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Lançamento em Breve</h3>
+                    <p className="text-lg text-gray-600 mb-4">
+                      Estamos finalizando os últimos detalhes para trazer a melhor experiência de gestão para sua igreja
+                    </p>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-4 items-center">
+                    <div className="flex items-center gap-2 text-primary">
+                      <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+                      <span className="font-medium">Em desenvolvimento</span>
+                    </div>
+                    <div className="text-sm text-gray-500">Cadastre-se para ser notificado do lançamento</div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

@@ -39,23 +39,47 @@ export default function ContatoPage() {
     setIsSubmitting(true)
 
     try {
-      // Simular envio do email
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-
-      // Aqui você integraria com um serviço de email real
-      console.log("Dados do formulário:", formData)
-
-      setSubmitStatus("success")
-      setFormData({
-        nome: "",
-        email: "",
-        telefone: "",
-        igreja: "",
-        cargo: "",
-        plano: "",
-        mensagem: "",
+      // Enviar email usando EmailJS ou serviço similar
+      const response = await fetch("/api/send-email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          to: "ga.f.orpinelli@gmail.com",
+          subject: `Novo contato do site MyChurch - ${formData.nome}`,
+          html: `
+            <h2>Novo contato recebido do site MyChurch</h2>
+            <p><strong>Nome:</strong> ${formData.nome}</p>
+            <p><strong>Email:</strong> ${formData.email}</p>
+            <p><strong>Telefone:</strong> ${formData.telefone || "Não informado"}</p>
+            <p><strong>Igreja:</strong> ${formData.igreja || "Não informado"}</p>
+            <p><strong>Cargo:</strong> ${formData.cargo || "Não informado"}</p>
+            <p><strong>Plano de Interesse:</strong> ${formData.plano || "Não selecionado"}</p>
+            <p><strong>Mensagem:</strong></p>
+            <p>${formData.mensagem}</p>
+            <hr>
+            <p><small>Enviado em: ${new Date().toLocaleString("pt-BR")}</small></p>
+          `,
+        }),
       })
+
+      if (response.ok) {
+        setSubmitStatus("success")
+        setFormData({
+          nome: "",
+          email: "",
+          telefone: "",
+          igreja: "",
+          cargo: "",
+          plano: "",
+          mensagem: "",
+        })
+      } else {
+        throw new Error("Erro ao enviar email")
+      }
     } catch (error) {
+      console.error("Erro ao enviar formulário:", error)
       setSubmitStatus("error")
     } finally {
       setIsSubmitting(false)
@@ -70,7 +94,7 @@ export default function ContatoPage() {
   }
 
   const copyEmail = () => {
-    navigator.clipboard.writeText("comercial@mychurchlab.net").then(() => {
+    navigator.clipboard.writeText("ga.f.orpinelli@gmail.com").then(() => {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     })
@@ -140,7 +164,7 @@ export default function ContatoPage() {
                         ) : (
                           <>
                             <Copy className="h-4 w-4 mr-2" />
-                            comercial@mychurchlab.net
+                            ga.f.orpinelli@gmail.com
                           </>
                         )}
                       </Button>
