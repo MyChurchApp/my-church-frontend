@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { AccountCheckModal } from "@/components/account-check-modal"
 import { Check } from "lucide-react"
 
-export function PricingSection() {
+export default function PricingSection() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedPlan, setSelectedPlan] = useState<string>("")
 
