@@ -12,8 +12,8 @@ export const metadata = {
   description: "Transforme a gestão da sua igreja com uma solução digital completa e integrada.",
   manifest: "/manifest.json",
   icons: {
-    icon: "/icon-32x32.png",
-    apple: "/icon-180x180.png",
+    icon: "/api/icon/32",
+    apple: "/api/icon/180",
   },
   themeColor: "#3b82f6",
   viewport: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no",
@@ -39,10 +39,27 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="msapplication-TileColor" content="#3b82f6" />
         <meta name="msapplication-tap-highlight" content="no" />
-        <link rel="apple-touch-icon" href="/icon-180x180.png" />
-        <link rel="icon" type="image/png" sizes="32x32" href="/icon-32x32.png" />
-        <link rel="icon" type="image/png" sizes="16x16" href="/icon-16x16.png" />
-        <link rel="shortcut icon" href="/icon-32x32.png" />
+        <link rel="apple-touch-icon" href="/api/icon/180" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/api/icon/32" />
+        <link rel="icon" type="image/png" sizes="16x16" href="/api/icon/16" />
+        <link rel="shortcut icon" href="/api/icon/32" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                  navigator.serviceWorker.register('/sw.js')
+                    .then(function(registration) {
+                      console.log('SW registered: ', registration);
+                    })
+                    .catch(function(registrationError) {
+                      console.log('SW registration failed: ', registrationError);
+                    });
+                });
+              }
+            `,
+          }}
+        />
       </head>
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
