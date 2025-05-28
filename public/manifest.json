@@ -12,29 +12,29 @@
   "scope": "/",
   "icons": [
     {
-      "src": "/pwa-icons/android-chrome-192x192.png",
+      "src": "/icon-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/pwa-icons/android-chrome-512x512.png",
+      "src": "/icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/pwa-icons/apple-touch-icon.png",
+      "src": "/icon-180x180.png",
       "sizes": "180x180",
       "type": "image/png"
     },
     {
-      "src": "/pwa-icons/favicon-16x16.png",
+      "src": "/icon-16x16.png",
       "sizes": "16x16",
       "type": "image/png"
     },
     {
-      "src": "/pwa-icons/favicon-32x32.png",
+      "src": "/icon-32x32.png",
       "sizes": "32x32",
       "type": "image/png"
     }
@@ -45,21 +45,21 @@
       "short_name": "Dashboard",
       "description": "Acesso rápido ao dashboard",
       "url": "/dashboard",
-      "icons": [{ "src": "/pwa-icons/android-chrome-192x192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
     },
     {
       "name": "Membros",
       "short_name": "Membros",
       "description": "Gerenciar membros",
       "url": "/dashboard/membros",
-      "icons": [{ "src": "/pwa-icons/android-chrome-192x192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
     },
     {
       "name": "Financeiro",
       "short_name": "Financeiro",
       "description": "Controle financeiro",
       "url": "/dashboard/financeiro",
-      "icons": [{ "src": "/pwa-icons/android-chrome-192x192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
     }
   ]
 }
