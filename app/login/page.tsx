@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Eye, EyeOff, AlertCircle } from "lucide-react"
+import { AutoRedirect } from "@/components/auto-redirect"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -24,6 +25,9 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false)
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+
+  // Determinar URL de redirecionamento
+  const redirectUrl = redirectParam === "checkout" && planoParam ? `/planos/checkout?plano=${planoParam}` : "/dashboard"
 
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword)
@@ -107,17 +111,12 @@ export default function LoginPage() {
           })
         }
 
-        // Redirecionar conforme parâmetros ou para dashboard
-        console.log(
-          "Redirecionando para:",
-          redirectParam === "checkout" && planoParam ? `/planos/checkout?plano=${planoParam}` : "/dashboard",
-        )
+        // Redirecionar usando página intermediária para garantir que funcione
+        const targetUrl =
+          redirectParam === "checkout" && planoParam ? `/planos/checkout?plano=${planoParam}` : "/dashboard"
 
-        if (redirectParam === "checkout" && planoParam) {
-          window.location.href = `/planos/checkout?plano=${planoParam}`
-        } else {
-          window.location.href = "/dashboard"
-        }
+        console.log("Redirecionando via página intermediária para:", targetUrl)
+        window.location.href = `/auth-redirect?to=${encodeURIComponent(targetUrl)}`
       } else {
         // Se o login falhar, mostrar erro
         console.error("Erro na resposta da API:", response.status, response.statusText)
@@ -141,6 +140,8 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-b from-gray-50 to-gray-100 flex flex-col">
+      {/* Redirecionamento automático se já estiver logado */}
+      <AutoRedirect to={redirectUrl} condition={true} delay={100} />
       {/* Header */}
       <header className="w-full py-4 px-6 flex justify-center border-b border-gray-200 bg-white/80 backdrop-blur-sm">
         <Link href="/" className="flex items-center gap-2">

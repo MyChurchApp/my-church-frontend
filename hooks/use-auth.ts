@@ -61,6 +61,19 @@ export function useAuth() {
       setIsAuthenticated(true)
       setIsLoading(false)
       setHasChecked(true)
+
+      // Se está autenticado e está na página de login, redirecionar imediatamente
+      if (typeof window !== "undefined" && window.location.pathname === "/login") {
+        console.log("Usuário já autenticado na página de login, redirecionando...")
+        const urlParams = new URLSearchParams(window.location.search)
+        const redirect = urlParams.get("redirect")
+        const targetUrl = redirect || "/dashboard"
+
+        setTimeout(() => {
+          window.location.replace(targetUrl)
+        }, 100)
+      }
+
       return true
     } catch (error) {
       console.error("Erro ao decodificar token:", error)
