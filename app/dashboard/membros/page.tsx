@@ -33,7 +33,35 @@ import {
   Download,
   FileText,
 } from "lucide-react"
-import { getUser, getMembers, type User, type Member } from "@/lib/fake-api"
+import { getUser, type User } from "@/lib/fake-api"
+import {
+  getMembersFromAPI,
+  createMemberInAPI,
+  updateMemberInAPI,
+  deleteMemberFromAPI,
+  convertApiMemberToLocal,
+  convertLocalMemberToAPI,
+} from "@/lib/api"
+
+export type Member = {
+  id: string
+  name: string
+  email: string
+  phone: string
+  cpf: string
+  birthDate: string
+  address: string
+  city: string
+  state: string
+  zipCode: string
+  maritalStatus: string
+  baptized: boolean
+  memberSince: string
+  ministry: string
+  isActive: boolean
+  notes?: string
+  photo?: string
+}
 
 export default function MembrosPage() {
   const router = useRouter()
@@ -66,16 +94,32 @@ export default function MembrosPage() {
   })
 
   useEffect(() => {
-    const userData = getUser()
-    if (!userData) {
-      router.push("/login")
-      return
+    const loadMembers = async () => {
+      const userData = getUser()
+      if (!userData) {
+        router.push("/login")
+        return
+      }
+
+      setUser(userData)
+
+      try {
+        console.log("Carregando membros da API...")
+        const apiMembers = await getMembersFromAPI()
+        const convertedMembers = apiMembers.map(convertApiMemberToLocal)
+        console.log("Membros convertidos:", convertedMembers)
+        setMembers(convertedMembers)
+        setFilteredMembers(convertedMembers)
+      } catch (error) {
+        console.error("Erro ao carregar membros:", error)
+        // Em caso de erro, usar dados fake como fallback
+        // const membersData = getMembers()
+        // setMembers(membersData)
+        // setFilteredMembers(membersData)
+      }
     }
 
-    setUser(userData)
-    const membersData = getMembers()
-    setMembers(membersData)
-    setFilteredMembers(membersData)
+    loadMembers()
   }, [router])
 
   useEffect(() => {
@@ -211,30 +255,43 @@ export default function MembrosPage() {
     e.preventDefault()
     if (!memberForm.name || !memberForm.email || !memberForm.phone) return
 
-    const newMember: Member = {
-      id: Date.now().toString(),
-      ...memberForm,
-      photo: "/placeholder.svg?height=100&width=100&query=church+member",
-    }
+    try {
+      console.log("Criando novo membro...")
+      const apiMemberData = convertLocalMemberToAPI(memberForm)
+      const createdMember = await createMemberInAPI(apiMemberData)
+      const convertedMember = convertApiMemberToLocal(createdMember)
 
-    setMembers([...members, newMember])
-    resetForm()
-    setIsCreateDialogOpen(false)
+      setMembers([...members, convertedMember])
+      resetForm()
+      setIsCreateDialogOpen(false)
+
+      console.log("Membro criado com sucesso!")
+    } catch (error) {
+      console.error("Erro ao criar membro:", error)
+      alert("Erro ao criar membro. Tente novamente.")
+    }
   }
 
   const handleEditMember = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedMember || !memberForm.name || !memberForm.email || !memberForm.phone) return
 
-    const updatedMember: Member = {
-      ...selectedMember,
-      ...memberForm,
-    }
+    try {
+      console.log("Atualizando membro...")
+      const apiMemberData = convertLocalMemberToAPI(memberForm)
+      const updatedMember = await updateMemberInAPI(Number(selectedMember.id), apiMemberData)
+      const convertedMember = convertApiMemberToLocal(updatedMember)
 
-    setMembers(members.map((member) => (member.id === selectedMember.id ? updatedMember : member)))
-    resetForm()
-    setSelectedMember(null)
-    setIsEditDialogOpen(false)
+      setMembers(members.map((member) => (member.id === selectedMember.id ? convertedMember : member)))
+      resetForm()
+      setSelectedMember(null)
+      setIsEditDialogOpen(false)
+
+      console.log("Membro atualizado com sucesso!")
+    } catch (error) {
+      console.error("Erro ao atualizar membro:", error)
+      alert("Erro ao atualizar membro. Tente novamente.")
+    }
   }
 
   const openEditDialog = (member: Member) => {
@@ -302,6 +359,22 @@ export default function MembrosPage() {
         Inativo
       </Badge>
     )
+  }
+
+  const handleDeleteMember = async (member: Member) => {
+    if (!confirm(`Tem certeza que deseja excluir o membro ${member.name}?`)) {
+      return
+    }
+
+    try {
+      console.log("Deletando membro...")
+      await deleteMemberFromAPI(Number(member.id))
+      setMembers(members.filter((m) => m.id !== member.id))
+      console.log("Membro deletado com sucesso!")
+    } catch (error) {
+      console.error("Erro ao deletar membro:", error)
+      alert("Erro ao deletar membro. Tente novamente.")
+    }
   }
 
   if (!user) {
@@ -830,6 +903,15 @@ export default function MembrosPage() {
                           >
                             <Edit className="h-4 w-4" />
                             Editar
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleDeleteMember(member)}
+                            className="mt-2 w-full flex items-center gap-2"
+                          >
+                            <UserX className="h-4 w-4" />
+                            Excluir
                           </Button>
                         </>
                       ) : (
