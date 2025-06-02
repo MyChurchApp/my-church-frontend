@@ -11,12 +11,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Eye, EyeOff, AlertCircle } from "lucide-react"
-// Remover esta linha:
-// import { useLanguage } from "@/contexts/language-context"
 
 export default function LoginPage() {
-  // Remover esta linha:
-  // const { t } = useLanguage()
   const router = useRouter()
   const searchParams = useSearchParams()
   const planoParam = searchParams.get("plano")
@@ -28,7 +24,6 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false)
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const [loginMethod, setLoginMethod] = useState<"real" | "fake">("real")
 
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword)
@@ -60,139 +55,60 @@ export default function LoginPage() {
     setError("")
   }
 
-  const handleRedirect = () => {
-    if (redirectParam === "checkout" && planoParam) {
-      router.push(`/planos/checkout?plano=${planoParam}`)
-    } else {
-      router.push("/dashboard")
-    }
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     setError("")
 
     try {
-      if (loginMethod === "real") {
-        // Tentativa de login real com a API
-        const response = await fetch("https://demoapp.top1soft.com.br/api/Auth/login", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            accept: "*/*",
-          },
-          body: JSON.stringify({
-            identifier: identifier, // Usar o identifier como está
-            password: password,
-          }),
-        })
+      // Login real com a API
+      const response = await fetch("https://demoapp.top1soft.com.br/api/Auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          accept: "*/*",
+        },
+        body: JSON.stringify({
+          identifier: identifier,
+          password: password,
+        }),
+      })
 
-        if (response.ok) {
-          const data = await response.json()
+      if (response.ok) {
+        const data = await response.json()
 
-          // Salvar token no localStorage
-          if (typeof window !== "undefined") {
-            localStorage.setItem("authToken", data.token.token)
-            localStorage.setItem("userRole", data.token.role)
+        // Salvar token no localStorage
+        if (typeof window !== "undefined") {
+          localStorage.setItem("authToken", data.token.token)
+          localStorage.setItem("userRole", data.token.role)
 
-            // Também salvar um objeto de usuário com informações básicas
-            const userData = {
-              cpf: identifier,
-              name: "Usuário Logado", // Poderia ser obtido de outra API
-              church: "Igreja Conectada",
-              role: data.token.role,
-              accessLevel: data.token.role === "Admin" ? "admin" : "member",
-            }
-            localStorage.setItem("user", JSON.stringify(userData))
+          // Também salvar um objeto de usuário com informações básicas
+          const userData = {
+            identifier: identifier,
+            role: data.token.role,
+            accessLevel: data.token.role === "Admin" ? "admin" : "member",
           }
+          localStorage.setItem("user", JSON.stringify(userData))
+        }
 
-          // Redirecionar para dashboard
-          router.push("/dashboard")
+        // Redirecionar conforme parâmetros ou para dashboard
+        if (redirectParam === "checkout" && planoParam) {
+          router.push(`/planos/checkout?plano=${planoParam}`)
         } else {
-          // Se o login real falhar, mostrar erro ou tentar login fake
-          const errorData = await response.json()
-          setError(`Erro no login: ${errorData.message || "Credenciais inválidas"}`)
-
-          // Opcionalmente, poderia cair no login fake como fallback
-          // setLoginMethod("fake");
+          router.push("/dashboard")
         }
       } else {
-        // Login fake (código existente)
-        await new Promise((resolve) => setTimeout(resolve, 1000))
-
-        // Login fake - CPF: 123456 (admin) e 654321 (membro), senha: 123
-        if (identifier.includes("@")) {
-          // Login fake com email
-          if ((identifier === "joao@email.com" || identifier === "maria@email.com") && password === "123") {
-            // Criar dados do usuário baseado no email
-            const userData =
-              identifier === "joao@email.com"
-                ? {
-                    identifier: "joao@email.com",
-                    name: "Pastor João Silva",
-                    church: "Igreja Batista Central",
-                    role: "Pastor Principal",
-                    accessLevel: "admin" as const,
-                  }
-                : {
-                    identifier: "maria@email.com",
-                    name: "Maria Santos",
-                    church: "Igreja Batista Central",
-                    role: "Membro",
-                    accessLevel: "member" as const,
-                  }
-
-            // Salvar dados do usuário no localStorage
-            if (typeof window !== "undefined") {
-              localStorage.setItem("user", JSON.stringify(userData))
-            }
-
-            // Redirecionar
-            handleRedirect()
-          } else {
-            setError(
-              "Email ou senha incorretos. Use email: joao@email.com (admin) ou maria@email.com (membro) e senha: 123",
-            )
-          }
-        } else {
-          // Login fake com CPF (código existente)
-          const cleanCpf = identifier.replace(/\D/g, "")
-
-          if ((cleanCpf === "123456" || cleanCpf === "654321") && password === "123") {
-            // Criar dados do usuário baseado no CPF
-            const userData =
-              cleanCpf === "123456"
-                ? {
-                    identifier: "123456",
-                    name: "Pastor João Silva",
-                    church: "Igreja Batista Central",
-                    role: "Pastor Principal",
-                    accessLevel: "admin" as const,
-                  }
-                : {
-                    identifier: "654321",
-                    name: "Maria Santos",
-                    church: "Igreja Batista Central",
-                    role: "Membro",
-                    accessLevel: "member" as const,
-                  }
-
-            // Salvar dados do usuário no localStorage
-            if (typeof window !== "undefined") {
-              localStorage.setItem("user", JSON.stringify(userData))
-            }
-
-            // Redirecionar conforme parâmetros ou para dashboard
-            handleRedirect()
-          } else {
-            setError("CPF ou senha incorretos. Use CPF: 123456 (admin) ou 654321 (membro) e senha: 123")
-          }
+        // Se o login falhar, mostrar erro
+        try {
+          const errorData = await response.json()
+          setError(`Erro no login: ${errorData.message || "Credenciais inválidas"}`)
+        } catch (e) {
+          setError("Credenciais inválidas. Verifique seu CPF/Email e senha.")
         }
       }
     } catch (error) {
       console.error("Erro no login:", error)
-      setError("Erro interno. Tente novamente.")
+      setError("Erro de conexão. Verifique sua internet e tente novamente.")
     } finally {
       setIsLoading(false)
     }
@@ -297,18 +213,6 @@ export default function LoginPage() {
                   </Button>
                 </div>
               </form>
-              <div className="mt-4 flex items-center justify-center">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="toggle-login"
-                    checked={loginMethod === "fake"}
-                    onCheckedChange={(checked) => setLoginMethod(checked ? "fake" : "real")}
-                  />
-                  <Label htmlFor="toggle-login" className="text-xs text-gray-500">
-                    Usar login de demonstração
-                  </Label>
-                </div>
-              </div>
 
               <div className="mt-8 text-center">
                 <p className="text-sm text-gray-600">
@@ -317,18 +221,6 @@ export default function LoginPage() {
                     Criar conta
                   </Link>
                 </p>
-              </div>
-
-              {/* Credenciais de teste */}
-              <div className="mt-6 space-y-3">
-                <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
-                  <p className="text-xs text-blue-700 font-medium mb-1">👨‍💼 Administrador:</p>
-                  <p className="text-xs text-blue-600">CPF: 123456 ou Email: joao@email.com | Senha: 123</p>
-                </div>
-                <div className="p-3 bg-green-50 border border-green-200 rounded-md">
-                  <p className="text-xs text-green-700 font-medium mb-1">👤 Membro:</p>
-                  <p className="text-xs text-green-600">CPF: 654321 ou Email: maria@email.com | Senha: 123</p>
-                </div>
               </div>
             </div>
           </div>
