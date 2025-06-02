@@ -5,7 +5,6 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { LanguageProvider } from "@/contexts/language-context"
 import ScrollToSection from "@/components/scroll-to-section"
 import { ErrorBoundary } from "@/components/error-boundary"
-import { RouteGuard } from "@/components/route-guard"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -51,10 +50,8 @@ export default function RootLayout({
         <ErrorBoundary>
           <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
             <LanguageProvider>
-              <RouteGuard>
-                <ScrollToSection />
-                {children}
-              </RouteGuard>
+              <ScrollToSection />
+              {children}
             </LanguageProvider>
           </ThemeProvider>
         </ErrorBoundary>

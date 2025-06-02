@@ -11,7 +11,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Eye, EyeOff, AlertCircle } from "lucide-react"
-import { AutoRedirect } from "@/components/auto-redirect"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -25,9 +24,6 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false)
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-
-  // Determinar URL de redirecionamento
-  const redirectUrl = redirectParam === "checkout" && planoParam ? `/planos/checkout?plano=${planoParam}` : "/dashboard"
 
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword)
@@ -63,11 +59,8 @@ export default function LoginPage() {
     e.preventDefault()
     setIsLoading(true)
     setError("")
-    console.log("Tentando fazer login com:", { identifier, password: "***" })
 
     try {
-      console.log("Enviando requisição de login...")
-
       // Login real com a API
       const response = await fetch("https://demoapp.top1soft.com.br/api/Auth/login", {
         method: "POST",
@@ -81,15 +74,11 @@ export default function LoginPage() {
         }),
       })
 
-      console.log("Resposta da API:", response.status, response.statusText)
-
       if (response.ok) {
         const data = await response.json()
-        console.log("Login bem-sucedido, dados recebidos:", data)
 
         // Salvar token no localStorage
         if (typeof window !== "undefined") {
-          console.log("Salvando dados no localStorage...")
           localStorage.setItem("authToken", data.token.token)
           localStorage.setItem("userRole", data.token.role)
 
@@ -100,38 +89,25 @@ export default function LoginPage() {
             accessLevel: data.token.role === "Admin" ? "admin" : "member",
           }
           localStorage.setItem("user", JSON.stringify(userData))
-
-          // Aguardar um pouco para garantir que o localStorage foi atualizado
-          await new Promise((resolve) => setTimeout(resolve, 200))
-
-          console.log("Dados salvos no localStorage:", {
-            token: localStorage.getItem("authToken") ? "✓" : "✗",
-            role: localStorage.getItem("userRole"),
-            user: localStorage.getItem("user"),
-          })
         }
 
-        // Redirecionar usando página intermediária para garantir que funcione
-        const targetUrl =
-          redirectParam === "checkout" && planoParam ? `/planos/checkout?plano=${planoParam}` : "/dashboard"
-
-        console.log("Redirecionando via página intermediária para:", targetUrl)
-        window.location.href = `/auth-redirect?to=${encodeURIComponent(targetUrl)}`
+        // Redirecionar conforme parâmetros ou para dashboard
+        if (redirectParam === "checkout" && planoParam) {
+          router.push(`/planos/checkout?plano=${planoParam}`)
+        } else {
+          router.push("/dashboard")
+        }
       } else {
         // Se o login falhar, mostrar erro
-        console.error("Erro na resposta da API:", response.status, response.statusText)
-
         try {
           const errorData = await response.json()
-          console.error("Dados do erro:", errorData)
           setError(`Erro no login: ${errorData.message || "Credenciais inválidas"}`)
         } catch (e) {
-          console.error("Erro ao fazer parse da resposta de erro:", e)
           setError("Credenciais inválidas. Verifique seu CPF/Email e senha.")
         }
       }
     } catch (error) {
-      console.error("Erro detalhado no login:", error)
+      console.error("Erro no login:", error)
       setError("Erro de conexão. Verifique sua internet e tente novamente.")
     } finally {
       setIsLoading(false)
@@ -140,8 +116,6 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-b from-gray-50 to-gray-100 flex flex-col">
-      {/* Redirecionamento automático se já estiver logado */}
-      <AutoRedirect to={redirectUrl} condition={true} delay={100} />
       {/* Header */}
       <header className="w-full py-4 px-6 flex justify-center border-b border-gray-200 bg-white/80 backdrop-blur-sm">
         <Link href="/" className="flex items-center gap-2">
