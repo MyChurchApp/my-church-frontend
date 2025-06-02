@@ -23,11 +23,12 @@ export default function LoginPage() {
   const redirectParam = searchParams.get("redirect")
 
   const [showPassword, setShowPassword] = useState(false)
-  const [cpf, setCpf] = useState("")
+  const [identifier, setIdentifier] = useState("")
   const [password, setPassword] = useState("")
   const [rememberMe, setRememberMe] = useState(false)
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [loginMethod, setLoginMethod] = useState<"real" | "fake">("real")
 
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword)
@@ -44,10 +45,27 @@ export default function LoginPage() {
     return value
   }
 
-  const handleCpfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formatted = formatCPF(e.target.value)
-    setCpf(formatted)
+  const handleIdentifierChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+
+    // Verifica se parece um email (contém @)
+    if (value.includes("@")) {
+      setIdentifier(value)
+    } else {
+      // Se não for email, trata como CPF e formata
+      const formatted = formatCPF(value)
+      setIdentifier(formatted)
+    }
+
     setError("")
+  }
+
+  const handleRedirect = () => {
+    if (redirectParam === "checkout" && planoParam) {
+      router.push(`/planos/checkout?plano=${planoParam}`)
+    } else {
+      router.push("/dashboard")
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -56,46 +74,121 @@ export default function LoginPage() {
     setError("")
 
     try {
-      // Simular delay de autenticação
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      if (loginMethod === "real") {
+        // Tentativa de login real com a API
+        const response = await fetch("https://demoapp.top1soft.com.br/api/Auth/login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            accept: "*/*",
+          },
+          body: JSON.stringify({
+            identifier: identifier, // Usar o identifier como está
+            password: password,
+          }),
+        })
 
-      // Login fake - CPF: 123456 (admin) e 654321 (membro), senha: 123
-      const cleanCpf = cpf.replace(/\D/g, "")
+        if (response.ok) {
+          const data = await response.json()
 
-      console.log("Tentativa de login:", { cleanCpf, password }) // Debug
+          // Salvar token no localStorage
+          if (typeof window !== "undefined") {
+            localStorage.setItem("authToken", data.token.token)
+            localStorage.setItem("userRole", data.token.role)
 
-      if ((cleanCpf === "123456" || cleanCpf === "654321") && password === "123") {
-        // Criar dados do usuário baseado no CPF
-        const userData =
-          cleanCpf === "123456"
-            ? {
-                cpf: "123456",
-                name: "Pastor João Silva",
-                church: "Igreja Batista Central",
-                role: "Pastor Principal",
-                accessLevel: "admin" as const,
-              }
-            : {
-                cpf: "654321",
-                name: "Maria Santos",
-                church: "Igreja Batista Central",
-                role: "Membro",
-                accessLevel: "member" as const,
-              }
+            // Também salvar um objeto de usuário com informações básicas
+            const userData = {
+              cpf: identifier,
+              name: "Usuário Logado", // Poderia ser obtido de outra API
+              church: "Igreja Conectada",
+              role: data.token.role,
+              accessLevel: data.token.role === "Admin" ? "admin" : "member",
+            }
+            localStorage.setItem("user", JSON.stringify(userData))
+          }
 
-        // Salvar dados do usuário no localStorage
-        if (typeof window !== "undefined") {
-          localStorage.setItem("user", JSON.stringify(userData))
-        }
-
-        // Redirecionar conforme parâmetros ou para dashboard
-        if (redirectParam === "checkout" && planoParam) {
-          router.push(`/planos/checkout?plano=${planoParam}`)
-        } else {
+          // Redirecionar para dashboard
           router.push("/dashboard")
+        } else {
+          // Se o login real falhar, mostrar erro ou tentar login fake
+          const errorData = await response.json()
+          setError(`Erro no login: ${errorData.message || "Credenciais inválidas"}`)
+
+          // Opcionalmente, poderia cair no login fake como fallback
+          // setLoginMethod("fake");
         }
       } else {
-        setError("CPF ou senha incorretos. Use CPF: 123456 (admin) ou 654321 (membro) e senha: 123")
+        // Login fake (código existente)
+        await new Promise((resolve) => setTimeout(resolve, 1000))
+
+        // Login fake - CPF: 123456 (admin) e 654321 (membro), senha: 123
+        if (identifier.includes("@")) {
+          // Login fake com email
+          if ((identifier === "joao@email.com" || identifier === "maria@email.com") && password === "123") {
+            // Criar dados do usuário baseado no email
+            const userData =
+              identifier === "joao@email.com"
+                ? {
+                    identifier: "joao@email.com",
+                    name: "Pastor João Silva",
+                    church: "Igreja Batista Central",
+                    role: "Pastor Principal",
+                    accessLevel: "admin" as const,
+                  }
+                : {
+                    identifier: "maria@email.com",
+                    name: "Maria Santos",
+                    church: "Igreja Batista Central",
+                    role: "Membro",
+                    accessLevel: "member" as const,
+                  }
+
+            // Salvar dados do usuário no localStorage
+            if (typeof window !== "undefined") {
+              localStorage.setItem("user", JSON.stringify(userData))
+            }
+
+            // Redirecionar
+            handleRedirect()
+          } else {
+            setError(
+              "Email ou senha incorretos. Use email: joao@email.com (admin) ou maria@email.com (membro) e senha: 123",
+            )
+          }
+        } else {
+          // Login fake com CPF (código existente)
+          const cleanCpf = identifier.replace(/\D/g, "")
+
+          if ((cleanCpf === "123456" || cleanCpf === "654321") && password === "123") {
+            // Criar dados do usuário baseado no CPF
+            const userData =
+              cleanCpf === "123456"
+                ? {
+                    identifier: "123456",
+                    name: "Pastor João Silva",
+                    church: "Igreja Batista Central",
+                    role: "Pastor Principal",
+                    accessLevel: "admin" as const,
+                  }
+                : {
+                    identifier: "654321",
+                    name: "Maria Santos",
+                    church: "Igreja Batista Central",
+                    role: "Membro",
+                    accessLevel: "member" as const,
+                  }
+
+            // Salvar dados do usuário no localStorage
+            if (typeof window !== "undefined") {
+              localStorage.setItem("user", JSON.stringify(userData))
+            }
+
+            // Redirecionar conforme parâmetros ou para dashboard
+            handleRedirect()
+          } else {
+            setError("CPF ou senha incorretos. Use CPF: 123456 (admin) ou 654321 (membro) e senha: 123")
+          }
+        }
       }
     } catch (error) {
       console.error("Erro no login:", error)
@@ -134,17 +227,16 @@ export default function LoginPage() {
 
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="space-y-2">
-                  <Label htmlFor="cpf" className="text-sm font-medium text-gray-700">
-                    CPF
+                  <Label htmlFor="identifier" className="text-sm font-medium text-gray-700">
+                    CPF ou Email
                   </Label>
                   <Input
-                    id="cpf"
+                    id="identifier"
                     type="text"
-                    value={cpf}
-                    onChange={handleCpfChange}
-                    placeholder="000.000.000-00"
+                    value={identifier}
+                    onChange={handleIdentifierChange}
+                    placeholder="000.000.000-00 ou email@exemplo.com"
                     required
-                    maxLength={14}
                     className="h-11 rounded-xl border-gray-300 bg-gray-50 focus:border-gray-500 focus:ring-gray-500 transition-all"
                   />
                 </div>
@@ -205,6 +297,18 @@ export default function LoginPage() {
                   </Button>
                 </div>
               </form>
+              <div className="mt-4 flex items-center justify-center">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="toggle-login"
+                    checked={loginMethod === "fake"}
+                    onCheckedChange={(checked) => setLoginMethod(checked ? "fake" : "real")}
+                  />
+                  <Label htmlFor="toggle-login" className="text-xs text-gray-500">
+                    Usar login de demonstração
+                  </Label>
+                </div>
+              </div>
 
               <div className="mt-8 text-center">
                 <p className="text-sm text-gray-600">
@@ -219,11 +323,11 @@ export default function LoginPage() {
               <div className="mt-6 space-y-3">
                 <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
                   <p className="text-xs text-blue-700 font-medium mb-1">👨‍💼 Administrador:</p>
-                  <p className="text-xs text-blue-600">CPF: 123456 | Senha: 123</p>
+                  <p className="text-xs text-blue-600">CPF: 123456 ou Email: joao@email.com | Senha: 123</p>
                 </div>
                 <div className="p-3 bg-green-50 border border-green-200 rounded-md">
                   <p className="text-xs text-green-700 font-medium mb-1">👤 Membro:</p>
-                  <p className="text-xs text-green-600">CPF: 654321 | Senha: 123</p>
+                  <p className="text-xs text-green-600">CPF: 654321 ou Email: maria@email.com | Senha: 123</p>
                 </div>
               </div>
             </div>
