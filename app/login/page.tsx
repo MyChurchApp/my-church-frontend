@@ -1,8 +1,7 @@
 "use client"
 
 import type React from "react"
-
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
@@ -24,35 +23,43 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false)
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [checkingAuth, setCheckingAuth] = useState(true)
+
+  // Verificar se já está logado
+  useEffect(() => {
+    const checkToken = () => {
+      const token = localStorage.getItem("authToken")
+      if (token) {
+        try {
+          const payload = JSON.parse(atob(token.split(".")[1]))
+          const currentTime = Math.floor(Date.now() / 1000)
+
+          if (payload.exp && payload.exp > currentTime) {
+            // Token válido, redirecionar
+            if (redirectParam === "checkout" && planoParam) {
+              router.push(`/planos/checkout?plano=${planoParam}`)
+            } else if (redirectParam) {
+              router.push(redirectParam)
+            } else {
+              router.push("/dashboard")
+            }
+            return
+          }
+        } catch (error) {
+          // Token inválido, remover
+          localStorage.removeItem("authToken")
+          localStorage.removeItem("userRole")
+          localStorage.removeItem("user")
+        }
+      }
+      setCheckingAuth(false)
+    }
+
+    setTimeout(checkToken, 100)
+  }, [router, redirectParam, planoParam])
 
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword)
-  }
-
-  const formatCPF = (value: string) => {
-    // Remove tudo que não é dígito
-    const numbers = value.replace(/\D/g, "")
-
-    // Aplica a máscara do CPF
-    if (numbers.length <= 11) {
-      return numbers.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")
-    }
-    return value
-  }
-
-  const handleIdentifierChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value
-
-    // Se contém @ ou parece email (tem letras e pontos), não formata
-    if (value.includes("@") || /[a-zA-Z]/.test(value) || value.includes(".")) {
-      setIdentifier(value)
-    } else {
-      // Se só tem números, trata como CPF e formata
-      const formatted = formatCPF(value)
-      setIdentifier(formatted)
-    }
-
-    setError("")
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -61,7 +68,6 @@ export default function LoginPage() {
     setError("")
 
     try {
-      // Login real com a API
       const response = await fetch("https://demoapp.top1soft.com.br/api/Auth/login", {
         method: "POST",
         headers: {
@@ -77,33 +83,51 @@ export default function LoginPage() {
       if (response.ok) {
         const data = await response.json()
 
-        // Salvar token no localStorage
-        if (typeof window !== "undefined") {
-          localStorage.setItem("authToken", data.token.token)
-          localStorage.setItem("userRole", data.token.role)
+        // Salvar token e informações do usuário
+        localStorage.setItem("authToken", data.token.token)
+        localStorage.setItem("userRole", data.token.role)
 
-          // Também salvar um objeto de usuário com informações básicas
-          const userData = {
-            identifier: identifier,
-            role: data.token.role,
-            accessLevel: data.token.role === "Admin" ? "admin" : "member",
-          }
-          localStorage.setItem("user", JSON.stringify(userData))
+        // Salvar informações completas do membro
+        const memberInfo = {
+          id: data.token.member.id.toString(),
+          name: data.token.member.name,
+          email: data.token.member.email,
+          role: data.token.role,
+          document: data.token.member.document,
+          phone: data.token.member.phone,
+          churchId: data.token.member.churchId,
+          isActive: data.token.member.isActive,
+          isBaptized: data.token.member.isBaptized,
+          isTither: data.token.member.isTither,
+          birthDate: data.token.member.birthDate,
+          baptizedDate: data.token.member.baptizedDate,
+          maritalStatus: data.token.member.maritalStatus,
+          memberSince: data.token.member.memberSince,
+          ministry: data.token.member.ministry,
+          notes: data.token.member.notes,
         }
+        localStorage.setItem("user", JSON.stringify(memberInfo))
 
-        // Redirecionar conforme parâmetros ou para dashboard
+        console.log("Login realizado com sucesso:", {
+          token: data.token.token,
+          role: data.token.role,
+          member: data.token.member,
+        })
+
+        // Redirecionar
         if (redirectParam === "checkout" && planoParam) {
-          router.push(`/planos/checkout?plano=${planoParam}`)
+          window.location.href = `/planos/checkout?plano=${planoParam}`
+        } else if (redirectParam) {
+          window.location.href = redirectParam
         } else {
-          router.push("/dashboard")
+          window.location.href = "/dashboard"
         }
       } else {
-        // Se o login falhar, mostrar erro
         try {
           const errorData = await response.json()
           setError(`Erro no login: ${errorData.message || "Credenciais inválidas"}`)
         } catch (e) {
-          setError("Credenciais inválidas. Verifique seu CPF/Email e senha.")
+          setError("Credenciais inválidas. Verifique seu email e senha.")
         }
       }
     } catch (error) {
@@ -112,6 +136,17 @@ export default function LoginPage() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Verificando...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -144,14 +179,14 @@ export default function LoginPage() {
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="space-y-2">
                   <Label htmlFor="identifier" className="text-sm font-medium text-gray-700">
-                    CPF ou Email
+                    Email
                   </Label>
                   <Input
                     id="identifier"
-                    type="text"
+                    type="email"
                     value={identifier}
-                    onChange={handleIdentifierChange}
-                    placeholder="000.000.000-00 ou email@exemplo.com"
+                    onChange={(e) => setIdentifier(e.target.value)}
+                    placeholder="seu@email.com"
                     required
                     className="h-11 rounded-xl border-gray-300 bg-gray-50 focus:border-gray-500 focus:ring-gray-500 transition-all"
                   />
@@ -221,6 +256,12 @@ export default function LoginPage() {
                     Criar conta
                   </Link>
                 </p>
+              </div>
+
+              <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+                <p className="text-xs text-blue-800 font-medium mb-2">Conta de teste:</p>
+                <p className="text-xs text-blue-700">Email: joao@email.com</p>
+                <p className="text-xs text-blue-700">Senha: SenhaForte123!</p>
               </div>
             </div>
           </div>

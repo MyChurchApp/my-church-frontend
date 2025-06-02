@@ -1,26 +1,21 @@
-// Tipos relacionados aos membros
-
-export interface ApiMember {
-  id: number
+// Tipos para membros
+export interface Member {
+  id: string
   name: string
-  document: string
   email: string
+  document: string
+  photo?: string
   phone: string
-  photo: string | null
   birthDate: string
   isBaptized: boolean
-  baptizedDate: string
+  baptizedDate?: string
   isTither: boolean
-  churchId: number
-  church: any
-  role: number
-  created: string
-  updated: string | null
-  maritalStatus: string | null
-  memberSince: string | null
-  ministry: string | null
+  roleMember: number
+  maritalStatus: string
+  memberSince: string
+  ministry: string
   isActive: boolean
-  notes: string | null
+  notes?: string
 }
 
 export interface CreateMemberRequest {
@@ -31,7 +26,7 @@ export interface CreateMemberRequest {
   phone: string
   birthDate: string
   isBaptized: boolean
-  baptizedDate: string
+  baptizedDate?: string
   isTither: boolean
   roleMember: number
   maritalStatus: string
@@ -41,40 +36,25 @@ export interface CreateMemberRequest {
   notes?: string
 }
 
-export interface Member {
+export interface UpdateMemberRequest extends Partial<CreateMemberRequest> {
+  id: string
+}
+
+export interface MemberApiResponse {
   id: string
   name: string
   email: string
+  document: string
+  photo?: string
   phone: string
-  cpf: string
   birthDate: string
-  address: string
-  city: string
-  state: string
-  zipCode: string
-  maritalStatus: "solteiro" | "casado" | "divorciado" | "viuvo"
-  baptized: boolean
-  memberSince: string
-  ministry: string
-  photo: string
-  isActive: boolean
-  notes: string
-}
-
-export interface MemberFormData {
-  name: string
-  email: string
-  phone: string
-  cpf: string
-  birthDate: string
-  address: string
-  city: string
-  state: string
-  zipCode: string
+  isBaptized: boolean
+  baptizedDate?: string
+  isTither: boolean
+  roleMember: number
   maritalStatus: string
-  baptized: boolean
   memberSince: string
   ministry: string
   isActive: boolean
-  notes: string
+  notes?: string
 }

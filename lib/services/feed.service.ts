@@ -1,149 +1,83 @@
-// Serviço para operações do feed
-
-import type { ApiFeedResponse, ApiFeedItem } from "../types/feed.types"
-import { httpClient } from "../utils/http.utils"
-import { getApiUrl } from "../config/api.config"
-import { getCurrentUser } from "../utils/auth.utils"
+// Serviço de feed
+import type { FeedPost, CreateFeedPostRequest, UpdateFeedPostRequest, FeedApiResponse } from "../types/feed.types"
+import { apiRequest } from "../utils/http.utils"
+import { API_CONFIG } from "../config/api.config"
 
 export class FeedService {
-  private static readonly ENDPOINT = "/Feed"
-
-  static async getFeed(page = 1, pageSize = 10): Promise<ApiFeedResponse> {
+  async getAll(): Promise<FeedPost[]> {
     try {
-      console.log(`Buscando feed - página ${page}, tamanho ${pageSize}`)
-      const url = `${getApiUrl(this.ENDPOINT)}?pageNumber=${page}&pageSize=${pageSize}`
-      const response = await httpClient(url)
-      const data: ApiFeedResponse = await response.json()
-      console.log("Feed carregado:", data)
-      return data
+      const response = await apiRequest<FeedApiResponse[]>(API_CONFIG.ENDPOINTS.FEED.BASE)
+      return response.data.map(this.convertApiToFeedPost)
     } catch (error) {
-      console.error("Erro ao buscar feed:", error)
-      throw new Error("Falha ao carregar feed")
+      console.error("Erro ao buscar posts do feed:", error)
+      throw error
     }
   }
 
-  static async createPost(content: string): Promise<ApiFeedItem> {
+  async getById(id: string): Promise<FeedPost> {
     try {
-      console.log("Criando novo post:", content)
-      const response = await httpClient(getApiUrl(this.ENDPOINT), {
+      const response = await apiRequest<FeedApiResponse>(API_CONFIG.ENDPOINTS.FEED.BY_ID(id))
+      return this.convertApiToFeedPost(response.data)
+    } catch (error) {
+      console.error(`Erro ao buscar post ${id}:`, error)
+      throw error
+    }
+  }
+
+  async create(postData: CreateFeedPostRequest): Promise<FeedPost> {
+    try {
+      const response = await apiRequest<FeedApiResponse>(API_CONFIG.ENDPOINTS.FEED.BASE, {
         method: "POST",
-        body: JSON.stringify({ content }),
+        body: JSON.stringify(postData),
       })
-
-      // A API pode retornar apenas o ID ou o objeto completo
-      const data = await response.json()
-      console.log("Resposta da API ao criar post:", data)
-
-      // Se retornou apenas o ID, buscar o post completo
-      if (typeof data === "number") {
-        const postId = data
-        console.log("Post criado com ID:", postId)
-
-        // Buscar o feed atualizado para encontrar o post
-        const feedData = await this.getFeed(1, 20)
-        const createdPost = feedData.items.find((item) => item.id === postId)
-
-        if (createdPost) {
-          console.log("Post completo encontrado:", createdPost)
-          return createdPost
-        } else {
-          // Criar objeto temporário se não encontrar
-          return this.createTemporaryPost(postId, content)
-        }
-      }
-
-      // Se já retornou o objeto completo
-      if (typeof data === "object" && data.id !== undefined) {
-        console.log("Post completo retornado:", data)
-        return data as ApiFeedItem
-      }
-
-      throw new Error("Formato de resposta não reconhecido")
+      return this.convertApiToFeedPost(response.data)
     } catch (error) {
       console.error("Erro ao criar post:", error)
-      throw new Error("Falha ao criar post")
+      throw error
     }
   }
 
-  static async updatePost(postId: number, content: string): Promise<ApiFeedItem> {
+  async update(postData: UpdateFeedPostRequest): Promise<FeedPost> {
     try {
-      console.log(`Atualizando post ${postId}:`, content)
-      const response = await httpClient(getApiUrl(`${this.ENDPOINT}/${postId}`), {
+      const { id, ...updateData } = postData
+      const response = await apiRequest<FeedApiResponse>(API_CONFIG.ENDPOINTS.FEED.BY_ID(id), {
         method: "PUT",
-        body: JSON.stringify({
-          postId: 0, // Conforme documentação da API
-          content,
-        }),
+        body: JSON.stringify(updateData),
       })
-
-      const data = await response.json()
-      console.log("Post atualizado:", data)
-
-      // Se retornou o objeto completo
-      if (typeof data === "object" && data.id !== undefined) {
-        return data as ApiFeedItem
-      }
-
-      // Se não retornou o objeto, buscar no feed
-      const feedData = await this.getFeed(1, 20)
-      const updatedPost = feedData.items.find((item) => item.id === postId)
-
-      if (updatedPost) {
-        return updatedPost
-      }
-
-      throw new Error("Post atualizado não encontrado")
+      return this.convertApiToFeedPost(response.data)
     } catch (error) {
-      console.error(`Erro ao atualizar post ${postId}:`, error)
-      throw new Error("Falha ao atualizar post")
+      console.error(`Erro ao atualizar post ${postData.id}:`, error)
+      throw error
     }
   }
 
-  static async deletePost(postId: number): Promise<void> {
+  async delete(id: string): Promise<void> {
     try {
-      console.log(`Deletando post ${postId}`)
-      await httpClient(getApiUrl(`${this.ENDPOINT}/${postId}`), {
+      await apiRequest(API_CONFIG.ENDPOINTS.FEED.BY_ID(id), {
         method: "DELETE",
       })
-      console.log("Post deletado com sucesso")
     } catch (error) {
-      console.error(`Erro ao deletar post ${postId}:`, error)
-      throw new Error("Falha ao deletar post")
+      console.error(`Erro ao deletar post ${id}:`, error)
+      throw error
     }
   }
 
-  private static createTemporaryPost(postId: number, content: string): ApiFeedItem {
-    const currentUser = getCurrentUser()
+  private convertApiToFeedPost(apiPost: FeedApiResponse): FeedPost {
     return {
-      id: postId,
-      content: content,
-      memberId: Number.parseInt(currentUser?.id || "0"),
-      churchId: 0,
-      created: new Date().toISOString(),
-      updated: null,
-      member: {
-        id: Number.parseInt(currentUser?.id || "0"),
-        name: currentUser?.name || "Usuário",
-        document: "",
-        email: currentUser?.email || "",
-        phone: "",
-        photo: null,
-        birthDate: "1990-01-01T00:00:00",
-        isBaptized: false,
-        baptizedDate: "1990-01-01T00:00:00",
-        isTither: false,
-        churchId: 0,
-        church: null,
-        role: 0,
-        created: new Date().toISOString(),
-        updated: null,
-        maritalStatus: null,
-        memberSince: null,
-        ministry: null,
-        isActive: true,
-        notes: null,
-      },
-      likesCount: 0,
+      id: apiPost.id,
+      title: apiPost.title,
+      content: apiPost.content,
+      author: apiPost.author,
+      authorId: apiPost.authorId,
+      createdAt: apiPost.createdAt,
+      updatedAt: apiPost.updatedAt,
+      isPublished: apiPost.isPublished,
+      tags: apiPost.tags,
+      imageUrl: apiPost.imageUrl,
+      likes: apiPost.likes,
+      comments: apiPost.comments,
     }
   }
 }
+
+export const feedService = new FeedService()

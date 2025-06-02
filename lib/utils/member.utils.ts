@@ -1,83 +1,56 @@
-// Utilitários para conversão de dados de membros
+// Utilitários para membros
+import type { Member, MemberApiResponse, CreateMemberRequest } from "../types/member.types"
 
-import type { ApiMember, CreateMemberRequest, Member, MemberFormData } from "../types/member.types"
-
-export const convertApiMemberToLocal = (apiMember: ApiMember): Member => {
+export const convertApiToMember = (apiMember: MemberApiResponse): Member => {
   return {
-    id: apiMember.id.toString(),
+    id: apiMember.id,
     name: apiMember.name,
     email: apiMember.email,
+    document: apiMember.document,
+    photo: apiMember.photo,
     phone: apiMember.phone,
-    cpf: apiMember.document,
-    birthDate: apiMember.birthDate.split("T")[0], // Converter para formato YYYY-MM-DD
-    address: "", // API não tem esses campos, usar valores padrão
-    city: "",
-    state: "",
-    zipCode: "",
-    maritalStatus: (apiMember.maritalStatus?.toLowerCase() || "solteiro") as
-      | "solteiro"
-      | "casado"
-      | "divorciado"
-      | "viuvo",
-    baptized: apiMember.isBaptized,
-    memberSince: apiMember.memberSince?.split("T")[0] || apiMember.created.split("T")[0],
-    ministry: apiMember.ministry || "",
-    photo: apiMember.photo || "/placeholder.svg?height=100&width=100",
+    birthDate: apiMember.birthDate,
+    isBaptized: apiMember.isBaptized,
+    baptizedDate: apiMember.baptizedDate,
+    isTither: apiMember.isTither,
+    roleMember: apiMember.roleMember,
+    maritalStatus: apiMember.maritalStatus,
+    memberSince: apiMember.memberSince,
+    ministry: apiMember.ministry,
     isActive: apiMember.isActive,
-    notes: apiMember.notes || "",
+    notes: apiMember.notes,
   }
 }
 
-export const convertLocalMemberToAPI = (localMember: MemberFormData): CreateMemberRequest => {
+export const convertMemberToApi = (member: CreateMemberRequest): CreateMemberRequest => {
   return {
-    name: localMember.name,
-    email: localMember.email,
-    document: localMember.cpf.replace(/\D/g, ""), // Remover formatação do CPF
-    photo: undefined, // Por enquanto não enviamos foto
-    phone: localMember.phone.replace(/\D/g, ""), // Remover formatação do telefone
-    birthDate: `${localMember.birthDate}T00:00:00`,
-    isBaptized: localMember.baptized,
-    baptizedDate: localMember.baptized ? `${localMember.birthDate}T00:00:00` : `${localMember.memberSince}T00:00:00`,
-    isTither: true, // Valor padrão
-    roleMember: 0, // Valor padrão para membro comum
-    maritalStatus: localMember.maritalStatus.charAt(0).toUpperCase() + localMember.maritalStatus.slice(1),
-    memberSince: `${localMember.memberSince}T00:00:00`,
-    ministry: localMember.ministry,
-    isActive: localMember.isActive,
-    notes: localMember.notes || undefined,
+    name: member.name,
+    email: member.email,
+    document: member.document,
+    photo: member.photo,
+    phone: member.phone,
+    birthDate: member.birthDate,
+    isBaptized: member.isBaptized,
+    baptizedDate: member.baptizedDate,
+    isTither: member.isTither,
+    roleMember: member.roleMember,
+    maritalStatus: member.maritalStatus,
+    memberSince: member.memberSince,
+    ministry: member.ministry,
+    isActive: member.isActive,
+    notes: member.notes,
   }
 }
 
-export const formatTimeAgo = (dateString: string): string => {
-  const date = new Date(dateString)
-  const now = new Date()
-  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000)
-
-  if (diffInSeconds < 60) {
-    return "Agora mesmo"
-  } else if (diffInSeconds < 3600) {
-    const minutes = Math.floor(diffInSeconds / 60)
-    return `${minutes} min atrás`
-  } else if (diffInSeconds < 86400) {
-    const hours = Math.floor(diffInSeconds / 3600)
-    return `${hours}h atrás`
-  } else if (diffInSeconds < 604800) {
-    const days = Math.floor(diffInSeconds / 86400)
-    return `${days}d atrás`
-  } else {
-    return date.toLocaleDateString("pt-BR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    })
-  }
+export const formatCPF = (cpf: string): string => {
+  const numbers = cpf.replace(/\D/g, "")
+  return numbers.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")
 }
 
-export const canEditOrDeletePost = (createdDate: string): boolean => {
-  const postTime = new Date(createdDate).getTime()
-  const now = new Date().getTime()
-  const timeDiff = now - postTime
-  const twoHoursInMs = 2 * 60 * 60 * 1000 // 2 horas em milissegundos
-
-  return timeDiff < twoHoursInMs
+export const formatPhone = (phone: string): string => {
+  const numbers = phone.replace(/\D/g, "")
+  if (numbers.length === 11) {
+    return numbers.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3")
+  }
+  return numbers.replace(/(\d{2})(\d{4})(\d{4})/, "($1) $2-$3")
 }

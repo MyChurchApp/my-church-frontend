@@ -1,19 +1,26 @@
 // Utilitários HTTP
-
-import { getAuthToken, redirectToLogin } from "./auth.utils"
 import { API_CONFIG } from "../config/api.config"
+import { getAuthToken } from "./auth.utils"
 
-export interface HttpOptions extends RequestInit {
-  requireAuth?: boolean
+export interface ApiResponse<T = any> {
+  data: T
+  success: boolean
+  message?: string
 }
 
-export const createAuthHeaders = (): Record<string, string> => {
-  const token = getAuthToken()
+export interface ApiError {
+  message: string
+  status: number
+  details?: any
+}
 
-  const headers: Record<string, string> = {
+export const createApiHeaders = (): HeadersInit => {
+  const headers: HeadersInit = {
     "Content-Type": API_CONFIG.HEADERS.CONTENT_TYPE,
+    accept: API_CONFIG.HEADERS.ACCEPT,
   }
 
+  const token = getAuthToken()
   if (token) {
     headers.Authorization = `Bearer ${token}`
   }
@@ -21,30 +28,50 @@ export const createAuthHeaders = (): Record<string, string> => {
   return headers
 }
 
-export const httpClient = async (url: string, options: HttpOptions = {}): Promise<Response> => {
-  const { requireAuth = true, ...requestOptions } = options
+export const apiRequest = async <T = any>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> => {
+  try {
+    const url = `${API_CONFIG.BASE_URL}${endpoint}`
+    const headers = createApiHeaders()
 
-  if (requireAuth && !getAuthToken()) {
-    throw new Error("Token de autenticação não encontrado")
-  }
+    console.log(`🌐 API Request: ${options.method || "GET"} ${url}`)
 
-  const headers = {
-    ...createAuthHeaders(),
-    ...requestOptions.headers,
-  }
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        ...headers,
+        ...options.headers,
+      },
+    })
 
-  const response = await fetch(url, {
-    ...requestOptions,
-    headers,
-  })
-
-  if (!response.ok) {
-    if (response.status === 401) {
-      redirectToLogin()
-      throw new Error("Token expirado. Redirecionando para login...")
+    if (!response.ok) {
+      throw new ApiError(`HTTP ${response.status}: ${response.statusText}`, response.status)
     }
-    throw new Error(`Erro na API: ${response.status} - ${response.statusText}`)
-  }
 
-  return response
+    const data = await response.json()
+    console.log(`✅ API Response: ${options.method || "GET"} ${url}`, data)
+
+    return {
+      data,
+      success: true,
+    }
+  } catch (error) {
+    console.error(`❌ API Error: ${options.method || "GET"} ${endpoint}`, error)
+
+    if (error instanceof ApiError) {
+      throw error
+    }
+
+    throw new ApiError(error instanceof Error ? error.message : "Erro desconhecido na API", 500, error)
+  }
+}
+
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public status: number,
+    public details?: any,
+  ) {
+    super(message)
+    this.name = "ApiError"
+  }
 }

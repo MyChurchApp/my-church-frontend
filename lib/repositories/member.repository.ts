@@ -1,58 +1,35 @@
-// Repository para membros (camada de abstração)
+// Repositório de membros
+import type { Member, CreateMemberRequest, UpdateMemberRequest } from "../types/member.types"
+import { memberService } from "../services/member.service"
 
-import type { Member, MemberFormData } from "../types/member.types"
-import { MemberService } from "../services/member.service"
-import { convertApiMemberToLocal, convertLocalMemberToAPI } from "../utils/member.utils"
+export interface MemberRepository {
+  findAll(): Promise<Member[]>
+  findById(id: string): Promise<Member>
+  create(member: CreateMemberRequest): Promise<Member>
+  update(member: UpdateMemberRequest): Promise<Member>
+  delete(id: string): Promise<void>
+}
 
-export class MemberRepository {
-  static async getAllMembers(): Promise<Member[]> {
-    try {
-      const apiMembers = await MemberService.getAll()
-      return apiMembers.map(convertApiMemberToLocal)
-    } catch (error) {
-      console.error("Repository: Erro ao buscar membros:", error)
-      throw error
-    }
+export class ApiMemberRepository implements MemberRepository {
+  async findAll(): Promise<Member[]> {
+    return memberService.getAll()
   }
 
-  static async getMemberById(id: string): Promise<Member> {
-    try {
-      const apiMember = await MemberService.getById(Number(id))
-      return convertApiMemberToLocal(apiMember)
-    } catch (error) {
-      console.error(`Repository: Erro ao buscar membro ${id}:`, error)
-      throw error
-    }
+  async findById(id: string): Promise<Member> {
+    return memberService.getById(id)
   }
 
-  static async createMember(memberData: MemberFormData): Promise<Member> {
-    try {
-      const apiMemberData = convertLocalMemberToAPI(memberData)
-      const createdMember = await MemberService.create(apiMemberData)
-      return convertApiMemberToLocal(createdMember)
-    } catch (error) {
-      console.error("Repository: Erro ao criar membro:", error)
-      throw error
-    }
+  async create(member: CreateMemberRequest): Promise<Member> {
+    return memberService.create(member)
   }
 
-  static async updateMember(id: string, memberData: MemberFormData): Promise<Member> {
-    try {
-      const apiMemberData = convertLocalMemberToAPI(memberData)
-      const updatedMember = await MemberService.update(Number(id), apiMemberData)
-      return convertApiMemberToLocal(updatedMember)
-    } catch (error) {
-      console.error(`Repository: Erro ao atualizar membro ${id}:`, error)
-      throw error
-    }
+  async update(member: UpdateMemberRequest): Promise<Member> {
+    return memberService.update(member)
   }
 
-  static async deleteMember(id: string): Promise<void> {
-    try {
-      await MemberService.delete(Number(id))
-    } catch (error) {
-      console.error(`Repository: Erro ao deletar membro ${id}:`, error)
-      throw error
-    }
+  async delete(id: string): Promise<void> {
+    return memberService.delete(id)
   }
 }
+
+export const memberRepository = new ApiMemberRepository()

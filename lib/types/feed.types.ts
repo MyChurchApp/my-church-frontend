@@ -1,31 +1,42 @@
-// Tipos relacionados ao feed
-
-import type { ApiMember } from "./member.types"
-
-export interface ApiFeedItem {
-  id: number
+// Tipos para feed/comunicação
+export interface FeedPost {
+  id: string
+  title: string
   content: string
-  memberId: number
-  churchId: number
-  created: string
-  updated: string | null
-  member: ApiMember
-  likesCount: number
-}
-
-export interface ApiFeedResponse {
-  items: ApiFeedItem[]
-  pageNumber: number
-  pageSize: number
-  totalCount: number
-  totalPages: number
+  author: string
+  authorId: string
+  createdAt: string
+  updatedAt: string
+  isPublished: boolean
+  tags: string[]
+  imageUrl?: string
+  likes: number
+  comments: number
 }
 
 export interface CreateFeedPostRequest {
+  title: string
   content: string
+  isPublished: boolean
+  tags: string[]
+  imageUrl?: string
 }
 
-export interface UpdateFeedPostRequest {
-  postId: number
+export interface UpdateFeedPostRequest extends Partial<CreateFeedPostRequest> {
+  id: string
+}
+
+export interface FeedApiResponse {
+  id: string
+  title: string
   content: string
+  author: string
+  authorId: string
+  createdAt: string
+  updatedAt: string
+  isPublished: boolean
+  tags: string[]
+  imageUrl?: string
+  likes: number
+  comments: number
 }

@@ -1,52 +1,35 @@
-// Repository para feed (camada de abstração)
+// Repositório de feed
+import type { FeedPost, CreateFeedPostRequest, UpdateFeedPostRequest } from "../types/feed.types"
+import { feedService } from "../services/feed.service"
 
-import type { ApiFeedResponse, ApiFeedItem } from "../types/feed.types"
-import { FeedService } from "../services/feed.service"
+export interface FeedRepository {
+  findAll(): Promise<FeedPost[]>
+  findById(id: string): Promise<FeedPost>
+  create(post: CreateFeedPostRequest): Promise<FeedPost>
+  update(post: UpdateFeedPostRequest): Promise<FeedPost>
+  delete(id: string): Promise<void>
+}
 
-export class FeedRepository {
-  static async getFeed(page = 1, pageSize = 10): Promise<ApiFeedResponse> {
-    try {
-      return await FeedService.getFeed(page, pageSize)
-    } catch (error) {
-      console.error("Repository: Erro ao buscar feed:", error)
-      throw error
-    }
+export class ApiFeedRepository implements FeedRepository {
+  async findAll(): Promise<FeedPost[]> {
+    return feedService.getAll()
   }
 
-  static async createPost(content: string): Promise<ApiFeedItem> {
-    try {
-      return await FeedService.createPost(content)
-    } catch (error) {
-      console.error("Repository: Erro ao criar post:", error)
-      throw error
-    }
+  async findById(id: string): Promise<FeedPost> {
+    return feedService.getById(id)
   }
 
-  static async updatePost(postId: number, content: string): Promise<ApiFeedItem> {
-    try {
-      return await FeedService.updatePost(postId, content)
-    } catch (error) {
-      console.error("Repository: Erro ao atualizar post:", error)
-      throw error
-    }
+  async create(post: CreateFeedPostRequest): Promise<FeedPost> {
+    return feedService.create(post)
   }
 
-  static async deletePost(postId: number): Promise<void> {
-    try {
-      await FeedService.deletePost(postId)
-    } catch (error) {
-      console.error("Repository: Erro ao deletar post:", error)
-      throw error
-    }
+  async update(post: UpdateFeedPostRequest): Promise<FeedPost> {
+    return feedService.update(post)
   }
 
-  static async refreshFeed(page = 1, pageSize = 10): Promise<ApiFeedResponse> {
-    try {
-      console.log("Repository: Recarregando feed...")
-      return await this.getFeed(page, pageSize)
-    } catch (error) {
-      console.error("Repository: Erro ao recarregar feed:", error)
-      throw error
-    }
+  async delete(id: string): Promise<void> {
+    return feedService.delete(id)
   }
 }
+
+export const feedRepository = new ApiFeedRepository()

@@ -15,18 +15,23 @@ export function RouteGuard({ children }: RouteGuardProps) {
   const router = useRouter()
 
   useEffect(() => {
-    // Lista de rotas protegidas
-    const protectedRoutes = ["/dashboard"]
-    const isProtectedRoute = protectedRoutes.some((route) => pathname.startsWith(route))
-
     // Só verificar após a checagem inicial estar completa
-    if (hasChecked && isProtectedRoute && !isAuthenticated) {
+    if (hasChecked && pathname.startsWith("/dashboard") && !isAuthenticated) {
       router.push(`/login?redirect=${encodeURIComponent(pathname)}`)
     }
   }, [isAuthenticated, hasChecked, pathname, router])
 
-  // Mostrar loading enquanto verifica autenticação
-  if (isLoading || !hasChecked) {
+  // Rotas públicas que não precisam de verificação
+  const publicRoutes = ["/", "/contato", "/planos", "/cadastro", "/termos", "/privacidade"]
+  const isPublicRoute = publicRoutes.some((route) => pathname === route || pathname.startsWith(route))
+
+  // Se é rota pública, renderizar diretamente
+  if (isPublicRoute) {
+    return <>{children}</>
+  }
+
+  // Se está carregando ou ainda não verificou, mostrar loading apenas para rotas protegidas
+  if ((isLoading || !hasChecked) && pathname.startsWith("/dashboard")) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -37,12 +42,8 @@ export function RouteGuard({ children }: RouteGuardProps) {
     )
   }
 
-  // Lista de rotas protegidas
-  const protectedRoutes = ["/dashboard"]
-  const isProtectedRoute = protectedRoutes.some((route) => pathname.startsWith(route))
-
-  // Se é rota protegida e não está autenticado, não renderizar
-  if (isProtectedRoute && !isAuthenticated) {
+  // Se é dashboard e não está autenticado, não renderizar (vai redirecionar)
+  if (pathname.startsWith("/dashboard") && !isAuthenticated && hasChecked) {
     return null
   }
 
