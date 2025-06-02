@@ -11,7 +11,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Send, MessageSquare, Heart, Loader2 } from "lucide-react"
 import { getUser, type User } from "@/lib/fake-api"
-import { toast } from "@/components/ui/use-toast"
 
 // Helper function to safely get initials
 const getInitials = (name: string | undefined): string => {
@@ -170,35 +169,31 @@ export default function ComunicacaoPage() {
 
     try {
       if (isApiAvailable) {
+        console.log("Enviando post para API:", content)
+
         // Enviar para API real
         const newPost = await createPost(content)
+        console.log("Post criado com sucesso:", newPost)
 
-        // Atualizar a lista de posts
+        // Atualizar a lista de posts imediatamente
         setFeedItems((prevItems) => [newPost, ...prevItems])
 
-        toast({
-          title: "Publicação criada",
-          description: "Sua publicação foi criada com sucesso!",
-        })
+        // Mostrar mensagem de sucesso
+        alert("Publicação criada com sucesso!")
       } else {
         // Simulação com dados fake
         await new Promise((resolve) => setTimeout(resolve, 1000))
-
-        toast({
-          title: "Modo demonstração",
-          description: "Publicação simulada com sucesso!",
-        })
+        alert("Modo demonstração - Publicação simulada com sucesso!")
       }
 
-      // Reset form
+      // Reset form apenas após sucesso
       setContent("")
     } catch (error) {
-      console.error("Erro ao publicar:", error)
-      toast({
-        title: "Erro",
-        description: "Não foi possível criar a publicação. Tente novamente.",
-        variant: "destructive",
-      })
+      console.error("Erro detalhado ao publicar:", error)
+
+      // Mostrar erro mais específico
+      const errorMessage = error instanceof Error ? error.message : "Erro desconhecido"
+      alert(`Erro ao criar publicação: ${errorMessage}`)
     } finally {
       setIsSubmitting(false)
     }

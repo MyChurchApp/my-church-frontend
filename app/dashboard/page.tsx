@@ -33,7 +33,7 @@ import {
 } from "@/lib/fake-api"
 import {
   getFeedFromAPI,
-  createFeedPost,
+  createFeedPostWithFallback,
   isAuthenticated,
   formatTimeAgo as formatApiTimeAgo,
   type ApiFeedItem,
@@ -346,22 +346,51 @@ export default function DashboardPage() {
 
     setIsCreatingPost(true)
     try {
-      const newPost = await createFeedPost(newPostContent)
-      setFeedItems((prev) => [newPost, ...prev])
-      setNewPostContent("")
-      setIsNewPostModalOpen(false)
+      console.log("Criando post com conteúdo:", newPostContent)
+
+      // Usar a função melhorada com fallback
+      const newPost = await createFeedPostWithFallback(newPostContent)
+      console.log("Post criado com sucesso:", newPost)
+
+      // Atualizar a lista de posts imediatamente
+      setFeedItems((prev) => {
+        // Verificar se o post já existe para evitar duplicatas
+        const exists = prev.some((item) => item.id === newPost.id)
+        if (exists) {
+          return prev
+        }
+        return [newPost, ...prev]
+      })
 
       // Atualizar contadores se temos resposta da API
       if (feedResponse) {
-        setFeedResponse({
-          ...feedResponse,
-          totalCount: feedResponse.totalCount + 1,
-          items: [newPost, ...feedResponse.items],
-        })
+        setFeedResponse((prev) => ({
+          ...prev,
+          totalCount: prev.totalCount + 1,
+          items: [newPost, ...prev.items.filter((item) => item.id !== newPost.id)],
+        }))
       }
+
+      // Limpar formulário e fechar modal
+      setNewPostContent("")
+      setIsNewPostModalOpen(false)
+
+      console.log("Post adicionado ao feed local com sucesso")
     } catch (error) {
-      console.error("Erro ao criar post:", error)
-      alert("Erro ao criar post. Tente novamente.")
+      console.error("Erro detalhado ao criar post:", error)
+
+      // Tentar recarregar o feed como último recurso
+      try {
+        console.log("Tentando recarregar feed completo...")
+        await loadFeed()
+        setNewPostContent("")
+        setIsNewPostModalOpen(false)
+        console.log("Feed recarregado, post pode ter sido criado")
+      } catch (reloadError) {
+        console.error("Erro ao recarregar feed:", reloadError)
+        const errorMessage = error instanceof Error ? error.message : "Erro desconhecido ao criar post"
+        alert(`Erro ao criar post: ${errorMessage}`)
+      }
     } finally {
       setIsCreatingPost(false)
     }

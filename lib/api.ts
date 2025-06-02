@@ -48,6 +48,26 @@ const getAuthToken = (): string | null => {
   return localStorage.getItem("authToken")
 }
 
+// Função para obter dados do usuário atual
+const getCurrentUser = () => {
+  if (typeof window === "undefined") return null
+
+  const token = localStorage.getItem("authToken")
+  if (!token) return null
+
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]))
+    return {
+      id: payload.nameid || "1",
+      name: payload.name || payload.email || "Usuário",
+      email: payload.email || "",
+    }
+  } catch (error) {
+    console.error("Erro ao decodificar token:", error)
+    return null
+  }
+}
+
 // Função para fazer requisições autenticadas
 const authenticatedFetch = async (url: string, options: RequestInit = {}) => {
   const token = getAuthToken()
@@ -106,10 +126,169 @@ export const createFeedPost = async (content: string): Promise<ApiFeedItem> => {
       body: JSON.stringify({ content }),
     })
 
-    const data = await response.json()
+    // Verificar se a resposta é válida
+    if (!response.ok) {
+      throw new Error(`Erro HTTP: ${response.status}`)
+    }
+
+    // Tentar fazer parse da resposta
+    let data
+    try {
+      data = await response.json()
+    } catch (parseError) {
+      console.error("Erro ao fazer parse da resposta:", parseError)
+      throw new Error("Resposta da API não é um JSON válido")
+    }
+
+    console.log("Resposta da API ao criar post:", data)
+
+    // A API retorna apenas o ID do post criado
+    if (typeof data === "number") {
+      const postId = data
+      console.log("Post criado com ID:", postId)
+
+      // Buscar o feed atualizado para encontrar o post completo
+      try {
+        const feedData = await getFeedFromAPI(1, 20)
+        const createdPost = feedData.items.find((item) => item.id === postId)
+
+        if (createdPost) {
+          console.log("Post completo encontrado:", createdPost)
+          return createdPost
+        } else {
+          console.log("Post não encontrado no feed, criando objeto temporário")
+          // Se não encontrar, criar um objeto temporário
+          const currentUser = getCurrentUser()
+          return {
+            id: postId,
+            content: content,
+            memberId: Number.parseInt(currentUser?.id || "0"),
+            churchId: 0,
+            created: new Date().toISOString(),
+            updated: null,
+            member: {
+              id: Number.parseInt(currentUser?.id || "0"),
+              name: currentUser?.name || "Usuário",
+              document: "",
+              email: currentUser?.email || "",
+              phone: "",
+              photo: null,
+              birthDate: "1990-01-01T00:00:00",
+              isBaptized: false,
+              baptizedDate: "1990-01-01T00:00:00",
+              isTither: false,
+              churchId: 0,
+              church: null,
+              role: 0,
+              created: new Date().toISOString(),
+              updated: null,
+              maritalStatus: null,
+              memberSince: null,
+              ministry: null,
+              isActive: true,
+              notes: null,
+            },
+            likesCount: 0,
+          }
+        }
+      } catch (feedError) {
+        console.error("Erro ao buscar feed após criar post:", feedError)
+        // Criar objeto temporário se não conseguir buscar o feed
+        const currentUser = getCurrentUser()
+        return {
+          id: postId,
+          content: content,
+          memberId: Number.parseInt(currentUser?.id || "0"),
+          churchId: 0,
+          created: new Date().toISOString(),
+          updated: null,
+          member: {
+            id: Number.parseInt(currentUser?.id || "0"),
+            name: currentUser?.name || "Usuário",
+            document: "",
+            email: currentUser?.email || "",
+            phone: "",
+            photo: null,
+            birthDate: "1990-01-01T00:00:00",
+            isBaptized: false,
+            baptizedDate: "1990-01-01T00:00:00",
+            isTither: false,
+            churchId: 0,
+            church: null,
+            role: 0,
+            created: new Date().toISOString(),
+            updated: null,
+            maritalStatus: null,
+            memberSince: null,
+            ministry: null,
+            isActive: true,
+            notes: null,
+          },
+          likesCount: 0,
+        }
+      }
+    }
+
+    // Se a resposta já é um objeto completo
+    if (typeof data === "object" && data.id !== undefined) {
+      console.log("Post completo retornado pela API:", data)
+      return data as ApiFeedItem
+    }
+
+    // Se chegou até aqui, a estrutura não é reconhecida
+    console.error("Estrutura da resposta não reconhecida:", data)
+    throw new Error(`Estrutura da resposta não reconhecida. Tipo: ${typeof data}, Conteúdo: ${JSON.stringify(data)}`)
+  } catch (error) {
+    console.error("Erro detalhado ao criar post:", error)
+    throw error
+  }
+}
+
+// Função para recarregar o feed (útil após criar um post)
+export const refreshFeed = async (page = 1, pageSize = 10): Promise<ApiFeedResponse> => {
+  try {
+    console.log("Recarregando feed da API...")
+    const data = await getFeedFromAPI(page, pageSize)
+    console.log("Feed recarregado com sucesso:", data)
     return data
   } catch (error) {
-    console.error("Erro ao criar post:", error)
+    console.error("Erro ao recarregar feed:", error)
+    throw error
+  }
+}
+
+// Função melhorada para criar post com fallback
+export const createFeedPostWithFallback = async (content: string): Promise<ApiFeedItem> => {
+  try {
+    // Tentar criar o post
+    const newPost = await createFeedPost(content)
+    return newPost
+  } catch (error) {
+    console.error("Erro ao criar post, tentando recarregar feed:", error)
+
+    // Se der erro, tentar recarregar o feed para ver se o post foi criado
+    try {
+      const feedData = await refreshFeed(1, 20)
+      if (feedData.items.length > 0) {
+        // Procurar por um post com o mesmo conteúdo criado recentemente
+        const recentPost = feedData.items.find((item) => {
+          const postTime = new Date(item.created).getTime()
+          const now = new Date().getTime()
+          const timeDiff = now - postTime
+          // Procurar posts criados nos últimos 30 segundos com o mesmo conteúdo
+          return timeDiff < 30000 && item.content === content
+        })
+
+        if (recentPost) {
+          console.log("Post foi criado com sucesso, encontrado no feed")
+          return recentPost
+        }
+      }
+    } catch (refreshError) {
+      console.error("Erro ao recarregar feed:", refreshError)
+    }
+
+    // Se ainda assim não conseguir, lançar o erro original
     throw error
   }
 }
