@@ -1,83 +1,88 @@
-// Serviço de feed
-import type { FeedPost, CreateFeedPostRequest, UpdateFeedPostRequest, FeedApiResponse } from "../types/feed.types"
-import { apiRequest } from "../utils/http.utils"
-import { API_CONFIG } from "../config/api.config"
+import type { FeedResponse, CreateFeedPostRequest, UpdateFeedPostRequest } from "@/lib/types/feed.types"
+import { httpClient } from "@/lib/utils/http.utils"
 
 export class FeedService {
-  async getAll(): Promise<FeedPost[]> {
+  private static readonly BASE_URL = "https://demoapp.top1soft.com.br/api/Feed"
+
+  static async getFeed(pageNumber = 1, pageSize = 10): Promise<FeedResponse> {
     try {
-      const response = await apiRequest<FeedApiResponse[]>(API_CONFIG.ENDPOINTS.FEED.BASE)
-      return response.data.map(this.convertApiToFeedPost)
+      console.log(`🌐 Buscando feed - Página: ${pageNumber}, Tamanho: ${pageSize}`)
+
+      const url = `${this.BASE_URL}?pageNumber=${pageNumber}&pageSize=${pageSize}`
+      const response = await httpClient.get<FeedResponse>(url)
+
+      console.log("✅ Feed carregado com sucesso:", response)
+      return response
     } catch (error) {
-      console.error("Erro ao buscar posts do feed:", error)
-      throw error
+      console.error("❌ Erro ao buscar feed:", error)
+
+      // Retornar dados vazios em caso de erro para não quebrar a interface
+      return {
+        items: [],
+        pageNumber: pageNumber,
+        pageSize: pageSize,
+        totalCount: 0,
+        totalPages: 0,
+      }
     }
   }
 
-  async getById(id: string): Promise<FeedPost> {
+  static async createPost(request: CreateFeedPostRequest): Promise<number> {
     try {
-      const response = await apiRequest<FeedApiResponse>(API_CONFIG.ENDPOINTS.FEED.BY_ID(id))
-      return this.convertApiToFeedPost(response.data)
+      console.log("🌐 Criando post:", request)
+
+      const payload = {
+        content: request.content,
+      }
+
+      const response = await httpClient.post<number>(this.BASE_URL, payload)
+
+      console.log("✅ Post criado com sucesso. ID:", response)
+      return response
     } catch (error) {
-      console.error(`Erro ao buscar post ${id}:`, error)
-      throw error
+      console.error("❌ Erro ao criar post:", error)
+      throw new Error("Falha ao criar publicação. Verifique sua conexão e tente novamente.")
     }
   }
 
-  async create(postData: CreateFeedPostRequest): Promise<FeedPost> {
+  static async updatePost(postId: number, request: UpdateFeedPostRequest): Promise<void> {
     try {
-      const response = await apiRequest<FeedApiResponse>(API_CONFIG.ENDPOINTS.FEED.BASE, {
-        method: "POST",
-        body: JSON.stringify(postData),
-      })
-      return this.convertApiToFeedPost(response.data)
+      console.log(`🌐 Atualizando post ${postId}:`, request)
+
+      const payload = {
+        content: request.content,
+      }
+
+      await httpClient.put(`${this.BASE_URL}/${postId}`, payload)
+
+      console.log("✅ Post atualizado com sucesso")
     } catch (error) {
-      console.error("Erro ao criar post:", error)
-      throw error
+      console.error("❌ Erro ao atualizar post:", error)
+      throw new Error("Falha ao atualizar publicação. Verifique sua conexão e tente novamente.")
     }
   }
 
-  async update(postData: UpdateFeedPostRequest): Promise<FeedPost> {
+  static async deletePost(postId: number): Promise<void> {
     try {
-      const { id, ...updateData } = postData
-      const response = await apiRequest<FeedApiResponse>(API_CONFIG.ENDPOINTS.FEED.BY_ID(id), {
-        method: "PUT",
-        body: JSON.stringify(updateData),
-      })
-      return this.convertApiToFeedPost(response.data)
+      console.log(`🌐 Deletando post ${postId}`)
+
+      await httpClient.delete(`${this.BASE_URL}/${postId}`)
+
+      console.log("✅ Post deletado com sucesso")
     } catch (error) {
-      console.error(`Erro ao atualizar post ${postData.id}:`, error)
-      throw error
+      console.error("❌ Erro ao deletar post:", error)
+      throw new Error("Falha ao deletar publicação. Verifique sua conexão e tente novamente.")
     }
   }
 
-  async delete(id: string): Promise<void> {
+  // Método para testar conectividade
+  static async testConnection(): Promise<boolean> {
     try {
-      await apiRequest(API_CONFIG.ENDPOINTS.FEED.BY_ID(id), {
-        method: "DELETE",
-      })
+      await this.getFeed(1, 1)
+      return true
     } catch (error) {
-      console.error(`Erro ao deletar post ${id}:`, error)
-      throw error
-    }
-  }
-
-  private convertApiToFeedPost(apiPost: FeedApiResponse): FeedPost {
-    return {
-      id: apiPost.id,
-      title: apiPost.title,
-      content: apiPost.content,
-      author: apiPost.author,
-      authorId: apiPost.authorId,
-      createdAt: apiPost.createdAt,
-      updatedAt: apiPost.updatedAt,
-      isPublished: apiPost.isPublished,
-      tags: apiPost.tags,
-      imageUrl: apiPost.imageUrl,
-      likes: apiPost.likes,
-      comments: apiPost.comments,
+      console.error("❌ Teste de conexão falhou:", error)
+      return false
     }
   }
 }
-
-export const feedService = new FeedService()

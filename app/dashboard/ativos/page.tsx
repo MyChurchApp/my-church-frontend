@@ -29,7 +29,7 @@ import {
   List,
   FileText,
 } from "lucide-react"
-import { getUser, hasPermission } from "@/lib/fake-api"
+import { useAuth } from "@/hooks/use-auth"
 
 interface Asset {
   id: string
@@ -47,99 +47,6 @@ interface Asset {
   nextMaintenance?: string
   image?: string
 }
-
-const fakeAssets: Asset[] = [
-  {
-    id: "1",
-    name: "Sistema de Som Principal",
-    category: "equipamento",
-    description: "Mesa de som digital 32 canais com amplificadores",
-    value: 15000,
-    purchaseDate: "2023-03-15",
-    condition: "excelente",
-    location: "Templo Principal",
-    responsible: "Carlos Oliveira",
-    warranty: "2025-03-15",
-    notes: "Equipamento principal para cultos",
-    lastMaintenance: "2024-12-10",
-    nextMaintenance: "2025-06-10",
-    image: "/placeholder.svg?height=200&width=300&query=sound+system+church",
-  },
-  {
-    id: "2",
-    name: "Projetor Multimídia",
-    category: "tecnologia",
-    description: "Projetor 4K para apresentações e cultos",
-    value: 8500,
-    purchaseDate: "2024-01-20",
-    condition: "excelente",
-    location: "Templo Principal",
-    responsible: "Gabriel Costa",
-    warranty: "2027-01-20",
-    notes: "Usado para projeções durante os cultos",
-    image: "/placeholder.svg?height=200&width=300&query=projector+4k",
-  },
-  {
-    id: "3",
-    name: "Van da Igreja",
-    category: "veiculo",
-    description: "Van 15 lugares para transporte de membros",
-    value: 85000,
-    purchaseDate: "2022-08-10",
-    condition: "bom",
-    location: "Garagem da Igreja",
-    responsible: "Pedro Mendes",
-    warranty: "2025-08-10",
-    notes: "Usada para retiros e eventos",
-    lastMaintenance: "2024-11-15",
-    nextMaintenance: "2025-05-15",
-    image: "/placeholder.svg?height=200&width=300&query=church+van+15+seats",
-  },
-  {
-    id: "4",
-    name: "Piano Digital",
-    category: "equipamento",
-    description: "Piano digital 88 teclas para ministério de música",
-    value: 12000,
-    purchaseDate: "2023-06-05",
-    condition: "excelente",
-    location: "Sala de Música",
-    responsible: "Beatriz Santos",
-    warranty: "2026-06-05",
-    notes: "Instrumento principal do grupo de louvor",
-    image: "/placeholder.svg?height=200&width=300&query=digital+piano+88+keys",
-  },
-  {
-    id: "5",
-    name: "Cadeiras do Templo",
-    category: "mobiliario",
-    description: "Conjunto de 200 cadeiras estofadas",
-    value: 25000,
-    purchaseDate: "2021-12-01",
-    condition: "bom",
-    location: "Templo Principal",
-    responsible: "Secretaria",
-    warranty: "2026-12-01",
-    notes: "Cadeiras principais do templo",
-    image: "/placeholder.svg?height=200&width=300&query=church+chairs+upholstered",
-  },
-  {
-    id: "6",
-    name: "Ar Condicionado Central",
-    category: "equipamento",
-    description: "Sistema de climatização central 60.000 BTUs",
-    value: 18000,
-    purchaseDate: "2023-02-10",
-    condition: "regular",
-    location: "Templo Principal",
-    responsible: "Manutenção",
-    warranty: "2028-02-10",
-    notes: "Necessita manutenção preventiva",
-    lastMaintenance: "2024-08-20",
-    nextMaintenance: "2025-02-20",
-    image: "/placeholder.svg?height=200&width=300&query=central+air+conditioning",
-  },
-]
 
 const categoryLabels = {
   equipamento: "Equipamento",
@@ -167,7 +74,7 @@ const conditionColors = {
 }
 
 export default function AtivosPage() {
-  const [assets, setAssets] = useState<Asset[]>(fakeAssets)
+  const [assets, setAssets] = useState<Asset[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [categoryFilter, setCategoryFilter] = useState<string>("all")
   const [conditionFilter, setConditionFilter] = useState<string>("all")
@@ -175,13 +82,46 @@ export default function AtivosPage() {
   const [editingAsset, setEditingAsset] = useState<Asset | null>(null)
   const [formData, setFormData] = useState<Partial<Asset>>({})
   const [viewMode, setViewMode] = useState<"cards" | "table">("cards")
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const [dragActive, setDragActive] = useState(false)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
 
-  const user = getUser()
+  const { user, isLoading: authLoading } = useAuth()
 
-  // Todos os useEffect devem vir aqui, antes do return condicional
+  // Carregar ativos da API real
+  useEffect(() => {
+    const loadAssets = async () => {
+      setIsLoading(true)
+      setError(null)
+
+      try {
+        // TODO: Implementar chamada para API real
+        // const response = await fetch('/api/assets', {
+        //   headers: {
+        //     'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        //   }
+        // })
+        // const data = await response.json()
+        // setAssets(data)
+
+        console.log("Carregando ativos - aguardando integração com API real")
+        setAssets([])
+      } catch (error) {
+        console.error("Erro ao carregar ativos:", error)
+        setError("Erro ao carregar ativos. Tente novamente.")
+        setAssets([])
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    if (user) {
+      loadAssets()
+    }
+  }, [user])
+
   useEffect(() => {
     if (editingAsset && editingAsset.image) {
       setImagePreview(editingAsset.image)
@@ -190,8 +130,22 @@ export default function AtivosPage() {
     }
   }, [editingAsset])
 
-  // Verificação de permissão APÓS todos os hooks
-  if (!user || !hasPermission(user.accessLevel, "admin") || user.accessLevel !== "admin") {
+  // Loading state
+  if (authLoading || isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Carregando...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Verificação de permissão
+  const isAdmin = user?.role === "Admin" || user?.role === 1 || user?.role === "1" || user?.accessLevel === "admin"
+
+  if (!user || !isAdmin) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <Card className="w-96">
@@ -216,36 +170,47 @@ export default function AtivosPage() {
     return matchesSearch && matchesCategory && matchesCondition
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (editingAsset) {
-      // Editar ativo existente
-      setAssets(assets.map((asset) => (asset.id === editingAsset.id ? { ...asset, ...formData } : asset)))
-    } else {
-      // Criar novo ativo
-      const newAsset: Asset = {
-        id: Date.now().toString(),
-        name: formData.name || "",
-        category: (formData.category as Asset["category"]) || "outros",
-        description: formData.description || "",
-        value: formData.value || 0,
-        purchaseDate: formData.purchaseDate || "",
-        condition: (formData.condition as Asset["condition"]) || "bom",
-        location: formData.location || "",
-        responsible: formData.responsible || "",
-        warranty: formData.warranty || "",
-        notes: formData.notes,
-        lastMaintenance: formData.lastMaintenance,
-        nextMaintenance: formData.nextMaintenance,
-        image: formData.image,
-      }
-      setAssets([...assets, newAsset])
-    }
+    try {
+      if (editingAsset) {
+        // TODO: Implementar chamada para API real - Editar
+        // const response = await fetch(`/api/assets/${editingAsset.id}`, {
+        //   method: 'PUT',
+        //   headers: {
+        //     'Content-Type': 'application/json',
+        //     'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        //   },
+        //   body: JSON.stringify(formData)
+        // })
+        // const updatedAsset = await response.json()
+        // setAssets(assets.map(asset => asset.id === editingAsset.id ? updatedAsset : asset))
 
-    setIsDialogOpen(false)
-    setEditingAsset(null)
-    setFormData({})
+        console.log("Editando ativo - aguardando integração com API real:", formData)
+      } else {
+        // TODO: Implementar chamada para API real - Criar
+        // const response = await fetch('/api/assets', {
+        //   method: 'POST',
+        //   headers: {
+        //     'Content-Type': 'application/json',
+        //     'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        //   },
+        //   body: JSON.stringify(formData)
+        // })
+        // const newAsset = await response.json()
+        // setAssets([...assets, newAsset])
+
+        console.log("Criando ativo - aguardando integração com API real:", formData)
+      }
+
+      setIsDialogOpen(false)
+      setEditingAsset(null)
+      setFormData({})
+    } catch (error) {
+      console.error("Erro ao salvar ativo:", error)
+      alert("Erro ao salvar ativo. Tente novamente.")
+    }
   }
 
   const handleEdit = (asset: Asset) => {
@@ -254,9 +219,25 @@ export default function AtivosPage() {
     setIsDialogOpen(true)
   }
 
-  const handleDelete = (id: string) => {
-    if (confirm("Tem certeza que deseja excluir este ativo?")) {
-      setAssets(assets.filter((asset) => asset.id !== id))
+  const handleDelete = async (id: string) => {
+    if (!confirm("Tem certeza que deseja excluir este ativo?")) return
+
+    try {
+      // TODO: Implementar chamada para API real
+      // const response = await fetch(`/api/assets/${id}`, {
+      //   method: 'DELETE',
+      //   headers: {
+      //     'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+      //   }
+      // })
+      // if (response.ok) {
+      //   setAssets(assets.filter(asset => asset.id !== id))
+      // }
+
+      console.log(`Deletando ativo ${id} - aguardando integração com API real`)
+    } catch (error) {
+      console.error("Erro ao deletar ativo:", error)
+      alert("Erro ao deletar ativo. Tente novamente.")
     }
   }
 
@@ -313,8 +294,14 @@ export default function AtivosPage() {
   }
 
   const generatePDF = () => {
-    // Simular geração de PDF
-    alert("PDF gerado com sucesso! (Funcionalidade simulada)")
+    if (assets.length === 0) {
+      alert("Nenhum ativo encontrado para gerar relatório.")
+      return
+    }
+
+    // TODO: Implementar geração real de PDF
+    console.log("Gerando PDF - aguardando implementação real")
+    alert("Funcionalidade de PDF será implementada com a integração da API.")
   }
 
   const formatCurrency = (value: number) => {
@@ -486,169 +473,188 @@ export default function AtivosPage() {
           </CardContent>
         </Card>
 
-        {/* Assets Display */}
-        {viewMode === "cards" ? (
-          /* Cards View */
-          <div className="grid gap-4 md:gap-6">
-            {filteredAssets.map((asset) => (
-              <Card key={asset.id}>
-                <CardContent className="p-4 md:p-6">
-                  <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-                    {asset.image && (
-                      <div className="w-full md:w-48 h-32 md:h-24 flex-shrink-0">
-                        <img
-                          src={asset.image || "/placeholder.svg"}
-                          alt={asset.name}
-                          className="w-full h-full object-cover rounded-md"
-                        />
-                      </div>
-                    )}
-
-                    <div className="flex-1">
-                      <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 mb-3">
-                        <h3 className="text-lg font-semibold text-gray-900">{asset.name}</h3>
-                        <div className="flex flex-wrap gap-2">
-                          <Badge variant="outline">{categoryLabels[asset.category]}</Badge>
-                          <Badge className={conditionColors[asset.condition]}>{conditionLabels[asset.condition]}</Badge>
-                        </div>
-                      </div>
-
-                      <p className="text-gray-600 mb-3">{asset.description}</p>
-
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 text-sm">
-                        <div className="flex items-center gap-2">
-                          <DollarSign className="h-4 w-4 text-gray-400" />
-                          <span className="font-medium">{formatCurrency(asset.value)}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <MapPin className="h-4 w-4 text-gray-400" />
-                          <span>{asset.location}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <User className="h-4 w-4 text-gray-400" />
-                          <span>{asset.responsible}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4 text-gray-400" />
-                          <span>Compra: {formatDate(asset.purchaseDate)}</span>
-                        </div>
-                        {asset.warranty && (
-                          <div className="flex items-center gap-2">
-                            <CheckCircle className="h-4 w-4 text-gray-400" />
-                            <span>Garantia: {formatDate(asset.warranty)}</span>
-                          </div>
-                        )}
-                        {asset.nextMaintenance && (
-                          <div className="flex items-center gap-2">
-                            <Clock className="h-4 w-4 text-gray-400" />
-                            <span>Próx. Manutenção: {formatDate(asset.nextMaintenance)}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {asset.notes && (
-                        <div className="mt-3 p-3 bg-gray-50 rounded-md">
-                          <p className="text-sm text-gray-600">{asset.notes}</p>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={() => handleEdit(asset)}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDelete(asset.id)}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        ) : (
-          /* Table View */
+        {/* Error State */}
+        {error && (
           <Card>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 border-b">
-                    <tr>
-                      <th className="text-left p-4 font-medium text-gray-900">Imagem</th>
-                      <th className="text-left p-4 font-medium text-gray-900">Nome</th>
-                      <th className="text-left p-4 font-medium text-gray-900">Categoria</th>
-                      <th className="text-left p-4 font-medium text-gray-900">Valor</th>
-                      <th className="text-left p-4 font-medium text-gray-900">Condição</th>
-                      <th className="text-left p-4 font-medium text-gray-900">Localização</th>
-                      <th className="text-left p-4 font-medium text-gray-900">Responsável</th>
-                      <th className="text-left p-4 font-medium text-gray-900">Data Compra</th>
-                      <th className="text-left p-4 font-medium text-gray-900">Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredAssets.map((asset, index) => (
-                      <tr key={asset.id} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                        <td className="p-4">
-                          {asset.image ? (
-                            <img
-                              src={asset.image || "/placeholder.svg"}
-                              alt={asset.name}
-                              className="w-12 h-8 object-cover rounded"
-                            />
-                          ) : (
-                            <div className="w-12 h-8 bg-gray-200 rounded flex items-center justify-center">
-                              <Package className="h-4 w-4 text-gray-400" />
-                            </div>
-                          )}
-                        </td>
-                        <td className="p-4 font-medium text-gray-900">{asset.name}</td>
-                        <td className="p-4">
-                          <Badge variant="outline">{categoryLabels[asset.category]}</Badge>
-                        </td>
-                        <td className="p-4 font-medium">{formatCurrency(asset.value)}</td>
-                        <td className="p-4">
-                          <Badge className={conditionColors[asset.condition]}>{conditionLabels[asset.condition]}</Badge>
-                        </td>
-                        <td className="p-4 text-gray-600">{asset.location}</td>
-                        <td className="p-4 text-gray-600">{asset.responsible}</td>
-                        <td className="p-4 text-gray-600">{formatDate(asset.purchaseDate)}</td>
-                        <td className="p-4">
-                          <div className="flex gap-1">
-                            <Button variant="outline" size="sm" onClick={() => handleEdit(asset)}>
-                              <Edit className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDelete(asset.id)}
-                              className="text-red-600 hover:text-red-700"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+            <CardContent className="p-12 text-center">
+              <AlertTriangle className="h-12 w-12 text-red-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Erro ao Carregar Ativos</h3>
+              <p className="text-gray-600 mb-4">{error}</p>
+              <Button onClick={() => window.location.reload()}>Tentar Novamente</Button>
             </CardContent>
           </Card>
         )}
 
-        {filteredAssets.length === 0 && (
+        {/* Empty State */}
+        {!error && assets.length === 0 && (
           <Card>
             <CardContent className="p-12 text-center">
               <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum ativo encontrado</h3>
-              <p className="text-gray-600">Tente ajustar os filtros ou adicione um novo ativo.</p>
+              <p className="text-gray-600 mb-4">Comece adicionando o primeiro ativo da sua igreja.</p>
+              <Button onClick={openNewAssetDialog} style={{ backgroundColor: "#89f0e6" }}>
+                <Plus className="h-4 w-4 mr-2" />
+                Adicionar Primeiro Ativo
+              </Button>
             </CardContent>
           </Card>
+        )}
+
+        {/* Assets Display - só mostra se houver ativos */}
+        {assets.length > 0 && (
+          <>
+            {viewMode === "cards" ? (
+              /* Cards View */
+              <div className="grid gap-4 md:gap-6">
+                {filteredAssets.map((asset) => (
+                  <Card key={asset.id}>
+                    <CardContent className="p-4 md:p-6">
+                      <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                        {asset.image && (
+                          <div className="w-full md:w-48 h-32 md:h-24 flex-shrink-0">
+                            <img
+                              src={asset.image || "/placeholder.svg"}
+                              alt={asset.name}
+                              className="w-full h-full object-cover rounded-md"
+                            />
+                          </div>
+                        )}
+
+                        <div className="flex-1">
+                          <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 mb-3">
+                            <h3 className="text-lg font-semibold text-gray-900">{asset.name}</h3>
+                            <div className="flex flex-wrap gap-2">
+                              <Badge variant="outline">{categoryLabels[asset.category]}</Badge>
+                              <Badge className={conditionColors[asset.condition]}>
+                                {conditionLabels[asset.condition]}
+                              </Badge>
+                            </div>
+                          </div>
+
+                          <p className="text-gray-600 mb-3">{asset.description}</p>
+
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 text-sm">
+                            <div className="flex items-center gap-2">
+                              <DollarSign className="h-4 w-4 text-gray-400" />
+                              <span className="font-medium">{formatCurrency(asset.value)}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <MapPin className="h-4 w-4 text-gray-400" />
+                              <span>{asset.location}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <User className="h-4 w-4 text-gray-400" />
+                              <span>{asset.responsible}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Calendar className="h-4 w-4 text-gray-400" />
+                              <span>Compra: {formatDate(asset.purchaseDate)}</span>
+                            </div>
+                            {asset.warranty && (
+                              <div className="flex items-center gap-2">
+                                <CheckCircle className="h-4 w-4 text-gray-400" />
+                                <span>Garantia: {formatDate(asset.warranty)}</span>
+                              </div>
+                            )}
+                            {asset.nextMaintenance && (
+                              <div className="flex items-center gap-2">
+                                <Clock className="h-4 w-4 text-gray-400" />
+                                <span>Próx. Manutenção: {formatDate(asset.nextMaintenance)}</span>
+                              </div>
+                            )}
+                          </div>
+
+                          {asset.notes && (
+                            <div className="mt-3 p-3 bg-gray-50 rounded-md">
+                              <p className="text-sm text-gray-600">{asset.notes}</p>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" onClick={() => handleEdit(asset)}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDelete(asset.id)}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              /* Table View */
+              <Card>
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50 border-b">
+                        <tr>
+                          <th className="text-left p-4 font-medium text-gray-900">Nome</th>
+                          <th className="text-left p-4 font-medium text-gray-900">Categoria</th>
+                          <th className="text-left p-4 font-medium text-gray-900">Valor</th>
+                          <th className="text-left p-4 font-medium text-gray-900">Condição</th>
+                          <th className="text-left p-4 font-medium text-gray-900">Localização</th>
+                          <th className="text-left p-4 font-medium text-gray-900">Responsável</th>
+                          <th className="text-left p-4 font-medium text-gray-900">Ações</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredAssets.map((asset, index) => (
+                          <tr key={asset.id} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                            <td className="p-4 font-medium text-gray-900">{asset.name}</td>
+                            <td className="p-4">
+                              <Badge variant="outline">{categoryLabels[asset.category]}</Badge>
+                            </td>
+                            <td className="p-4 font-medium">{formatCurrency(asset.value)}</td>
+                            <td className="p-4">
+                              <Badge className={conditionColors[asset.condition]}>
+                                {conditionLabels[asset.condition]}
+                              </Badge>
+                            </td>
+                            <td className="p-4 text-gray-600">{asset.location}</td>
+                            <td className="p-4 text-gray-600">{asset.responsible}</td>
+                            <td className="p-4">
+                              <div className="flex gap-1">
+                                <Button variant="outline" size="sm" onClick={() => handleEdit(asset)}>
+                                  <Edit className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleDelete(asset.id)}
+                                  className="text-red-600 hover:text-red-700"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {filteredAssets.length === 0 && (
+              <Card>
+                <CardContent className="p-12 text-center">
+                  <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum ativo encontrado</h3>
+                  <p className="text-gray-600">Tente ajustar os filtros de busca.</p>
+                </CardContent>
+              </Card>
+            )}
+          </>
         )}
 
         {/* Dialog for Add/Edit Asset */}

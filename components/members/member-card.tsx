@@ -5,7 +5,24 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Edit, Mail, Phone, MapPin, Calendar, Heart, UserCheck, UserX } from "lucide-react"
-import type { Member, User } from "@/lib/fake-api"
+
+interface Member {
+  id: string
+  name: string
+  email: string
+  phone: string
+  address: string
+  city: string
+  state: string
+  memberSince: string
+  ministry: string
+  isActive: boolean
+  photo?: string
+}
+
+interface User {
+  role: string
+}
 
 interface MemberCardProps {
   member: Member
@@ -45,7 +62,7 @@ export function MemberCard({ member, user, onEdit, onDelete }: MemberCardProps) 
 
           <h3 className="font-semibold text-lg mb-1">{member.name}</h3>
 
-          {user.accessLevel === "admin" ? (
+          {user.role === "Admin" ? (
             <>
               <div className="mb-3">{getStatusBadge(member.isActive)}</div>
 

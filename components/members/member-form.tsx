@@ -9,7 +9,6 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { Send, Key } from "lucide-react"
-import type { Member, User } from "@/lib/fake-api"
 
 interface MemberFormData {
   name: string
@@ -27,6 +26,16 @@ interface MemberFormData {
   ministry: string
   isActive: boolean
   notes: string
+}
+
+interface Member {
+  id: string
+  name: string
+  email: string
+}
+
+interface User {
+  role: string
 }
 
 interface MemberFormProps {
@@ -219,7 +228,7 @@ export function MemberForm({
         />
       </div>
 
-      {isEdit && user?.accessLevel === "admin" && selectedMember && onSendPasswordReset && onGenerateNewPassword && (
+      {isEdit && user?.role === "Admin" && selectedMember && onSendPasswordReset && onGenerateNewPassword && (
         <div className="border-t pt-4 space-y-3">
           <h4 className="font-medium text-gray-900">Gerenciamento de Senha</h4>
           <div className="flex gap-2">

@@ -8,15 +8,36 @@ import { Sidebar } from "@/components/sidebar"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Plus, Download } from "lucide-react"
-import { getUser, getMembers, type User, type Member } from "@/lib/fake-api"
+import { useAuth } from "@/hooks/use-auth"
 import { MembersSummary } from "@/components/members/members-summary"
 import { MembersFilters } from "@/components/members/members-filters"
 import { MembersGrid } from "@/components/members/members-grid"
 import { MemberForm } from "@/components/members/member-form"
 
+// Tipos
+interface Member {
+  id: string
+  name: string
+  email: string
+  phone: string
+  cpf: string
+  birthDate: string
+  address: string
+  city: string
+  state: string
+  zipCode: string
+  maritalStatus: string
+  baptized: boolean
+  memberSince: string
+  ministry: string
+  isActive: boolean
+  notes: string
+  photo?: string
+}
+
 export default function MembrosPage() {
   const router = useRouter()
-  const [user, setUser] = useState<User | null>(null)
+  const { user } = useAuth()
   const [members, setMembers] = useState<Member[]>([])
   const [filteredMembers, setFilteredMembers] = useState<Member[]>([])
   const [searchTerm, setSearchTerm] = useState("")
@@ -46,24 +67,39 @@ export default function MembrosPage() {
   })
 
   useEffect(() => {
-    const loadData = () => {
+    const loadMembers = async () => {
       setIsLoading(true)
 
-      const currentUser = getUser()
-      if (!currentUser) {
+      if (!user) {
         router.push("/login")
         return
       }
 
-      setUser(currentUser)
-      const membersData = getMembers()
-      setMembers(membersData)
-      setFilteredMembers(membersData)
-      setIsLoading(false)
+      try {
+        // TODO: Implementar chamada para API real
+        // const response = await fetch('/api/members', {
+        //   headers: {
+        //     'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        //   }
+        // })
+        // const data = await response.json()
+        // setMembers(data)
+        // setFilteredMembers(data)
+
+        console.log("Carregando membros - aguardando integração com API real")
+        setMembers([])
+        setFilteredMembers([])
+      } catch (error) {
+        console.error("Erro ao carregar membros:", error)
+        setMembers([])
+        setFilteredMembers([])
+      } finally {
+        setIsLoading(false)
+      }
     }
 
-    loadData()
-  }, [router])
+    loadMembers()
+  }, [router, user])
 
   useEffect(() => {
     let filtered = members
@@ -86,6 +122,11 @@ export default function MembrosPage() {
   }, [members, searchTerm, statusFilter])
 
   const generateMembersPDFReport = () => {
+    if (members.length === 0) {
+      alert("Nenhum membro encontrado para gerar relatório.")
+      return
+    }
+
     const activeMembers = members.filter((member) => member.isActive)
     const inactiveMembers = members.filter((member) => !member.isActive)
 
@@ -112,7 +153,7 @@ export default function MembrosPage() {
       <body>
         <div class="header">
           <h1>RELATÓRIO DE MEMBROS</h1>
-          <p>Igreja Batista Central</p>
+          <p>MyChurch</p>
           <p>Gerado em: ${new Date().toLocaleDateString("pt-BR")} às ${new Date().toLocaleTimeString("pt-BR")}</p>
         </div>
 
@@ -121,9 +162,12 @@ export default function MembrosPage() {
           <p><strong>Total de Membros:</strong> ${members.length}</p>
           <p><strong>Membros Ativos:</strong> ${activeMembers.length}</p>
           <p><strong>Membros Inativos:</strong> ${inactiveMembers.length}</p>
-          <p><strong>Taxa de Atividade:</strong> ${((activeMembers.length / members.length) * 100).toFixed(1)}%</p>
+          <p><strong>Taxa de Atividade:</strong> ${members.length > 0 ? ((activeMembers.length / members.length) * 100).toFixed(1) : 0}%</p>
         </div>
 
+        ${
+          activeMembers.length > 0
+            ? `
         <div class="member-section">
           <h2>MEMBROS ATIVOS (${activeMembers.length})</h2>
           ${activeMembers
@@ -148,6 +192,9 @@ export default function MembrosPage() {
             )
             .join("")}
         </div>
+        `
+            : ""
+        }
 
         ${
           inactiveMembers.length > 0
@@ -193,33 +240,57 @@ export default function MembrosPage() {
     )
   }
 
-  const handleCreateMember = (e: React.FormEvent) => {
+  const handleCreateMember = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!memberForm.name || !memberForm.email || !memberForm.phone) return
 
-    const newMember: Member = {
-      id: Date.now().toString(),
-      ...memberForm,
-    }
+    try {
+      // TODO: Implementar chamada para API real
+      // const response = await fetch('/api/members', {
+      //   method: 'POST',
+      //   headers: {
+      //     'Content-Type': 'application/json',
+      //     'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+      //   },
+      //   body: JSON.stringify(memberForm)
+      // })
+      // const newMember = await response.json()
+      // setMembers([...members, newMember])
 
-    setMembers([...members, newMember])
-    resetForm()
-    setIsCreateDialogOpen(false)
+      console.log("Criando membro - aguardando integração com API real:", memberForm)
+      resetForm()
+      setIsCreateDialogOpen(false)
+    } catch (error) {
+      console.error("Erro ao criar membro:", error)
+      alert("Erro ao criar membro. Tente novamente.")
+    }
   }
 
-  const handleEditMember = (e: React.FormEvent) => {
+  const handleEditMember = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedMember || !memberForm.name || !memberForm.email || !memberForm.phone) return
 
-    const updatedMember: Member = {
-      ...selectedMember,
-      ...memberForm,
-    }
+    try {
+      // TODO: Implementar chamada para API real
+      // const response = await fetch(`/api/members/${selectedMember.id}`, {
+      //   method: 'PUT',
+      //   headers: {
+      //     'Content-Type': 'application/json',
+      //     'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+      //   },
+      //   body: JSON.stringify(memberForm)
+      // })
+      // const updatedMember = await response.json()
+      // setMembers(members.map(member => member.id === selectedMember.id ? updatedMember : member))
 
-    setMembers(members.map((member) => (member.id === selectedMember.id ? updatedMember : member)))
-    resetForm()
-    setSelectedMember(null)
-    setIsEditDialogOpen(false)
+      console.log("Editando membro - aguardando integração com API real:", memberForm)
+      resetForm()
+      setSelectedMember(null)
+      setIsEditDialogOpen(false)
+    } catch (error) {
+      console.error("Erro ao atualizar membro:", error)
+      alert("Erro ao atualizar membro. Tente novamente.")
+    }
   }
 
   const openEditDialog = (member: Member) => {
@@ -265,19 +336,42 @@ export default function MembrosPage() {
   }
 
   const handleSendPasswordReset = (member: Member) => {
+    // TODO: Implementar chamada para API real
+    // fetch(`/api/members/${member.id}/reset-password`, { method: 'POST' })
+    console.log(`Enviando recuperação de senha para ${member.email} - aguardando integração com API real`)
     alert(`Email de recuperação de senha enviado para ${member.email}`)
   }
 
   const handleGenerateNewPassword = (member: Member) => {
+    // TODO: Implementar chamada para API real
+    // fetch(`/api/members/${member.id}/generate-password`, { method: 'POST' })
     const newPassword = Math.random().toString(36).slice(-8)
+    console.log(`Gerando nova senha para ${member.name} - aguardando integração com API real`)
     alert(`Nova senha gerada para ${member.name}: ${newPassword}`)
   }
 
-  const handleDeleteMember = (member: Member) => {
+  const handleDeleteMember = async (member: Member) => {
     if (!confirm(`Tem certeza que deseja excluir o membro ${member.name}?`)) {
       return
     }
-    setMembers(members.filter((m) => m.id !== member.id))
+
+    try {
+      // TODO: Implementar chamada para API real
+      // const response = await fetch(`/api/members/${member.id}`, {
+      //   method: 'DELETE',
+      //   headers: {
+      //     'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+      //   }
+      // })
+      // if (response.ok) {
+      //   setMembers(members.filter(m => m.id !== member.id))
+      // }
+
+      console.log(`Deletando membro ${member.name} - aguardando integração com API real`)
+    } catch (error) {
+      console.error("Erro ao deletar membro:", error)
+      alert("Erro ao deletar membro. Tente novamente.")
+    }
   }
 
   if (isLoading) {
@@ -323,7 +417,7 @@ export default function MembrosPage() {
               <p className="text-gray-600">Gerencie os membros da igreja</p>
             </div>
             <div className="flex gap-2">
-              {user.accessLevel === "admin" && (
+              {user.role === "Admin" && (
                 <>
                   <Button onClick={generateMembersPDFReport} variant="outline" className="flex items-center gap-2">
                     <Download className="h-4 w-4" />

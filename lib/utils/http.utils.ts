@@ -1,77 +1,133 @@
-// Utilitários HTTP
-import { API_CONFIG } from "../config/api.config"
 import { getAuthToken } from "./auth.utils"
 
-export interface ApiResponse<T = any> {
-  data: T
-  success: boolean
-  message?: string
-}
+// Utilitário HTTP para fazer requisições à API
+const BASE_URL = "https://demoapp.top1soft.com.br/api"
 
-export interface ApiError {
-  message: string
-  status: number
-  details?: any
-}
+export const httpClient = {
+  async get<T>(endpoint: string): Promise<T> {
+    try {
+      const token = getAuthToken()
+      const headers: HeadersInit = {
+        Accept: "text/plain",
+        "Content-Type": "application/json",
+      }
 
-export const createApiHeaders = (): HeadersInit => {
-  const headers: HeadersInit = {
-    "Content-Type": API_CONFIG.HEADERS.CONTENT_TYPE,
-    accept: API_CONFIG.HEADERS.ACCEPT,
-  }
+      if (token) {
+        headers.Authorization = `Bearer ${token}`
+      }
 
-  const token = getAuthToken()
-  if (token) {
-    headers.Authorization = `Bearer ${token}`
-  }
+      const response = await fetch(`${endpoint.startsWith("http") ? endpoint : BASE_URL + endpoint}`, {
+        method: "GET",
+        headers,
+        mode: "cors",
+      })
 
-  return headers
-}
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error(`Erro HTTP ${response.status}:`, errorText)
+        throw new Error(`Erro HTTP: ${response.status} - ${errorText}`)
+      }
 
-export const apiRequest = async <T = any>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> => {
-  try {
-    const url = `${API_CONFIG.BASE_URL}${endpoint}`
-    const headers = createApiHeaders()
-
-    console.log(`🌐 API Request: ${options.method || "GET"} ${url}`)
-
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        ...headers,
-        ...options.headers,
-      },
-    })
-
-    if (!response.ok) {
-      throw new ApiError(`HTTP ${response.status}: ${response.statusText}`, response.status)
-    }
-
-    const data = await response.json()
-    console.log(`✅ API Response: ${options.method || "GET"} ${url}`, data)
-
-    return {
-      data,
-      success: true,
-    }
-  } catch (error) {
-    console.error(`❌ API Error: ${options.method || "GET"} ${endpoint}`, error)
-
-    if (error instanceof ApiError) {
+      const data = await response.json()
+      return data
+    } catch (error) {
+      console.error("Erro na requisição GET:", error)
       throw error
     }
+  },
 
-    throw new ApiError(error instanceof Error ? error.message : "Erro desconhecido na API", 500, error)
-  }
-}
+  async post<T>(endpoint: string, data: any): Promise<T> {
+    try {
+      const token = getAuthToken()
+      const headers: HeadersInit = {
+        Accept: "text/plain",
+        "Content-Type": "application/json",
+      }
 
-export class ApiError extends Error {
-  constructor(
-    message: string,
-    public status: number,
-    public details?: any,
-  ) {
-    super(message)
-    this.name = "ApiError"
-  }
+      if (token) {
+        headers.Authorization = `Bearer ${token}`
+      }
+
+      const response = await fetch(`${endpoint.startsWith("http") ? endpoint : BASE_URL + endpoint}`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(data),
+        mode: "cors",
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error(`Erro HTTP ${response.status}:`, errorText)
+        throw new Error(`Erro HTTP: ${response.status} - ${errorText}`)
+      }
+
+      const result = await response.json()
+      return result
+    } catch (error) {
+      console.error("Erro na requisição POST:", error)
+      throw error
+    }
+  },
+
+  async put<T>(endpoint: string, data: any): Promise<T> {
+    try {
+      const token = getAuthToken()
+      const headers: HeadersInit = {
+        Accept: "text/plain",
+        "Content-Type": "application/json",
+      }
+
+      if (token) {
+        headers.Authorization = `Bearer ${token}`
+      }
+
+      const response = await fetch(`${endpoint.startsWith("http") ? endpoint : BASE_URL + endpoint}`, {
+        method: "PUT",
+        headers,
+        body: JSON.stringify(data),
+        mode: "cors",
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error(`Erro HTTP ${response.status}:`, errorText)
+        throw new Error(`Erro HTTP: ${response.status} - ${errorText}`)
+      }
+
+      const result = await response.json()
+      return result
+    } catch (error) {
+      console.error("Erro na requisição PUT:", error)
+      throw error
+    }
+  },
+
+  async delete(endpoint: string): Promise<void> {
+    try {
+      const token = getAuthToken()
+      const headers: HeadersInit = {
+        Accept: "text/plain",
+        "Content-Type": "application/json",
+      }
+
+      if (token) {
+        headers.Authorization = `Bearer ${token}`
+      }
+
+      const response = await fetch(`${endpoint.startsWith("http") ? endpoint : BASE_URL + endpoint}`, {
+        method: "DELETE",
+        headers,
+        mode: "cors",
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error(`Erro HTTP ${response.status}:`, errorText)
+        throw new Error(`Erro HTTP: ${response.status} - ${errorText}`)
+      }
+    } catch (error) {
+      console.error("Erro na requisição DELETE:", error)
+      throw error
+    }
+  },
 }

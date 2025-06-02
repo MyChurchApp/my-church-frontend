@@ -2,7 +2,11 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { FileText } from "lucide-react"
-import type { Member } from "@/lib/fake-api"
+
+interface Member {
+  id: string
+  isActive: boolean
+}
 
 interface MembersSummaryProps {
   members: Member[]
