@@ -59,8 +59,11 @@ export default function LoginPage() {
     e.preventDefault()
     setIsLoading(true)
     setError("")
+    console.log("Tentando fazer login com:", { identifier, password: "***" })
 
     try {
+      console.log("Enviando requisição de login...")
+
       // Login real com a API
       const response = await fetch("https://demoapp.top1soft.com.br/api/Auth/login", {
         method: "POST",
@@ -74,11 +77,15 @@ export default function LoginPage() {
         }),
       })
 
+      console.log("Resposta da API:", response.status, response.statusText)
+
       if (response.ok) {
         const data = await response.json()
+        console.log("Login bem-sucedido, dados recebidos:", data)
 
         // Salvar token no localStorage
         if (typeof window !== "undefined") {
+          console.log("Salvando dados no localStorage...")
           localStorage.setItem("authToken", data.token.token)
           localStorage.setItem("userRole", data.token.role)
 
@@ -91,26 +98,41 @@ export default function LoginPage() {
           localStorage.setItem("user", JSON.stringify(userData))
 
           // Aguardar um pouco para garantir que o localStorage foi atualizado
-          await new Promise((resolve) => setTimeout(resolve, 100))
+          await new Promise((resolve) => setTimeout(resolve, 200))
+
+          console.log("Dados salvos no localStorage:", {
+            token: localStorage.getItem("authToken") ? "✓" : "✗",
+            role: localStorage.getItem("userRole"),
+            user: localStorage.getItem("user"),
+          })
         }
 
         // Redirecionar conforme parâmetros ou para dashboard
+        console.log(
+          "Redirecionando para:",
+          redirectParam === "checkout" && planoParam ? `/planos/checkout?plano=${planoParam}` : "/dashboard",
+        )
+
         if (redirectParam === "checkout" && planoParam) {
-          router.push(`/planos/checkout?plano=${planoParam}`)
+          window.location.href = `/planos/checkout?plano=${planoParam}`
         } else {
-          router.push("/dashboard")
+          window.location.href = "/dashboard"
         }
       } else {
         // Se o login falhar, mostrar erro
+        console.error("Erro na resposta da API:", response.status, response.statusText)
+
         try {
           const errorData = await response.json()
+          console.error("Dados do erro:", errorData)
           setError(`Erro no login: ${errorData.message || "Credenciais inválidas"}`)
         } catch (e) {
+          console.error("Erro ao fazer parse da resposta de erro:", e)
           setError("Credenciais inválidas. Verifique seu CPF/Email e senha.")
         }
       }
     } catch (error) {
-      console.error("Erro no login:", error)
+      console.error("Erro detalhado no login:", error)
       setError("Erro de conexão. Verifique sua internet e tente novamente.")
     } finally {
       setIsLoading(false)

@@ -36,10 +36,12 @@ export function useAuth() {
     try {
       // Decodificar o JWT para obter informações do usuário
       const payload = JSON.parse(atob(token.split(".")[1]))
+      console.log("Token decodificado:", payload)
 
       // Verificar se o token não expirou
       const currentTime = Date.now() / 1000
       if (payload.exp && payload.exp < currentTime) {
+        console.log("Token expirado")
         // Token expirado
         logout()
         return false
@@ -54,6 +56,7 @@ export function useAuth() {
         identifier: payload.email || payload.nameid || "",
       }
 
+      console.log("Usuário autenticado:", userData)
       setUser(userData)
       setIsAuthenticated(true)
       setIsLoading(false)

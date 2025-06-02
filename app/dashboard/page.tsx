@@ -183,22 +183,30 @@ export default function DashboardPage() {
   }
 
   useEffect(() => {
+    console.log("Dashboard useEffect:", { hasChecked, isAuthenticated, user: !!user })
+
     // Aguardar a verificação inicial de autenticação
-    if (!hasChecked) return
+    if (!hasChecked) {
+      console.log("Ainda não verificou autenticação, aguardando...")
+      return
+    }
 
     // Se não está autenticado após a verificação, redirecionar para login
     if (!isAuthenticated) {
-      router.push(`/login?redirect=${encodeURIComponent("/dashboard")}`)
+      console.log("Usuário não autenticado, redirecionando para login")
+      const currentPath = window.location.pathname
+      window.location.href = `/login?redirect=${encodeURIComponent(currentPath)}`
       return
     }
 
     // Se chegou aqui, está autenticado e pode carregar os dados
     if (user && !churchData) {
+      console.log("Usuário autenticado, carregando dados da igreja")
       setChurchData(getChurchData())
       setBirthdays(getBirthdaysThisWeek())
       loadFeed()
     }
-  }, [user, isAuthenticated, hasChecked, router, churchData])
+  }, [user, isAuthenticated, hasChecked, churchData])
 
   useEffect(() => {
     const interval = setInterval(() => {
