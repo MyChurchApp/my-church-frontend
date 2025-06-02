@@ -244,6 +244,80 @@ export const createFeedPost = async (content: string): Promise<ApiFeedItem> => {
   }
 }
 
+// Função para editar um post no feed
+export const updateFeedPost = async (postId: number, content: string): Promise<ApiFeedItem> => {
+  try {
+    const response = await authenticatedFetch(`https://demoapp.top1soft.com.br/api/Feed/${postId}`, {
+      method: "PUT",
+      body: JSON.stringify({
+        postId: 0, // Conforme a documentação da API
+        content,
+      }),
+    })
+
+    // Verificar se a resposta é válida
+    if (!response.ok) {
+      throw new Error(`Erro HTTP: ${response.status}`)
+    }
+
+    // Tentar fazer parse da resposta
+    let data
+    try {
+      data = await response.json()
+    } catch (parseError) {
+      console.error("Erro ao fazer parse da resposta:", parseError)
+      throw new Error("Resposta da API não é um JSON válido")
+    }
+
+    console.log("Resposta da API ao editar post:", data)
+
+    // A API pode retornar o post completo atualizado
+    if (typeof data === "object" && data.id !== undefined) {
+      console.log("Post editado com sucesso:", data)
+      return data as ApiFeedItem
+    }
+
+    // Se a API retornar apenas sucesso, buscar o post atualizado
+    try {
+      const feedData = await getFeedFromAPI(1, 20)
+      const updatedPost = feedData.items.find((item) => item.id === postId)
+
+      if (updatedPost) {
+        console.log("Post atualizado encontrado no feed:", updatedPost)
+        return updatedPost
+      } else {
+        throw new Error("Post atualizado não encontrado no feed")
+      }
+    } catch (feedError) {
+      console.error("Erro ao buscar feed após editar post:", feedError)
+      throw new Error("Não foi possível verificar se o post foi atualizado")
+    }
+  } catch (error) {
+    console.error("Erro detalhado ao editar post:", error)
+    throw error
+  }
+}
+
+// Função para deletar um post no feed
+export const deleteFeedPost = async (postId: number): Promise<boolean> => {
+  try {
+    const response = await authenticatedFetch(`https://demoapp.top1soft.com.br/api/Feed/${postId}`, {
+      method: "DELETE",
+    })
+
+    // Verificar se a resposta é válida
+    if (!response.ok) {
+      throw new Error(`Erro HTTP: ${response.status}`)
+    }
+
+    console.log("Post deletado com sucesso:", postId)
+    return true
+  } catch (error) {
+    console.error("Erro detalhado ao deletar post:", error)
+    throw error
+  }
+}
+
 // Função para recarregar o feed (útil após criar um post)
 export const refreshFeed = async (page = 1, pageSize = 10): Promise<ApiFeedResponse> => {
   try {
@@ -332,4 +406,14 @@ export const formatTimeAgo = (dateString: string): string => {
       year: "numeric",
     })
   }
+}
+
+// Função helper para verificar se o post pode ser editado/deletado (menos de 2 horas)
+export const canEditOrDeletePost = (createdDate: string): boolean => {
+  const postTime = new Date(createdDate).getTime()
+  const now = new Date().getTime()
+  const timeDiff = now - postTime
+  const twoHoursInMs = 2 * 60 * 60 * 1000 // 2 horas em milissegundos
+
+  return timeDiff < twoHoursInMs
 }

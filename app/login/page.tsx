@@ -43,11 +43,11 @@ export default function LoginPage() {
   const handleIdentifierChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
 
-    // Verifica se parece um email (contém @)
-    if (value.includes("@")) {
+    // Se contém @ ou parece email (tem letras e pontos), não formata
+    if (value.includes("@") || /[a-zA-Z]/.test(value) || value.includes(".")) {
       setIdentifier(value)
     } else {
-      // Se não for email, trata como CPF e formata
+      // Se só tem números, trata como CPF e formata
       const formatted = formatCPF(value)
       setIdentifier(formatted)
     }

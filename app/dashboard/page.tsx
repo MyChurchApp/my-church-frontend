@@ -20,6 +20,8 @@ import {
   Gift,
   Plus,
   Send,
+  Pencil,
+  Trash2,
 } from "lucide-react"
 import {
   getUser,
@@ -38,8 +40,21 @@ import {
   formatTimeAgo as formatApiTimeAgo,
   type ApiFeedItem,
   type ApiFeedResponse,
+  updateFeedPost,
+  deleteFeedPost,
+  canEditOrDeletePost,
 } from "@/lib/api"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -114,6 +129,13 @@ export default function DashboardPage() {
     role: "",
   })
   const [userPhoto, setUserPhoto] = useState<string>("")
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [editingPost, setEditingPost] = useState<ApiFeedItem | null>(null)
+  const [editPostContent, setEditPostContent] = useState("")
+  const [isSavingEdit, setIsSavingEdit] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [postToDelete, setPostToDelete] = useState<ApiFeedItem | null>(null)
+  const [isDeletingPost, setIsDeletingPost] = useState(false)
 
   // Banners de eventos
   const banners = [
@@ -403,6 +425,87 @@ export default function DashboardPage() {
   const showRealFeed = isAuthenticated() && feedItems.length > 0
   const feedToShow = showRealFeed ? feedItems : displayedNotifications
 
+  const handleEditPost = (item: ApiFeedItem) => {
+    setEditingPost(item)
+    setEditPostContent(item.content)
+    setIsEditModalOpen(true)
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editingPost || !editPostContent.trim()) {
+      return
+    }
+
+    setIsSavingEdit(true)
+    try {
+      // Enviar a atualização para a API
+      const updatedPost = await updateFeedPost(editingPost.id, editPostContent)
+
+      // Atualizar o estado local com o post atualizado
+      setFeedItems((prevItems) =>
+        prevItems.map((item) => (item.id === editingPost.id ? { ...item, content: editPostContent } : item)),
+      )
+
+      // Fechar o modal e limpar o estado
+      setIsEditModalOpen(false)
+      setEditingPost(null)
+      setEditPostContent("")
+
+      // Recarregar o feed para garantir que tudo esteja atualizado
+      await loadFeed()
+    } catch (error) {
+      console.error("Erro ao salvar edição:", error)
+      alert("Erro ao salvar edição. Por favor, tente novamente.")
+    } finally {
+      setIsSavingEdit(false)
+    }
+  }
+
+  const handleDeletePost = (item: ApiFeedItem) => {
+    setPostToDelete(item)
+    setIsDeleteDialogOpen(true)
+  }
+
+  const confirmDeletePost = async () => {
+    if (!postToDelete) return
+
+    setIsDeletingPost(true)
+    try {
+      // Deletar o post via API
+      await deleteFeedPost(postToDelete.id)
+
+      // Remover o post do estado local
+      setFeedItems((prevItems) => prevItems.filter((item) => item.id !== postToDelete.id))
+
+      // Atualizar contadores se temos resposta da API
+      if (feedResponse) {
+        setFeedResponse((prev) => ({
+          ...prev,
+          totalCount: Math.max(0, prev.totalCount - 1),
+          items: prev.items.filter((item) => item.id !== postToDelete.id),
+        }))
+      }
+
+      // Fechar o dialog e limpar o estado
+      setIsDeleteDialogOpen(false)
+      setPostToDelete(null)
+
+      console.log("Post deletado com sucesso")
+    } catch (error) {
+      console.error("Erro ao deletar post:", error)
+      alert("Erro ao deletar post. Por favor, tente novamente.")
+    } finally {
+      setIsDeletingPost(false)
+    }
+  }
+
+  // Função para verificar se o usuário pode editar/deletar o post
+  const canUserEditOrDeletePost = (item: ApiFeedItem): boolean => {
+    const isOwner = user?.id === item.member.id.toString()
+    const canEdit = canEditOrDeletePost(item.created)
+    return isOwner && canEdit
+  }
+
   if (!user || !churchData) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -675,7 +778,32 @@ export default function DashboardPage() {
                                     Publicação
                                   </span>
                                 </div>
-                                <p className="text-xs md:text-sm text-gray-600">{formatApiTimeAgo(item.created)}</p>
+                                <div className="flex items-center justify-between">
+                                  <p className="text-xs md:text-sm text-gray-600">{formatApiTimeAgo(item.created)}</p>
+                                  {/* Botões de editar e deletar - só mostra se for o post do usuário e dentro de 2h */}
+                                  {canUserEditOrDeletePost(item) && (
+                                    <div className="flex items-center gap-1">
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleEditPost(item)}
+                                        className="hover:bg-gray-100 rounded-full h-8 w-8"
+                                        title="Editar publicação"
+                                      >
+                                        <Pencil className="h-4 w-4 text-gray-600" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleDeletePost(item)}
+                                        className="hover:bg-red-50 rounded-full h-8 w-8"
+                                        title="Deletar publicação"
+                                      >
+                                        <Trash2 className="h-4 w-4 text-red-600" />
+                                      </Button>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           </CardHeader>
@@ -941,6 +1069,71 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Modal de Edição */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar Publicação</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="content">Conteúdo</Label>
+              <Textarea
+                id="content"
+                placeholder="Edite sua publicação"
+                value={editPostContent}
+                onChange={(e) => setEditPostContent(e.target.value)}
+                rows={4}
+              />
+            </div>
+            <div className="flex gap-2 pt-4">
+              <Button onClick={handleSaveEdit} disabled={!editPostContent.trim() || isSavingEdit} className="flex-1">
+                {isSavingEdit ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Salvando...
+                  </>
+                ) : (
+                  "Salvar"
+                )}
+              </Button>
+              <Button variant="outline" onClick={() => setIsEditModalOpen(false)} className="flex-1">
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Confirmação de Exclusão */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja deletar esta publicação? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingPost}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeletePost}
+              disabled={isDeletingPost}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isDeletingPost ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Deletando...
+                </>
+              ) : (
+                "Deletar"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
