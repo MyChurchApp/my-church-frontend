@@ -542,13 +542,11 @@ export default function DashboardPage() {
                       <p className="font-medium text-gray-900 text-sm mt-1">{user.name || "Usuário"}</p>
                     </div>
 
-                    {/* Desktop: nome e foto lado a lado */}
-                    <div className="hidden md:flex items-center gap-3">
-                      <p className="font-medium text-gray-900">{user.name || "Usuário"}</p>
-                      <Avatar className="h-10 w-10 hover:opacity-80 transition-opacity">
-                        <AvatarImage src={userPhoto || "/placeholder.svg?height=40&width=40&query=pastor+profile"} />
-                        <AvatarFallback className="text-sm">{getInitials(user.name)}</AvatarFallback>
-                      </Avatar>
+                    {/* Desktop: apenas nome clicável */}
+                    <div className="hidden md:block">
+                      <p className="font-medium text-gray-900 cursor-pointer hover:text-blue-600 transition-colors">
+                        {user.name || "Usuário"}
+                      </p>
                     </div>
                   </div>
                 </DialogTrigger>
