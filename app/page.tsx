@@ -1,3 +1,6 @@
+"use client"
+
+import { useEffect } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -19,6 +22,23 @@ import PricingSection from "@/components/pricing-section"
 import PWAInstall from "@/components/pwa-install"
 
 export default function HomePage() {
+  // Adicionar tratamento de erro para componentes client-side
+  useEffect(() => {
+    // Verificar se estamos no browser antes de executar código client-side
+    if (typeof window === "undefined") return
+
+    // Capturar erros não tratados
+    const handleError = (event: ErrorEvent) => {
+      console.error("Client-side error:", event.error)
+    }
+
+    window.addEventListener("error", handleError)
+
+    return () => {
+      window.removeEventListener("error", handleError)
+    }
+  }, [])
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
       <PWAInstall />

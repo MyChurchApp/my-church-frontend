@@ -23,6 +23,53 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
+// Função helper para gerar iniciais de forma segura
+const getInitials = (name: string | undefined | null): string => {
+  if (!name || typeof name !== "string") return "U"
+
+  return (
+    name
+      .split(" ")
+      .filter((n) => n.length > 0)
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2) || "U"
+  )
+}
+
+// Função helper para verificar se o usuário está logado via API real
+const isRealUser = (): boolean => {
+  if (typeof window === "undefined") return false
+  return !!localStorage.getItem("authToken")
+}
+
+// Função para obter dados do usuário real
+const getRealUser = (): User | null => {
+  if (typeof window === "undefined") return null
+
+  const token = localStorage.getItem("authToken")
+  const role = localStorage.getItem("userRole")
+
+  if (!token) return null
+
+  // Decodificar o JWT para obter informações do usuário
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]))
+    return {
+      id: payload.nameid || "1",
+      name: payload.name || payload.email || "Usuário",
+      email: payload.email || "",
+      role: role || "Membro",
+      accessLevel: role === "Admin" ? "admin" : "member",
+      phone: "",
+    }
+  } catch (error) {
+    console.error("Erro ao decodificar token:", error)
+    return null
+  }
+}
+
 export default function DashboardPage() {
   const router = useRouter()
   const [user, setUser] = useState<User | null>(null)
@@ -47,21 +94,21 @@ export default function DashboardPage() {
       id: 1,
       title: "Retiro de Jovens 2025",
       subtitle: "15-17 de Março",
-      image: "/placeholder.svg?height=200&width=300&query=youth+retreat+banner",
+      image: "/placeholder.svg?height=200&width=300",
       color: "from-blue-500 to-purple-600",
     },
     {
       id: 2,
       title: "Campanha de Oração",
       subtitle: "21 dias de jejum",
-      image: "/placeholder.svg?height=200&width=300&query=prayer+campaign+banner",
+      image: "/placeholder.svg?height=200&width=300",
       color: "from-green-500 to-teal-600",
     },
     {
       id: 3,
       title: "Escola Bíblica",
       subtitle: "Inscrições abertas",
-      image: "/placeholder.svg?height=200&width=300&query=bible+school+banner",
+      image: "/placeholder.svg?height=200&width=300",
       color: "from-orange-500 to-red-600",
     },
   ]
@@ -95,7 +142,15 @@ export default function DashboardPage() {
   ]
 
   useEffect(() => {
-    const userData = getUser()
+    // Verificar se é usuário real ou fake
+    let userData: User | null = null
+
+    if (isRealUser()) {
+      userData = getRealUser()
+    } else {
+      userData = getUser()
+    }
+
     if (!userData) {
       router.push("/login")
       return
@@ -204,10 +259,10 @@ export default function DashboardPage() {
   const openProfileModal = () => {
     if (user) {
       setEditingUser({
-        name: user.name,
+        name: user.name || "",
         email: user.email || "",
         phone: user.phone || "",
-        role: user.role,
+        role: user.role || "",
       })
       setIsProfileModalOpen(true)
     }
@@ -235,7 +290,14 @@ export default function DashboardPage() {
   const hasMoreNotifications = visibleNotifications < notifications.length
 
   if (!user || !churchData) {
-    return <div>Carregando...</div>
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Carregando...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -258,27 +320,17 @@ export default function DashboardPage() {
                     <div className="flex flex-col items-center md:hidden">
                       <Avatar className="h-8 w-8 hover:opacity-80 transition-opacity">
                         <AvatarImage src={userPhoto || "/placeholder.svg?height=40&width=40&query=pastor+profile"} />
-                        <AvatarFallback className="text-xs">
-                          {user.name
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")}
-                        </AvatarFallback>
+                        <AvatarFallback className="text-xs">{getInitials(user.name)}</AvatarFallback>
                       </Avatar>
-                      <p className="font-medium text-gray-900 text-sm mt-1">{user.name}</p>
+                      <p className="font-medium text-gray-900 text-sm mt-1">{user.name || "Usuário"}</p>
                     </div>
 
                     {/* Desktop: nome e foto lado a lado */}
                     <div className="hidden md:flex items-center gap-3">
-                      <p className="font-medium text-gray-900">{user.name}</p>
+                      <p className="font-medium text-gray-900">{user.name || "Usuário"}</p>
                       <Avatar className="h-10 w-10 hover:opacity-80 transition-opacity">
                         <AvatarImage src={userPhoto || "/placeholder.svg?height=40&width=40&query=pastor+profile"} />
-                        <AvatarFallback className="text-sm">
-                          {user.name
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")}
-                        </AvatarFallback>
+                        <AvatarFallback className="text-sm">{getInitials(user.name)}</AvatarFallback>
                       </Avatar>
                     </div>
                   </div>
@@ -293,12 +345,7 @@ export default function DashboardPage() {
                       <div className="relative">
                         <Avatar className="h-20 w-20">
                           <AvatarImage src={userPhoto || "/placeholder.svg?height=80&width=80&query=pastor+profile"} />
-                          <AvatarFallback className="text-lg">
-                            {user.name
-                              .split(" ")
-                              .map((n) => n[0])
-                              .join("")}
-                          </AvatarFallback>
+                          <AvatarFallback className="text-lg">{getInitials(user.name)}</AvatarFallback>
                         </Avatar>
                       </div>
                       <div>
@@ -432,17 +479,16 @@ export default function DashboardPage() {
                       <CardHeader className="pb-3">
                         <div className="flex items-center gap-3">
                           <Avatar className="h-8 w-8 md:h-10 md:w-10">
-                            <AvatarImage src="/placeholder.svg?height=40&width=40&query=church+member" />
+                            <AvatarImage src="/placeholder.svg?height=40&width=40" />
                             <AvatarFallback className="text-xs md:text-sm">
-                              {notification.author
-                                .split(" ")
-                                .map((n) => n[0])
-                                .join("")}
+                              {getInitials(notification.author)}
                             </AvatarFallback>
                           </Avatar>
                           <div className="flex-1">
                             <div className="flex items-center gap-2">
-                              <p className="font-medium text-gray-900 text-sm md:text-base">{notification.author}</p>
+                              <p className="font-medium text-gray-900 text-sm md:text-base">
+                                {notification.author || "Usuário"}
+                              </p>
                               <span className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded-full">
                                 {getNotificationBadge(notification.type)}
                               </span>
@@ -519,14 +565,11 @@ export default function DashboardPage() {
                                   src={member.photo || "/placeholder.svg?height=40&width=40&query=church+member"}
                                 />
                                 <AvatarFallback className="bg-purple-100 text-purple-700">
-                                  {member.name
-                                    .split(" ")
-                                    .map((n) => n[0])
-                                    .join("")}
+                                  {getInitials(member.name)}
                                 </AvatarFallback>
                               </Avatar>
                               <div className="flex-1 min-w-0">
-                                <p className="font-medium text-gray-900 text-sm truncate">{member.name}</p>
+                                <p className="font-medium text-gray-900 text-sm truncate">{member.name || "Membro"}</p>
                                 <p className="text-xs text-gray-600">
                                   {member.birthdayThisYear.toLocaleDateString("pt-BR", {
                                     weekday: "short",
