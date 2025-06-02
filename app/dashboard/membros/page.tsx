@@ -6,38 +6,38 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Sidebar } from "@/components/sidebar"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Plus, Download } from "lucide-react"
-import { useAuth } from "@/hooks/use-auth"
-import { MembersSummary } from "@/components/members/members-summary"
-import { MembersFilters } from "@/components/members/members-filters"
-import { MembersGrid } from "@/components/members/members-grid"
-import { MemberForm } from "@/components/members/member-form"
-
-// Tipos
-interface Member {
-  id: string
-  name: string
-  email: string
-  phone: string
-  cpf: string
-  birthDate: string
-  address: string
-  city: string
-  state: string
-  zipCode: string
-  maritalStatus: string
-  baptized: boolean
-  memberSince: string
-  ministry: string
-  isActive: boolean
-  notes: string
-  photo?: string
-}
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Switch } from "@/components/ui/switch"
+import {
+  Users,
+  Plus,
+  Search,
+  Filter,
+  Edit,
+  Mail,
+  Phone,
+  MapPin,
+  Calendar,
+  Heart,
+  Key,
+  Send,
+  UserCheck,
+  UserX,
+  Download,
+  FileText,
+} from "lucide-react"
+import { getUser, getMembers, type User, type Member } from "@/lib/fake-api"
 
 export default function MembrosPage() {
   const router = useRouter()
-  const { user } = useAuth()
+  const [user, setUser] = useState<User | null>(null)
   const [members, setMembers] = useState<Member[]>([])
   const [filteredMembers, setFilteredMembers] = useState<Member[]>([])
   const [searchTerm, setSearchTerm] = useState("")
@@ -45,7 +45,6 @@ export default function MembrosPage() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [selectedMember, setSelectedMember] = useState<Member | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
 
   // Form state for new/edit member
   const [memberForm, setMemberForm] = useState({
@@ -67,39 +66,17 @@ export default function MembrosPage() {
   })
 
   useEffect(() => {
-    const loadMembers = async () => {
-      setIsLoading(true)
-
-      if (!user) {
-        router.push("/login")
-        return
-      }
-
-      try {
-        // TODO: Implementar chamada para API real
-        // const response = await fetch('/api/members', {
-        //   headers: {
-        //     'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-        //   }
-        // })
-        // const data = await response.json()
-        // setMembers(data)
-        // setFilteredMembers(data)
-
-        console.log("Carregando membros - aguardando integração com API real")
-        setMembers([])
-        setFilteredMembers([])
-      } catch (error) {
-        console.error("Erro ao carregar membros:", error)
-        setMembers([])
-        setFilteredMembers([])
-      } finally {
-        setIsLoading(false)
-      }
+    const userData = getUser()
+    if (!userData) {
+      router.push("/login")
+      return
     }
 
-    loadMembers()
-  }, [router, user])
+    setUser(userData)
+    const membersData = getMembers()
+    setMembers(membersData)
+    setFilteredMembers(membersData)
+  }, [router])
 
   useEffect(() => {
     let filtered = members
@@ -122,11 +99,6 @@ export default function MembrosPage() {
   }, [members, searchTerm, statusFilter])
 
   const generateMembersPDFReport = () => {
-    if (members.length === 0) {
-      alert("Nenhum membro encontrado para gerar relatório.")
-      return
-    }
-
     const activeMembers = members.filter((member) => member.isActive)
     const inactiveMembers = members.filter((member) => !member.isActive)
 
@@ -153,7 +125,7 @@ export default function MembrosPage() {
       <body>
         <div class="header">
           <h1>RELATÓRIO DE MEMBROS</h1>
-          <p>MyChurch</p>
+          <p>Igreja Batista Central</p>
           <p>Gerado em: ${new Date().toLocaleDateString("pt-BR")} às ${new Date().toLocaleTimeString("pt-BR")}</p>
         </div>
 
@@ -162,12 +134,9 @@ export default function MembrosPage() {
           <p><strong>Total de Membros:</strong> ${members.length}</p>
           <p><strong>Membros Ativos:</strong> ${activeMembers.length}</p>
           <p><strong>Membros Inativos:</strong> ${inactiveMembers.length}</p>
-          <p><strong>Taxa de Atividade:</strong> ${members.length > 0 ? ((activeMembers.length / members.length) * 100).toFixed(1) : 0}%</p>
+          <p><strong>Taxa de Atividade:</strong> ${((activeMembers.length / members.length) * 100).toFixed(1)}%</p>
         </div>
 
-        ${
-          activeMembers.length > 0
-            ? `
         <div class="member-section">
           <h2>MEMBROS ATIVOS (${activeMembers.length})</h2>
           ${activeMembers
@@ -192,9 +161,6 @@ export default function MembrosPage() {
             )
             .join("")}
         </div>
-        `
-            : ""
-        }
 
         ${
           inactiveMembers.length > 0
@@ -235,6 +201,7 @@ export default function MembrosPage() {
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
 
+    // Mostrar instruções para o usuário
     alert(
       "Relatório gerado! Para converter para PDF:\n1. Abra o arquivo HTML baixado\n2. Use Ctrl+P (ou Cmd+P no Mac)\n3. Selecione 'Salvar como PDF' como destino",
     )
@@ -244,53 +211,30 @@ export default function MembrosPage() {
     e.preventDefault()
     if (!memberForm.name || !memberForm.email || !memberForm.phone) return
 
-    try {
-      // TODO: Implementar chamada para API real
-      // const response = await fetch('/api/members', {
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //     'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-      //   },
-      //   body: JSON.stringify(memberForm)
-      // })
-      // const newMember = await response.json()
-      // setMembers([...members, newMember])
-
-      console.log("Criando membro - aguardando integração com API real:", memberForm)
-      resetForm()
-      setIsCreateDialogOpen(false)
-    } catch (error) {
-      console.error("Erro ao criar membro:", error)
-      alert("Erro ao criar membro. Tente novamente.")
+    const newMember: Member = {
+      id: Date.now().toString(),
+      ...memberForm,
+      photo: "/placeholder.svg?height=100&width=100&query=church+member",
     }
+
+    setMembers([...members, newMember])
+    resetForm()
+    setIsCreateDialogOpen(false)
   }
 
   const handleEditMember = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedMember || !memberForm.name || !memberForm.email || !memberForm.phone) return
 
-    try {
-      // TODO: Implementar chamada para API real
-      // const response = await fetch(`/api/members/${selectedMember.id}`, {
-      //   method: 'PUT',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //     'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-      //   },
-      //   body: JSON.stringify(memberForm)
-      // })
-      // const updatedMember = await response.json()
-      // setMembers(members.map(member => member.id === selectedMember.id ? updatedMember : member))
-
-      console.log("Editando membro - aguardando integração com API real:", memberForm)
-      resetForm()
-      setSelectedMember(null)
-      setIsEditDialogOpen(false)
-    } catch (error) {
-      console.error("Erro ao atualizar membro:", error)
-      alert("Erro ao atualizar membro. Tente novamente.")
+    const updatedMember: Member = {
+      ...selectedMember,
+      ...memberForm,
     }
+
+    setMembers(members.map((member) => (member.id === selectedMember.id ? updatedMember : member)))
+    resetForm()
+    setSelectedMember(null)
+    setIsEditDialogOpen(false)
   }
 
   const openEditDialog = (member: Member) => {
@@ -336,72 +280,32 @@ export default function MembrosPage() {
   }
 
   const handleSendPasswordReset = (member: Member) => {
-    // TODO: Implementar chamada para API real
-    // fetch(`/api/members/${member.id}/reset-password`, { method: 'POST' })
-    console.log(`Enviando recuperação de senha para ${member.email} - aguardando integração com API real`)
+    // Simular envio de email de recuperação
     alert(`Email de recuperação de senha enviado para ${member.email}`)
   }
 
   const handleGenerateNewPassword = (member: Member) => {
-    // TODO: Implementar chamada para API real
-    // fetch(`/api/members/${member.id}/generate-password`, { method: 'POST' })
+    // Simular geração de nova senha
     const newPassword = Math.random().toString(36).slice(-8)
-    console.log(`Gerando nova senha para ${member.name} - aguardando integração com API real`)
     alert(`Nova senha gerada para ${member.name}: ${newPassword}`)
   }
 
-  const handleDeleteMember = async (member: Member) => {
-    if (!confirm(`Tem certeza que deseja excluir o membro ${member.name}?`)) {
-      return
-    }
-
-    try {
-      // TODO: Implementar chamada para API real
-      // const response = await fetch(`/api/members/${member.id}`, {
-      //   method: 'DELETE',
-      //   headers: {
-      //     'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-      //   }
-      // })
-      // if (response.ok) {
-      //   setMembers(members.filter(m => m.id !== member.id))
-      // }
-
-      console.log(`Deletando membro ${member.name} - aguardando integração com API real`)
-    } catch (error) {
-      console.error("Erro ao deletar membro:", error)
-      alert("Erro ao deletar membro. Tente novamente.")
-    }
-  }
-
-  if (isLoading) {
-    return (
-      <div className="flex h-screen bg-gray-50">
-        <Sidebar />
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Carregando membros...</p>
-          </div>
-        </div>
-      </div>
+  const getStatusBadge = (isActive: boolean) => {
+    return isActive ? (
+      <Badge className="bg-green-100 text-green-800">
+        <UserCheck className="h-3 w-3 mr-1" />
+        Ativo
+      </Badge>
+    ) : (
+      <Badge className="bg-red-100 text-red-800">
+        <UserX className="h-3 w-3 mr-1" />
+        Inativo
+      </Badge>
     )
   }
 
   if (!user) {
-    return (
-      <div className="flex h-screen bg-gray-50">
-        <Sidebar />
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <p className="text-red-600">Erro ao carregar dados do usuário</p>
-            <Button onClick={() => router.push("/login")} className="mt-4">
-              Voltar para o login
-            </Button>
-          </div>
-        </div>
-      </div>
-    )
+    return <div>Carregando...</div>
   }
 
   return (
@@ -417,7 +321,7 @@ export default function MembrosPage() {
               <p className="text-gray-600">Gerencie os membros da igreja</p>
             </div>
             <div className="flex gap-2">
-              {user.role === "Admin" && (
+              {user.accessLevel === "admin" && (
                 <>
                   <Button onClick={generateMembersPDFReport} variant="outline" className="flex items-center gap-2">
                     <Download className="h-4 w-4" />
@@ -434,7 +338,167 @@ export default function MembrosPage() {
                       <DialogHeader>
                         <DialogTitle>Cadastrar Novo Membro</DialogTitle>
                       </DialogHeader>
-                      <MemberForm memberForm={memberForm} setMemberForm={setMemberForm} onSubmit={handleCreateMember} />
+                      <form onSubmit={handleCreateMember} className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="member-name">Nome Completo *</Label>
+                            <Input
+                              id="member-name"
+                              value={memberForm.name}
+                              onChange={(e) => setMemberForm({ ...memberForm, name: e.target.value })}
+                              placeholder="Nome completo"
+                              required
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="member-cpf">CPF</Label>
+                            <Input
+                              id="member-cpf"
+                              value={memberForm.cpf}
+                              onChange={(e) => setMemberForm({ ...memberForm, cpf: e.target.value })}
+                              placeholder="000.000.000-00"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="member-email">Email *</Label>
+                            <Input
+                              id="member-email"
+                              type="email"
+                              value={memberForm.email}
+                              onChange={(e) => setMemberForm({ ...memberForm, email: e.target.value })}
+                              placeholder="email@exemplo.com"
+                              required
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="member-phone">Telefone *</Label>
+                            <Input
+                              id="member-phone"
+                              value={memberForm.phone}
+                              onChange={(e) => setMemberForm({ ...memberForm, phone: e.target.value })}
+                              placeholder="(11) 99999-9999"
+                              required
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="member-birth">Data de Nascimento</Label>
+                            <Input
+                              id="member-birth"
+                              type="date"
+                              value={memberForm.birthDate}
+                              onChange={(e) => setMemberForm({ ...memberForm, birthDate: e.target.value })}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="member-marital">Estado Civil</Label>
+                            <Select
+                              value={memberForm.maritalStatus}
+                              onValueChange={(value) => setMemberForm({ ...memberForm, maritalStatus: value })}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="solteiro">Solteiro(a)</SelectItem>
+                                <SelectItem value="casado">Casado(a)</SelectItem>
+                                <SelectItem value="divorciado">Divorciado(a)</SelectItem>
+                                <SelectItem value="viuvo">Viúvo(a)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="member-address">Endereço</Label>
+                          <Input
+                            id="member-address"
+                            value={memberForm.address}
+                            onChange={(e) => setMemberForm({ ...memberForm, address: e.target.value })}
+                            placeholder="Rua, número, complemento"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="member-city">Cidade</Label>
+                            <Input
+                              id="member-city"
+                              value={memberForm.city}
+                              onChange={(e) => setMemberForm({ ...memberForm, city: e.target.value })}
+                              placeholder="Cidade"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="member-state">Estado</Label>
+                            <Input
+                              id="member-state"
+                              value={memberForm.state}
+                              onChange={(e) => setMemberForm({ ...memberForm, state: e.target.value })}
+                              placeholder="UF"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="member-zip">CEP</Label>
+                            <Input
+                              id="member-zip"
+                              value={memberForm.zipCode}
+                              onChange={(e) => setMemberForm({ ...memberForm, zipCode: e.target.value })}
+                              placeholder="00000-000"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="member-since">Membro desde</Label>
+                            <Input
+                              id="member-since"
+                              type="date"
+                              value={memberForm.memberSince}
+                              onChange={(e) => setMemberForm({ ...memberForm, memberSince: e.target.value })}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="member-ministry">Ministério</Label>
+                            <Input
+                              id="member-ministry"
+                              value={memberForm.ministry}
+                              onChange={(e) => setMemberForm({ ...memberForm, ministry: e.target.value })}
+                              placeholder="Ministério que participa"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex items-center space-x-2">
+                          <Switch
+                            id="member-baptized"
+                            checked={memberForm.baptized}
+                            onCheckedChange={(checked) => setMemberForm({ ...memberForm, baptized: checked })}
+                          />
+                          <Label htmlFor="member-baptized">Batizado</Label>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="member-notes">Observações</Label>
+                          <Textarea
+                            id="member-notes"
+                            value={memberForm.notes}
+                            onChange={(e) => setMemberForm({ ...memberForm, notes: e.target.value })}
+                            placeholder="Observações sobre o membro"
+                            rows={3}
+                          />
+                        </div>
+
+                        <Button type="submit" className="w-full">
+                          Cadastrar Membro
+                        </Button>
+                      </form>
                     </DialogContent>
                   </Dialog>
                 </>
@@ -449,37 +513,345 @@ export default function MembrosPage() {
             <DialogHeader>
               <DialogTitle>Editar Membro</DialogTitle>
             </DialogHeader>
-            <MemberForm
-              memberForm={memberForm}
-              setMemberForm={setMemberForm}
-              onSubmit={handleEditMember}
-              isEdit={true}
-              selectedMember={selectedMember}
-              user={user}
-              onSendPasswordReset={handleSendPasswordReset}
-              onGenerateNewPassword={handleGenerateNewPassword}
-            />
+            <form onSubmit={handleEditMember} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-member-name">Nome Completo *</Label>
+                  <Input
+                    id="edit-member-name"
+                    value={memberForm.name}
+                    onChange={(e) => setMemberForm({ ...memberForm, name: e.target.value })}
+                    placeholder="Nome completo"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-member-cpf">CPF</Label>
+                  <Input
+                    id="edit-member-cpf"
+                    value={memberForm.cpf}
+                    onChange={(e) => setMemberForm({ ...memberForm, cpf: e.target.value })}
+                    placeholder="000.000.000-00"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-member-email">Email *</Label>
+                  <Input
+                    id="edit-member-email"
+                    type="email"
+                    value={memberForm.email}
+                    onChange={(e) => setMemberForm({ ...memberForm, email: e.target.value })}
+                    placeholder="email@exemplo.com"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-member-phone">Telefone *</Label>
+                  <Input
+                    id="edit-member-phone"
+                    value={memberForm.phone}
+                    onChange={(e) => setMemberForm({ ...memberForm, phone: e.target.value })}
+                    placeholder="(11) 99999-9999"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-member-birth">Data de Nascimento</Label>
+                  <Input
+                    id="edit-member-birth"
+                    type="date"
+                    value={memberForm.birthDate}
+                    onChange={(e) => setMemberForm({ ...memberForm, birthDate: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-member-marital">Estado Civil</Label>
+                  <Select
+                    value={memberForm.maritalStatus}
+                    onValueChange={(value) => setMemberForm({ ...memberForm, maritalStatus: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="solteiro">Solteiro(a)</SelectItem>
+                      <SelectItem value="casado">Casado(a)</SelectItem>
+                      <SelectItem value="divorciado">Divorciado(a)</SelectItem>
+                      <SelectItem value="viuvo">Viúvo(a)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-member-address">Endereço</Label>
+                <Input
+                  id="edit-member-address"
+                  value={memberForm.address}
+                  onChange={(e) => setMemberForm({ ...memberForm, address: e.target.value })}
+                  placeholder="Rua, número, complemento"
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-member-city">Cidade</Label>
+                  <Input
+                    id="edit-member-city"
+                    value={memberForm.city}
+                    onChange={(e) => setMemberForm({ ...memberForm, city: e.target.value })}
+                    placeholder="Cidade"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-member-state">Estado</Label>
+                  <Input
+                    id="edit-member-state"
+                    value={memberForm.state}
+                    onChange={(e) => setMemberForm({ ...memberForm, state: e.target.value })}
+                    placeholder="UF"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-member-zip">CEP</Label>
+                  <Input
+                    id="edit-member-zip"
+                    value={memberForm.zipCode}
+                    onChange={(e) => setMemberForm({ ...memberForm, zipCode: e.target.value })}
+                    placeholder="00000-000"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-member-since">Membro desde</Label>
+                  <Input
+                    id="edit-member-since"
+                    type="date"
+                    value={memberForm.memberSince}
+                    onChange={(e) => setMemberForm({ ...memberForm, memberSince: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-member-ministry">Ministério</Label>
+                  <Input
+                    id="edit-member-ministry"
+                    value={memberForm.ministry}
+                    onChange={(e) => setMemberForm({ ...memberForm, ministry: e.target.value })}
+                    placeholder="Ministério que participa"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="edit-member-baptized"
+                  checked={memberForm.baptized}
+                  onCheckedChange={(checked) => setMemberForm({ ...memberForm, baptized: checked })}
+                />
+                <Label htmlFor="edit-member-baptized">Batizado</Label>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="edit-member-active"
+                  checked={memberForm.isActive}
+                  onCheckedChange={(checked) => setMemberForm({ ...memberForm, isActive: checked })}
+                />
+                <Label htmlFor="edit-member-active">Membro Ativo</Label>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-member-notes">Observações</Label>
+                <Textarea
+                  id="edit-member-notes"
+                  value={memberForm.notes}
+                  onChange={(e) => setMemberForm({ ...memberForm, notes: e.target.value })}
+                  placeholder="Observações sobre o membro"
+                  rows={3}
+                />
+              </div>
+
+              {user.accessLevel === "admin" && selectedMember && (
+                <div className="border-t pt-4 space-y-3">
+                  <h4 className="font-medium text-gray-900">Gerenciamento de Senha</h4>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleSendPasswordReset(selectedMember)}
+                      className="flex items-center gap-2"
+                    >
+                      <Send className="h-4 w-4" />
+                      Enviar Recuperação
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleGenerateNewPassword(selectedMember)}
+                      className="flex items-center gap-2"
+                    >
+                      <Key className="h-4 w-4" />
+                      Gerar Nova Senha
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              <Button type="submit" className="w-full">
+                Salvar Alterações
+              </Button>
+            </form>
           </DialogContent>
         </Dialog>
 
         {/* Main Content */}
         <div className="flex-1 overflow-y-auto">
           <div className="p-6">
-            <MembersSummary members={members} filteredMembers={filteredMembers} />
-            <MembersFilters
-              searchTerm={searchTerm}
-              setSearchTerm={setSearchTerm}
-              statusFilter={statusFilter}
-              setStatusFilter={setStatusFilter}
-            />
-            <MembersGrid
-              filteredMembers={filteredMembers}
-              user={user}
-              searchTerm={searchTerm}
-              statusFilter={statusFilter}
-              onEditMember={openEditDialog}
-              onDeleteMember={handleDeleteMember}
-            />
+            {/* Members Summary */}
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Resumo de Membros
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-blue-600">{members.length}</div>
+                    <p className="text-sm text-gray-600">Total de Membros</p>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-green-600">{members.filter((m) => m.isActive).length}</div>
+                    <p className="text-sm text-gray-600">Membros Ativos</p>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-red-600">{members.filter((m) => !m.isActive).length}</div>
+                    <p className="text-sm text-gray-600">Membros Inativos</p>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-purple-600">{filteredMembers.length}</div>
+                    <p className="text-sm text-gray-600">Resultados da Busca</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Search and Filters */}
+            <div className="mb-6 flex flex-col sm:flex-row gap-4">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input
+                  placeholder="Buscar por nome ou email..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-gray-500" />
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="active">Ativos</SelectItem>
+                    <SelectItem value="inactive">Inativos</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Members Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {filteredMembers.map((member) => (
+                <Card key={member.id} className="hover:shadow-md transition-shadow">
+                  <CardContent className="p-4">
+                    <div className="flex flex-col items-center text-center">
+                      <Avatar className="h-20 w-20 mb-3">
+                        <AvatarImage src={member.photo || "/placeholder.svg"} alt={member.name} />
+                        <AvatarFallback className="text-lg">
+                          {member.name
+                            .split(" ")
+                            .map((n) => n[0])
+                            .join("")}
+                        </AvatarFallback>
+                      </Avatar>
+
+                      <h3 className="font-semibold text-lg mb-1">{member.name}</h3>
+
+                      {user.accessLevel === "admin" ? (
+                        <>
+                          <div className="mb-3">{getStatusBadge(member.isActive)}</div>
+
+                          <div className="w-full space-y-2 text-sm text-gray-600">
+                            <div className="flex items-center gap-2">
+                              <Mail className="h-4 w-4" />
+                              <span className="truncate">{member.email}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Phone className="h-4 w-4" />
+                              <span>{member.phone}</span>
+                            </div>
+                            {member.address && (
+                              <div className="flex items-center gap-2">
+                                <MapPin className="h-4 w-4" />
+                                <span className="truncate">
+                                  {member.city}, {member.state}
+                                </span>
+                              </div>
+                            )}
+                            <div className="flex items-center gap-2">
+                              <Calendar className="h-4 w-4" />
+                              <span>Membro desde {new Date(member.memberSince).getFullYear()}</span>
+                            </div>
+                            {member.ministry && (
+                              <div className="flex items-center gap-2">
+                                <Heart className="h-4 w-4" />
+                                <span className="truncate">{member.ministry}</span>
+                              </div>
+                            )}
+                          </div>
+
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openEditDialog(member)}
+                            className="mt-4 w-full flex items-center gap-2"
+                          >
+                            <Edit className="h-4 w-4" />
+                            Editar
+                          </Button>
+                        </>
+                      ) : (
+                        <div className="mb-3">{getStatusBadge(member.isActive)}</div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {filteredMembers.length === 0 && (
+              <div className="text-center py-12">
+                <Users className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum membro encontrado</h3>
+                <p className="text-gray-500">
+                  {searchTerm || statusFilter !== "all"
+                    ? "Tente ajustar os filtros de busca"
+                    : "Comece cadastrando o primeiro membro da igreja"}
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -18,7 +18,7 @@ import {
   X,
   Package,
 } from "lucide-react"
-import { useAuth } from "@/hooks/use-auth"
+import { getUser, getChurchData } from "@/lib/fake-api"
 
 interface SidebarProps {
   className?: string
@@ -41,7 +41,8 @@ export function Sidebar({ className = "" }: SidebarProps) {
   const [expandedMenus, setExpandedMenus] = useState<string[]>([])
   const router = useRouter()
   const pathname = usePathname()
-  const { user } = useAuth()
+  const user = getUser()
+  const churchData = getChurchData()
 
   // Close mobile menu when route changes
   useEffect(() => {
@@ -76,7 +77,6 @@ export function Sidebar({ className = "" }: SidebarProps) {
   }, [isMobileOpen])
 
   const handleLogout = () => {
-    localStorage.removeItem("authToken")
     localStorage.removeItem("user")
     router.push("/login")
   }
@@ -104,7 +104,7 @@ export function Sidebar({ className = "" }: SidebarProps) {
   // Filtrar itens baseado no nível de acesso do usuário
   const menuItems = allMenuItems.filter((item) => {
     if (!user) return false
-    if (user.role === "Admin") return true
+    if (user.accessLevel === "admin") return true
     return item.accessLevel === "member"
   })
 
@@ -127,7 +127,7 @@ export function Sidebar({ className = "" }: SidebarProps) {
       {/* Header */}
       <div className="p-4 border-b border-gray-200">
         <div className="flex items-center justify-between">
-          {!isCollapsed && <div className="text-lg font-bold text-gray-900 truncate">MyChurch</div>}
+          {!isCollapsed && <div className="text-lg font-bold text-gray-900 truncate">{churchData.name}</div>}
           <Button
             variant="ghost"
             size="icon"
@@ -146,14 +146,14 @@ export function Sidebar({ className = "" }: SidebarProps) {
       {!isCollapsed && user && (
         <div className="p-4 border-b border-gray-200 bg-gray-50">
           <div className="text-sm">
-            <p className="font-medium text-gray-900">{user.member?.name}</p>
+            <p className="font-medium text-gray-900">{user.name}</p>
             <p className="text-gray-600">{user.role}</p>
             <span
               className={`inline-block px-2 py-1 text-xs rounded-full mt-1 ${
-                user.role === "Admin" ? "bg-blue-100 text-blue-800" : "bg-green-100 text-green-800"
+                user.accessLevel === "admin" ? "bg-blue-100 text-blue-800" : "bg-green-100 text-green-800"
               }`}
             >
-              {user.role === "Admin" ? "Administrador" : "Membro"}
+              {user.accessLevel === "admin" ? "Administrador" : "Membro"}
             </span>
           </div>
         </div>
