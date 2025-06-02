@@ -29,27 +29,34 @@ export function FeedItems({
   setIsNewPostModalOpen,
 }: FeedItemsProps) {
   const formatTimeAgo = (dateString: string): string => {
-    const date = new Date(dateString)
-    const now = new Date()
-    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000)
+    try {
+      // Converter a data UTC para data local
+      const utcDate = new Date(dateString)
+      const localDate = new Date(utcDate)
+      const now = new Date()
+      const diffInSeconds = Math.floor((now.getTime() - localDate.getTime()) / 1000)
 
-    if (diffInSeconds < 60) {
-      return "Agora mesmo"
-    } else if (diffInSeconds < 3600) {
-      const minutes = Math.floor(diffInSeconds / 60)
-      return `${minutes} min atrás`
-    } else if (diffInSeconds < 86400) {
-      const hours = Math.floor(diffInSeconds / 3600)
-      return `${hours}h atrás`
-    } else if (diffInSeconds < 604800) {
-      const days = Math.floor(diffInSeconds / 86400)
-      return `${days}d atrás`
-    } else {
-      return date.toLocaleDateString("pt-BR", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      })
+      if (diffInSeconds < 60) {
+        return "Agora mesmo"
+      } else if (diffInSeconds < 3600) {
+        const minutes = Math.floor(diffInSeconds / 60)
+        return `${minutes} min atrás`
+      } else if (diffInSeconds < 86400) {
+        const hours = Math.floor(diffInSeconds / 3600)
+        return `${hours}h atrás`
+      } else if (diffInSeconds < 604800) {
+        const days = Math.floor(diffInSeconds / 86400)
+        return `${days}d atrás`
+      } else {
+        return localDate.toLocaleDateString("pt-BR", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        })
+      }
+    } catch (error) {
+      console.error("Erro ao formatar data:", error)
+      return "Data inválida"
     }
   }
 
@@ -76,50 +83,66 @@ export function FeedItems({
 
   return (
     <>
-      {feedItems.map((item) => (
-        <Card key={item.id} className="overflow-hidden">
-          <CardContent className="p-0">
-            <div className="p-4 flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <Avatar className="h-10 w-10">
-                  <AvatarImage src={item.member?.photo || ""} alt={item.member?.name || "Usuário"} />
-                  <AvatarFallback>{getInitials(item.member?.name)}</AvatarFallback>
-                </Avatar>
-                <div>
-                  <p className="font-medium">{item.member?.name || "Usuário"}</p>
-                  <p className="text-xs text-gray-500">{formatTimeAgo(item.created)}</p>
+      {feedItems.map((item) => {
+        const canEdit = canUserEditOrDeletePost(item)
+
+        console.log(`Post ${item.id}:`, {
+          memberId: item.memberId,
+          created: item.created,
+          canEdit: canEdit,
+          memberName: item.member?.name,
+        })
+
+        return (
+          <Card key={item.id} className="overflow-hidden">
+            <CardContent className="p-0">
+              <div className="p-4 flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={item.member?.photo || ""} alt={item.member?.name || "Usuário"} />
+                    <AvatarFallback>{getInitials(item.member?.name)}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="font-medium">{item.member?.name || "Usuário"}</p>
+                    <p className="text-xs text-gray-500">{formatTimeAgo(item.created)}</p>
+                  </div>
                 </div>
+
+                {canEdit && (
+                  <div className="flex space-x-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleEditPost(item)}
+                      className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    >
+                      Editar
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      onClick={() => handleDeletePost(item)}
+                    >
+                      Excluir
+                    </Button>
+                  </div>
+                )}
               </div>
 
-              {canUserEditOrDeletePost(item) && (
-                <div className="flex space-x-2">
-                  <Button variant="ghost" size="sm" onClick={() => handleEditPost(item)}>
-                    Editar
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                    onClick={() => handleDeletePost(item)}
-                  >
-                    Excluir
-                  </Button>
+              <div className="px-4 pb-4 whitespace-pre-wrap">{item.content}</div>
+
+              {item.likesCount > 0 && (
+                <div className="px-4 pb-2">
+                  <p className="text-sm text-gray-500">
+                    {item.likesCount} {item.likesCount === 1 ? "curtida" : "curtidas"}
+                  </p>
                 </div>
               )}
-            </div>
-
-            <div className="px-4 pb-4 whitespace-pre-wrap">{item.content}</div>
-
-            {item.likesCount > 0 && (
-              <div className="px-4 pb-2">
-                <p className="text-sm text-gray-500">
-                  {item.likesCount} {item.likesCount === 1 ? "curtida" : "curtidas"}
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      ))}
+            </CardContent>
+          </Card>
+        )
+      })}
 
       {hasMoreFeedItems && (
         <div className="flex justify-center p-4">

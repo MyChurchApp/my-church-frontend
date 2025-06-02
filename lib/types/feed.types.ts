@@ -1,4 +1,5 @@
-// Tipos para feed/comunicação baseados na API real
+// Tipos baseados no Swagger da API
+
 export interface Address {
   id: number
   street: string
@@ -9,15 +10,6 @@ export interface Address {
   neighborhood: string
 }
 
-export interface Plan {
-  id: number
-  name: string
-  price: number
-  maxMembers: number
-  maxEvents: number
-  maxStorageGB: number
-}
-
 export interface Payment {
   id: number
   subscriptionId: number
@@ -26,6 +18,15 @@ export interface Payment {
   date: string
   paymentStatus: string
   transactionId: string
+}
+
+export interface Plan {
+  id: number
+  name: string
+  price: number
+  maxMembers: number
+  maxEvents: number
+  maxStorageGB: number
 }
 
 export interface Subscription {
@@ -93,12 +94,22 @@ export interface FeedResponse {
   totalPages: number
 }
 
-// Atualização apenas do tipo CreateFeedPostRequest
+// Request types para as operações
 export interface CreateFeedPostRequest {
   content: string
 }
 
 export interface UpdateFeedPostRequest {
+  postId: number
+  content: string
+}
+
+// Tipos para compatibilidade com o sistema atual
+export interface CreatePostRequest {
+  content: string
+}
+
+export interface UpdatePostRequest {
   postId: number
   content: string
 }

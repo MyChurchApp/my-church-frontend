@@ -1,4 +1,4 @@
-import type { FeedResponse, CreateFeedPostRequest, UpdateFeedPostRequest } from "@/lib/types/feed.types"
+import type { FeedItem, FeedResponse, CreateFeedPostRequest, UpdateFeedPostRequest } from "@/lib/types/feed.types"
 import { httpClient } from "@/lib/utils/http.utils"
 
 export class FeedService {
@@ -15,15 +15,7 @@ export class FeedService {
       return response
     } catch (error) {
       console.error("❌ Erro ao buscar feed:", error)
-
-      // Retornar dados vazios em caso de erro para não quebrar a interface
-      return {
-        items: [],
-        pageNumber: pageNumber,
-        pageSize: pageSize,
-        totalCount: 0,
-        totalPages: 0,
-      }
+      throw error // Propagar o erro para ser tratado no hook
     }
   }
 
@@ -31,6 +23,7 @@ export class FeedService {
     try {
       console.log("🌐 Criando post:", request)
 
+      // Payload exato conforme Swagger
       const payload = {
         content: request.content,
       }
@@ -41,24 +34,27 @@ export class FeedService {
       return response
     } catch (error) {
       console.error("❌ Erro ao criar post:", error)
-      throw new Error("Falha ao criar publicação. Verifique sua conexão e tente novamente.")
+      throw error
     }
   }
 
-  static async updatePost(postId: number, request: UpdateFeedPostRequest): Promise<void> {
+  static async updatePost(postId: number, request: UpdateFeedPostRequest): Promise<FeedItem> {
     try {
       console.log(`🌐 Atualizando post ${postId}:`, request)
 
+      // Payload exato conforme Swagger
       const payload = {
         content: request.content,
       }
 
-      await httpClient.put(`${this.BASE_URL}/${postId}`, payload)
+      // O PUT retorna o objeto FeedItem completo conforme Swagger
+      const response = await httpClient.put<FeedItem>(`${this.BASE_URL}/${postId}`, payload)
 
-      console.log("✅ Post atualizado com sucesso")
+      console.log("✅ Post atualizado com sucesso:", response)
+      return response
     } catch (error) {
       console.error("❌ Erro ao atualizar post:", error)
-      throw new Error("Falha ao atualizar publicação. Verifique sua conexão e tente novamente.")
+      throw error
     }
   }
 
@@ -66,12 +62,13 @@ export class FeedService {
     try {
       console.log(`🌐 Deletando post ${postId}`)
 
+      // DELETE retorna 204 No Content em caso de sucesso
       await httpClient.delete(`${this.BASE_URL}/${postId}`)
 
       console.log("✅ Post deletado com sucesso")
     } catch (error) {
       console.error("❌ Erro ao deletar post:", error)
-      throw new Error("Falha ao deletar publicação. Verifique sua conexão e tente novamente.")
+      throw error
     }
   }
 
@@ -86,3 +83,6 @@ export class FeedService {
     }
   }
 }
+
+// Exportações
+export default FeedService

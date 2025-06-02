@@ -12,6 +12,7 @@ import { ProfileModal } from "./profile-modal"
 import { NewPostModal } from "./new-post-modal"
 import { EditPostModal } from "./edit-post-modal"
 import { DeletePostDialog } from "./delete-post-dialog"
+import { ApiErrorCard } from "./api-error-card"
 
 interface DashboardComponentProps {
   user: any
@@ -38,6 +39,9 @@ interface DashboardComponentProps {
   isDeleteDialogOpen: boolean
   postToDelete: any
   isDeletingPost: boolean
+  apiError: string | null
+  isUnauthorized: boolean
+  hasMoreFeedItems: boolean
 
   // Setters
   setNewPostContent: (content: string) => void
@@ -66,9 +70,14 @@ interface DashboardComponentProps {
   setIsNewPostModalOpen: (open: boolean) => void
   setIsEditModalOpen: (open: boolean) => void
   setIsDeleteDialogOpen: (open: boolean) => void
+  retryLoadFeed: () => void
+  refreshPage: () => void
+  handleLogout: () => void
+  loadMoreFeed: () => void
 }
 
-export function DashboardComponent({
+// Exportação nomeada para quem precisa importar { DashboardComponent }
+export const DashboardComponent: React.FC<DashboardComponentProps> = ({
   user,
   isLoading,
   notifications,
@@ -93,6 +102,9 @@ export function DashboardComponent({
   isDeleteDialogOpen,
   postToDelete,
   isDeletingPost,
+  apiError,
+  isUnauthorized,
+  hasMoreFeedItems,
   setNewPostContent,
   setEditingUser,
   setEditPostContent,
@@ -117,7 +129,11 @@ export function DashboardComponent({
   setIsNewPostModalOpen,
   setIsEditModalOpen,
   setIsDeleteDialogOpen,
-}: DashboardComponentProps) {
+  retryLoadFeed,
+  refreshPage,
+  handleLogout,
+  loadMoreFeed,
+}) => {
   if (isLoading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -137,6 +153,19 @@ export function DashboardComponent({
       {/* Main Content - Scrollable */}
       <div className="flex-1 overflow-y-auto">
         <div className="p-4 md:p-6">
+          {/* API Error Card */}
+          {apiError && (
+            <div className="mb-6">
+              <ApiErrorCard
+                error={apiError}
+                isUnauthorized={isUnauthorized}
+                onRetry={retryLoadFeed}
+                onRefresh={refreshPage}
+                onLogin={handleLogout}
+              />
+            </div>
+          )}
+
           <div className="grid gap-6 md:grid-cols-3">
             {/* Feed Column */}
             <div className="md:col-span-2 space-y-6">
@@ -147,10 +176,12 @@ export function DashboardComponent({
               <FeedItems
                 isLoadingFeed={isLoadingFeed}
                 feedItems={feedItems}
+                hasMoreFeedItems={hasMoreFeedItems}
                 getInitials={getInitials}
                 canUserEditOrDeletePost={canUserEditOrDeletePost}
                 handleEditPost={handleEditPost}
                 handleDeletePost={handleDeletePost}
+                loadMoreFeed={loadMoreFeed}
                 setIsNewPostModalOpen={setIsNewPostModalOpen}
               />
             </div>
@@ -231,3 +262,6 @@ export function DashboardComponent({
     </div>
   )
 }
+
+// Exportação padrão para quem precisa importar como default
+export default DashboardComponent

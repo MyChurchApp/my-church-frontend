@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import { useAuth } from "@/hooks/use-auth"
 import { FeedService } from "@/lib/services/feed.service"
@@ -42,11 +41,13 @@ interface Birthday {
 }
 
 export const useDashboard = () => {
-  const { user, isAuthenticated, isLoading } = useAuth()
+  const { user, isAuthenticated, isLoading, logout } = useAuth()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [feedItems, setFeedItems] = useState<FeedItem[]>([])
   const [isLoadingFeed, setIsLoadingFeed] = useState(false)
   const [feedError, setFeedError] = useState<string | null>(null)
+  const [apiError, setApiError] = useState<string | null>(null)
+  const [isUnauthorized, setIsUnauthorized] = useState(false)
   const [birthdays, setBirthdays] = useState<Birthday[]>([])
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0)
   const [currentPromoIndex, setCurrentPromoIndex] = useState(0)
@@ -80,10 +81,39 @@ export const useDashboard = () => {
   const banners: Banner[] = []
   const promoBanners: PromoBanner[] = []
 
-  // Função para carregar o feed da API real
+  // Função para verificar se o post pode ser editado/deletado (menos de 2 horas)
+  const canEditOrDeletePost = (createdDate: string): boolean => {
+    try {
+      // Converter a data UTC para data local
+      const utcDate = new Date(createdDate)
+      const localDate = new Date(utcDate)
+
+      console.log("Data UTC do post:", utcDate.toISOString())
+      console.log("Data local do post:", localDate.toLocaleString())
+
+      const now = new Date()
+      console.log("Data atual:", now.toLocaleString())
+
+      const timeDiff = now.getTime() - localDate.getTime()
+      const twoHoursInMs = 2 * 60 * 60 * 1000 // 2 horas em milissegundos
+
+      console.log("Diferença de tempo (ms):", timeDiff)
+      console.log("2 horas em ms:", twoHoursInMs)
+      console.log("Pode editar/deletar:", timeDiff < twoHoursInMs)
+
+      return timeDiff < twoHoursInMs
+    } catch (error) {
+      console.error("Erro ao verificar tempo do post:", error)
+      return false
+    }
+  }
+
+  // Função para carregar o feed da API real com validação
   const loadFeed = async (pageNumber = 1, pageSize = 10) => {
     setIsLoadingFeed(true)
     setFeedError(null)
+    setApiError(null)
+    setIsUnauthorized(false)
 
     try {
       console.log("🔄 Carregando feed...")
@@ -103,9 +133,23 @@ export const useDashboard = () => {
       })
 
       console.log("✅ Feed carregado com sucesso:", response)
-    } catch (error) {
+    } catch (error: any) {
       console.error("❌ Erro ao carregar feed:", error)
-      setFeedError("Não foi possível carregar o feed. Verifique sua conexão com a internet.")
+
+      // Tratamento específico para diferentes tipos de erro
+      if (error.message?.includes("UNAUTHORIZED")) {
+        setIsUnauthorized(true)
+        setApiError("Sessão expirada ou token inválido. Faça login novamente para acessar o feed.")
+      } else if (error.message?.includes("BAD_REQUEST")) {
+        setApiError("Requisição inválida. Verifique os parâmetros e tente novamente.")
+      } else if (error.message?.includes("HTTP_ERROR")) {
+        const statusCode = error.message.match(/HTTP_ERROR_(\d+)/)?.[1]
+        setApiError(`Erro do servidor (${statusCode}). Tente novamente em alguns minutos.`)
+      } else if (error.message?.includes("fetch")) {
+        setApiError("Erro de conexão. Verifique sua internet e tente novamente.")
+      } else {
+        setApiError("Erro inesperado ao carregar o feed. Tente atualizar a página.")
+      }
 
       // Em caso de erro, manter os dados vazios apenas na primeira página
       if (pageNumber === 1) {
@@ -124,7 +168,20 @@ export const useDashboard = () => {
 
   // Função para tentar novamente carregar o feed
   const retryLoadFeed = () => {
+    setApiError(null)
+    setIsUnauthorized(false)
     loadFeed(1, feedPagination.pageSize)
+  }
+
+  // Função para refresh da página
+  const refreshPage = () => {
+    window.location.reload()
+  }
+
+  // Função para fazer logout quando não autorizado
+  const handleLogout = () => {
+    logout()
+    window.location.href = "/login"
   }
 
   // Função para carregar mais itens do feed
@@ -211,9 +268,16 @@ export const useDashboard = () => {
 
       setNewPostContent("")
       setIsNewPostModalOpen(false)
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro ao criar post:", error)
-      alert("Erro ao criar post. Por favor, verifique sua conexão e tente novamente.")
+      if (error.message?.includes("UNAUTHORIZED")) {
+        alert("Sessão expirada. Faça login novamente.")
+        handleLogout()
+      } else if (error.message?.includes("BAD_REQUEST")) {
+        alert("Dados inválidos. Verifique o conteúdo do post.")
+      } else {
+        alert("Erro ao criar post. Verifique sua conexão e tente novamente.")
+      }
     } finally {
       setIsCreatingPost(false)
     }
@@ -232,22 +296,26 @@ export const useDashboard = () => {
 
     setIsSavingEdit(true)
     try {
-      await FeedService.updatePost(editingPost.id, {
+      // Agora updatePost retorna o objeto FeedItem atualizado
+      const updatedPost = await FeedService.updatePost(editingPost.id, {
         postId: editingPost.id,
         content: editPostContent,
       })
 
-      // Atualizar o item localmente
-      setFeedItems((prevItems) =>
-        prevItems.map((item) => (item.id === editingPost.id ? { ...item, content: editPostContent } : item)),
-      )
+      // Atualizar o item com o objeto completo retornado pela API
+      setFeedItems((prevItems) => prevItems.map((item) => (item.id === editingPost.id ? updatedPost : item)))
 
       setIsEditModalOpen(false)
       setEditingPost(null)
       setEditPostContent("")
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro ao salvar edição:", error)
-      alert("Erro ao salvar edição. Por favor, verifique sua conexão e tente novamente.")
+      if (error.message?.includes("UNAUTHORIZED")) {
+        alert("Sessão expirada. Faça login novamente.")
+        handleLogout()
+      } else {
+        alert("Erro ao editar post. Verifique sua conexão e tente novamente.")
+      }
     } finally {
       setIsSavingEdit(false)
     }
@@ -270,16 +338,32 @@ export const useDashboard = () => {
 
       setIsDeleteDialogOpen(false)
       setPostToDelete(null)
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro ao deletar post:", error)
-      alert("Erro ao deletar post. Por favor, verifique sua conexão e tente novamente.")
+      if (error.message?.includes("UNAUTHORIZED")) {
+        alert("Sessão expirada. Faça login novamente.")
+        handleLogout()
+      } else {
+        alert("Erro ao deletar post. Verifique sua conexão e tente novamente.")
+      }
     } finally {
       setIsDeletingPost(false)
     }
   }
 
   const canUserEditOrDeletePost = (item: FeedItem): boolean => {
-    return user?.member?.id === item.memberId
+    // Verificar se é o autor do post
+    const isAuthor = user?.member?.id === item.memberId
+
+    // Verificar se ainda está dentro do prazo de 2 horas
+    const canEditByTime = canEditOrDeletePost(item.created)
+
+    console.log("Verificação de edição/exclusão:")
+    console.log("- É autor:", isAuthor)
+    console.log("- Pode editar por tempo:", canEditByTime)
+    console.log("- Resultado final:", isAuthor && canEditByTime)
+
+    return isAuthor && canEditByTime
   }
 
   const getInitials = (name: string | undefined | null): string => {
@@ -342,6 +426,8 @@ export const useDashboard = () => {
     feedItems,
     isLoadingFeed,
     feedError,
+    apiError,
+    isUnauthorized,
     birthdays,
     banners,
     promoBanners,
@@ -376,6 +462,8 @@ export const useDashboard = () => {
     loadMoreNotifications,
     loadMoreFeed,
     retryLoadFeed,
+    refreshPage,
+    handleLogout,
     openProfileModal,
     saveProfile,
     handlePhotoUpload,

@@ -4,8 +4,8 @@ import { Sidebar } from "@/components/sidebar"
 import { DashboardComponent } from "@/components/dashboard/dashboard.component"
 import { useDashboard } from "./dashboard.hook"
 
-// Definição do componente
-function DashboardContainer() {
+// Definindo o componente
+const DashboardContainer = () => {
   const dashboardProps = useDashboard()
 
   return (
@@ -16,6 +16,8 @@ function DashboardContainer() {
   )
 }
 
-// Exportações explícitas
+// Exportação nomeada
 export { DashboardContainer }
-export { DashboardContainer as default }
+
+// Exportação padrão explícita
+export default DashboardContainer

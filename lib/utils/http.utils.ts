@@ -22,10 +22,19 @@ export const httpClient = {
         mode: "cors",
       })
 
+      // Tratamento específico para diferentes códigos de status
+      if (response.status === 401) {
+        throw new Error("UNAUTHORIZED: Token de autenticação inválido ou expirado")
+      }
+
+      if (response.status === 400) {
+        throw new Error("BAD_REQUEST: Requisição inválida")
+      }
+
       if (!response.ok) {
         const errorText = await response.text()
         console.error(`Erro HTTP ${response.status}:`, errorText)
-        throw new Error(`Erro HTTP: ${response.status} - ${errorText}`)
+        throw new Error(`HTTP_ERROR_${response.status}: ${errorText}`)
       }
 
       const data = await response.json()
@@ -55,10 +64,19 @@ export const httpClient = {
         mode: "cors",
       })
 
+      // Tratamento específico para diferentes códigos de status
+      if (response.status === 401) {
+        throw new Error("UNAUTHORIZED: Token de autenticação inválido ou expirado")
+      }
+
+      if (response.status === 400) {
+        throw new Error("BAD_REQUEST: Requisição inválida")
+      }
+
       if (!response.ok) {
         const errorText = await response.text()
         console.error(`Erro HTTP ${response.status}:`, errorText)
-        throw new Error(`Erro HTTP: ${response.status} - ${errorText}`)
+        throw new Error(`HTTP_ERROR_${response.status}: ${errorText}`)
       }
 
       const result = await response.json()
@@ -88,10 +106,19 @@ export const httpClient = {
         mode: "cors",
       })
 
+      // Tratamento específico para diferentes códigos de status
+      if (response.status === 401) {
+        throw new Error("UNAUTHORIZED: Token de autenticação inválido ou expirado")
+      }
+
+      if (response.status === 400) {
+        throw new Error("BAD_REQUEST: Requisição inválida")
+      }
+
       if (!response.ok) {
         const errorText = await response.text()
         console.error(`Erro HTTP ${response.status}:`, errorText)
-        throw new Error(`Erro HTTP: ${response.status} - ${errorText}`)
+        throw new Error(`HTTP_ERROR_${response.status}: ${errorText}`)
       }
 
       const result = await response.json()
@@ -106,7 +133,7 @@ export const httpClient = {
     try {
       const token = getAuthToken()
       const headers: HeadersInit = {
-        Accept: "text/plain",
+        Accept: "*/*", // Aceita qualquer tipo de conteúdo, conforme Swagger
         "Content-Type": "application/json",
       }
 
@@ -120,11 +147,24 @@ export const httpClient = {
         mode: "cors",
       })
 
-      if (!response.ok) {
+      // Tratamento específico para diferentes códigos de status
+      if (response.status === 401) {
+        throw new Error("UNAUTHORIZED: Token de autenticação inválido ou expirado")
+      }
+
+      if (response.status === 400) {
+        throw new Error("BAD_REQUEST: Requisição inválida")
+      }
+
+      // 204 No Content é um sucesso para DELETE, não precisa retornar dados
+      if (response.status !== 204 && !response.ok) {
         const errorText = await response.text()
         console.error(`Erro HTTP ${response.status}:`, errorText)
-        throw new Error(`Erro HTTP: ${response.status} - ${errorText}`)
+        throw new Error(`HTTP_ERROR_${response.status}: ${errorText}`)
       }
+
+      // Não tenta ler o corpo para 204 No Content
+      return
     } catch (error) {
       console.error("Erro na requisição DELETE:", error)
       throw error
