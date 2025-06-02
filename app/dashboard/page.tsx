@@ -24,19 +24,16 @@ import {
   Trash2,
 } from "lucide-react"
 import {
-  getUser,
   getChurchData,
   getNotifications,
   formatTimeAgo,
   fakeMembers,
-  type User,
   type ChurchData,
   type Notification,
 } from "@/lib/fake-api"
 import {
   getFeedFromAPI,
   createFeedPostWithFallback,
-  isAuthenticated,
   formatTimeAgo as formatApiTimeAgo,
   type ApiFeedItem,
   type ApiFeedResponse,
@@ -58,6 +55,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { useAuth } from "@/hooks/use-auth"
 
 // Função helper para gerar iniciais de forma segura
 const getInitials = (name: string | undefined | null): string => {
@@ -74,41 +72,9 @@ const getInitials = (name: string | undefined | null): string => {
   )
 }
 
-// Função helper para verificar se o usuário está logado via API real
-const isRealUser = (): boolean => {
-  if (typeof window === "undefined") return false
-  return !!localStorage.getItem("authToken")
-}
-
-// Função para obter dados do usuário real
-const getRealUser = (): User | null => {
-  if (typeof window === "undefined") return null
-
-  const token = localStorage.getItem("authToken")
-  const role = localStorage.getItem("userRole")
-
-  if (!token) return null
-
-  // Decodificar o JWT para obter informações do usuário
-  try {
-    const payload = JSON.parse(atob(token.split(".")[1]))
-    return {
-      id: payload.nameid || "1",
-      name: payload.name || payload.email || "Usuário",
-      email: payload.email || "",
-      role: role || "Membro",
-      accessLevel: role === "Admin" ? "admin" : "member",
-      phone: "",
-    }
-  } catch (error) {
-    console.error("Erro ao decodificar token:", error)
-    return null
-  }
-}
-
 export default function DashboardPage() {
   const router = useRouter()
-  const [user, setUser] = useState<User | null>(null)
+  const { user, isAuthenticated, isLoading, hasChecked, redirectToLogin } = useAuth()
   const [churchData, setChurchData] = useState<ChurchData | null>(null)
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [feedResponse, setFeedResponse] = useState<ApiFeedResponse | null>(null)
@@ -192,7 +158,7 @@ export default function DashboardPage() {
 
   // Função para carregar o feed
   const loadFeed = async () => {
-    if (!isAuthenticated()) {
+    if (!isAuthenticated) {
       // Se não estiver autenticado, usar dados fake
       setNotifications(getNotifications())
       return
@@ -217,27 +183,22 @@ export default function DashboardPage() {
   }
 
   useEffect(() => {
-    // Verificar se é usuário real ou fake
-    let userData: User | null = null
+    // Aguardar a verificação inicial de autenticação
+    if (!hasChecked) return
 
-    if (isRealUser()) {
-      userData = getRealUser()
-    } else {
-      userData = getUser()
-    }
-
-    if (!userData) {
-      router.push("/login")
+    // Se não está autenticado após a verificação, redirecionar para login
+    if (!isAuthenticated) {
+      router.push(`/login?redirect=${encodeURIComponent("/dashboard")}`)
       return
     }
 
-    setUser(userData)
-    setChurchData(getChurchData())
-    setBirthdays(getBirthdaysThisWeek())
-
-    // Carregar feed
-    loadFeed()
-  }, [router])
+    // Se chegou aqui, está autenticado e pode carregar os dados
+    if (user && !churchData) {
+      setChurchData(getChurchData())
+      setBirthdays(getBirthdaysThisWeek())
+      loadFeed()
+    }
+  }, [user, isAuthenticated, hasChecked, router, churchData])
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -335,11 +296,15 @@ export default function DashboardPage() {
 
   const openProfileModal = () => {
     if (user) {
+      // Garantir que todos os dados disponíveis do usuário sejam incluídos
       setEditingUser({
         name: user.name || "",
         email: user.email || "",
         phone: user.phone || "",
         role: user.role || "",
+        identifier: user.identifier || "",
+        accessLevel: user.accessLevel || "",
+        // Adicionar quaisquer outros campos disponíveis
       })
       setIsProfileModalOpen(true)
     }
@@ -422,7 +387,7 @@ export default function DashboardPage() {
   const hasMoreNotifications = visibleNotifications < notifications.length
 
   // Determinar se deve mostrar feed real ou fake
-  const showRealFeed = isAuthenticated() && feedItems.length > 0
+  const showRealFeed = isAuthenticated && feedItems.length > 0
   const feedToShow = showRealFeed ? feedItems : displayedNotifications
 
   const handleEditPost = (item: ApiFeedItem) => {
@@ -506,7 +471,7 @@ export default function DashboardPage() {
     return isOwner && canEdit
   }
 
-  if (!user || !churchData) {
+  if (isLoading || !user || !churchData) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -545,7 +510,7 @@ export default function DashboardPage() {
                     {/* Desktop: apenas nome clicável */}
                     <div className="hidden md:block">
                       <p className="font-medium text-gray-900 cursor-pointer hover:text-blue-600 transition-colors">
-                        {user.name || "Usuário"}
+                        {user.name || user.identifier || "Usuário"}
                       </p>
                     </div>
                   </div>
@@ -610,6 +575,14 @@ export default function DashboardPage() {
                     <div className="space-y-2">
                       <Label htmlFor="role">Cargo</Label>
                       <Input id="role" value={editingUser.role} disabled className="bg-gray-100" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="identifier">CPF/Email de Login</Label>
+                      <Input id="identifier" value={editingUser.identifier || ""} disabled className="bg-gray-100" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="accessLevel">Nível de Acesso</Label>
+                      <Input id="accessLevel" value={editingUser.accessLevel || ""} disabled className="bg-gray-100" />
                     </div>
                     <div className="flex gap-2 pt-4">
                       <Button
@@ -690,7 +663,7 @@ export default function DashboardPage() {
                   <h2 className="text-lg md:text-xl font-bold text-gray-900">
                     {showRealFeed ? "Feed da Igreja" : "Mural da Igreja"}
                   </h2>
-                  {isAuthenticated() && (
+                  {isAuthenticated && (
                     <Dialog open={isNewPostModalOpen} onOpenChange={setIsNewPostModalOpen}>
                       <DialogTrigger asChild>
                         <Button

@@ -89,6 +89,9 @@ export default function LoginPage() {
             accessLevel: data.token.role === "Admin" ? "admin" : "member",
           }
           localStorage.setItem("user", JSON.stringify(userData))
+
+          // Aguardar um pouco para garantir que o localStorage foi atualizado
+          await new Promise((resolve) => setTimeout(resolve, 100))
         }
 
         // Redirecionar conforme parâmetros ou para dashboard
