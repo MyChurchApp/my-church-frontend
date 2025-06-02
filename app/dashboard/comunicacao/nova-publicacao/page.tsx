@@ -1,115 +1,229 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Sidebar } from "@/components/sidebar"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
-import { ImagePlus, Send, Calendar, MessageSquare, Heart, DollarSign, Users } from "lucide-react"
-import { getUser, getNotifications, type User, type Notification } from "@/lib/fake-api"
+import { Send, MessageSquare, Heart, Loader2 } from "lucide-react"
+import { getUser, type User } from "@/lib/fake-api"
+import { toast } from "@/components/ui/use-toast"
+
+// Helper function to safely get initials
+const getInitials = (name: string | undefined): string => {
+  if (!name || typeof name !== "string") return "U"
+  return name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2)
+}
+
+// Tipos para a API real
+interface Member {
+  id: number
+  name: string
+  photo: string | null
+  // outros campos do membro...
+}
+
+interface FeedItem {
+  id: number
+  content: string
+  memberId: number
+  churchId: number
+  created: string
+  updated: string | null
+  member: Member
+  likesCount: number
+}
+
+interface FeedResponse {
+  items: FeedItem[]
+  pageNumber: number
+  pageSize: number
+  totalCount: number
+  totalPages: number
+}
 
 export default function ComunicacaoPage() {
   const router = useRouter()
   const [user, setUser] = useState<User | null>(null)
-  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [feedItems, setFeedItems] = useState<FeedItem[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [isApiAvailable, setIsApiAvailable] = useState(false)
 
   // Form state
-  const [title, setTitle] = useState("")
   const [content, setContent] = useState("")
-  const [type, setType] = useState<string>("")
-  const [image, setImage] = useState<File | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  useEffect(() => {
-    const userData = getUser()
-    if (!userData) {
+  // Função para obter o token de autenticação do localStorage
+  const getAuthToken = (): string | null => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("authToken")
+    }
+    return null
+  }
+
+  // Função para fazer requisições autenticadas
+  const authenticatedFetch = async (url: string, options: RequestInit = {}) => {
+    const token = getAuthToken()
+
+    if (!token) {
+      throw new Error("Token de autenticação não encontrado")
+    }
+
+    const headers = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+      ...options.headers,
+    }
+
+    const response = await fetch(url, {
+      ...options,
+      headers,
+    })
+
+    if (response.status === 401) {
+      // Token expirado ou inválido
+      localStorage.removeItem("authToken")
       router.push("/login")
-      return
+      throw new Error("Sessão expirada. Por favor, faça login novamente.")
     }
 
-    if (userData.accessLevel !== "admin") {
-      router.push("/dashboard")
-      return
+    if (!response.ok) {
+      throw new Error(`Erro na requisição: ${response.status}`)
     }
 
-    setUser(userData)
-    setNotifications(getNotifications())
-  }, [router])
+    return response.json()
+  }
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      setImage(file)
+  // Função para buscar o feed da API
+  const getFeedFromAPI = async (): Promise<FeedResponse> => {
+    try {
+      const data = await authenticatedFetch("https://demoapp.top1soft.com.br/api/Feed")
+      return data
+    } catch (error) {
+      console.error("Erro ao buscar feed da API:", error)
+      throw error
     }
   }
+
+  // Função para criar um novo post
+  const createPost = async (content: string): Promise<FeedItem> => {
+    try {
+      const data = await authenticatedFetch("https://demoapp.top1soft.com.br/api/Feed", {
+        method: "POST",
+        body: JSON.stringify({ content }),
+      })
+      return data
+    } catch (error) {
+      console.error("Erro ao criar post:", error)
+      throw error
+    }
+  }
+
+  // Carregar dados iniciais
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true)
+
+      // Verificar se temos um token de autenticação
+      const token = getAuthToken()
+
+      if (token) {
+        try {
+          // Tentar carregar dados da API real
+          const feedData = await getFeedFromAPI()
+          setFeedItems(feedData.items)
+          setIsApiAvailable(true)
+        } catch (error) {
+          console.error("Erro ao carregar dados da API:", error)
+          // Fallback para dados fake
+          setUser(getUser())
+          setFeedItems([])
+          setIsApiAvailable(false)
+        }
+      } else {
+        // Sem token, usar dados fake
+        setUser(getUser())
+        setFeedItems([])
+        setIsApiAvailable(false)
+      }
+
+      setIsLoading(false)
+    }
+
+    loadData()
+  }, [router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!title || !content || !type) return
+    if (!content) return
 
     setIsSubmitting(true)
 
-    // Simular envio
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    try {
+      if (isApiAvailable) {
+        // Enviar para API real
+        const newPost = await createPost(content)
 
-    // Aqui você implementaria a lógica real de envio
-    console.log({
-      title,
-      content,
-      type,
-      author: user?.name,
-      image: image?.name,
-    })
+        // Atualizar a lista de posts
+        setFeedItems((prevItems) => [newPost, ...prevItems])
 
-    // Reset form
-    setTitle("")
-    setContent("")
-    setType("")
-    setImage(null)
-    setIsSubmitting(false)
+        toast({
+          title: "Publicação criada",
+          description: "Sua publicação foi criada com sucesso!",
+        })
+      } else {
+        // Simulação com dados fake
+        await new Promise((resolve) => setTimeout(resolve, 1000))
 
-    // Mostrar mensagem de sucesso (você pode implementar um toast aqui)
-    alert("Post publicado com sucesso!")
-  }
+        toast({
+          title: "Modo demonstração",
+          description: "Publicação simulada com sucesso!",
+        })
+      }
 
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case "event":
-        return <Calendar className="h-4 w-4" />
-      case "announcement":
-        return <MessageSquare className="h-4 w-4" />
-      case "prayer":
-        return <Heart className="h-4 w-4" />
-      case "birthday":
-        return <Users className="h-4 w-4" />
-      case "finance":
-        return <DollarSign className="h-4 w-4" />
-      default:
-        return <MessageSquare className="h-4 w-4" />
+      // Reset form
+      setContent("")
+    } catch (error) {
+      console.error("Erro ao publicar:", error)
+      toast({
+        title: "Erro",
+        description: "Não foi possível criar a publicação. Tente novamente.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
-  const getTypeBadge = (type: string) => {
-    const badges = {
-      event: { label: "Evento", color: "bg-blue-100 text-blue-800" },
-      announcement: { label: "Anúncio", color: "bg-green-100 text-green-800" },
-      prayer: { label: "Oração", color: "bg-red-100 text-red-800" },
-      birthday: { label: "Aniversário", color: "bg-purple-100 text-purple-800" },
-      finance: { label: "Financeiro", color: "bg-yellow-100 text-yellow-800" },
-    }
-    return badges[type as keyof typeof badges] || badges.announcement
+  const formatDate = (dateString: string): string => {
+    const date = new Date(dateString)
+    return new Intl.DateTimeFormat("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(date)
   }
 
-  if (!user) {
-    return <div>Carregando...</div>
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-50">
+        <div className="flex flex-col items-center gap-2">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-sm text-gray-500">Carregando...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -126,17 +240,12 @@ export default function ComunicacaoPage() {
             </div>
             <div className="flex items-center gap-4">
               <div className="text-right">
-                <p className="font-medium text-gray-900">{user.name}</p>
-                <p className="text-sm text-gray-600">{user.role}</p>
+                <p className="font-medium text-gray-900">{user?.name || "Usuário"}</p>
+                <p className="text-sm text-gray-600">{isApiAvailable ? "Conectado à API" : "Modo demonstração"}</p>
               </div>
               <Avatar>
-                <AvatarImage src="/placeholder.svg?height=40&width=40&query=pastor+profile" />
-                <AvatarFallback>
-                  {user.name
-                    .split(" ")
-                    .map((n) => n[0])
-                    .join("")}
-                </AvatarFallback>
+                <AvatarImage src="/placeholder.svg?height=40&width=40" />
+                <AvatarFallback>{getInitials(user?.name)}</AvatarFallback>
               </Avatar>
             </div>
           </div>
@@ -157,93 +266,26 @@ export default function ComunicacaoPage() {
                 <CardContent>
                   <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="type">Tipo de Publicação</Label>
-                      <Select value={type} onValueChange={setType}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione o tipo" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="announcement">
-                            <div className="flex items-center gap-2">
-                              <MessageSquare className="h-4 w-4" />
-                              Anúncio
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="event">
-                            <div className="flex items-center gap-2">
-                              <Calendar className="h-4 w-4" />
-                              Evento
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="prayer">
-                            <div className="flex items-center gap-2">
-                              <Heart className="h-4 w-4" />
-                              Pedido de Oração
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="birthday">
-                            <div className="flex items-center gap-2">
-                              <Users className="h-4 w-4" />
-                              Aniversário
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="finance">
-                            <div className="flex items-center gap-2">
-                              <DollarSign className="h-4 w-4" />
-                              Financeiro
-                            </div>
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="title">Título</Label>
-                      <Input
-                        id="title"
-                        value={title}
-                        onChange={(e) => setTitle(e.target.value)}
-                        placeholder="Digite o título da publicação"
-                        required
-                      />
-                    </div>
-
-                    <div className="space-y-2">
                       <Label htmlFor="content">Conteúdo</Label>
                       <Textarea
                         id="content"
                         value={content}
                         onChange={(e) => setContent(e.target.value)}
-                        placeholder="Escreva o conteúdo da publicação..."
+                        placeholder="Escreva sua publicação..."
                         rows={6}
                         required
                       />
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="image">Imagem (opcional)</Label>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          id="image"
-                          type="file"
-                          accept="image/*"
-                          onChange={handleImageUpload}
-                          className="hidden"
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => document.getElementById("image")?.click()}
-                          className="flex items-center gap-2"
-                        >
-                          <ImagePlus className="h-4 w-4" />
-                          {image ? image.name : "Adicionar Imagem"}
-                        </Button>
-                      </div>
-                    </div>
-
-                    <Button type="submit" disabled={isSubmitting || !title || !content || !type} className="w-full">
-                      {isSubmitting ? "Publicando..." : "Publicar no Mural"}
+                    <Button type="submit" disabled={isSubmitting || !content} className="w-full">
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Publicando...
+                        </>
+                      ) : (
+                        "Publicar no Mural"
+                      )}
                     </Button>
                   </form>
                 </CardContent>
@@ -255,36 +297,48 @@ export default function ComunicacaoPage() {
                   <CardTitle>Últimas Publicações</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4 max-h-96 overflow-y-auto">
-                    {notifications.slice(0, 5).map((notification) => (
-                      <div key={notification.id} className="border-b border-gray-100 pb-4 last:border-b-0">
-                        <div className="flex items-start gap-3">
-                          <Avatar className="h-8 w-8">
-                            <AvatarImage src="/placeholder.svg?height=32&width=32&query=church+member" />
-                            <AvatarFallback className="text-xs">
-                              {notification.author
-                                .split(" ")
-                                .map((n) => n[0])
-                                .join("")}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              {getTypeIcon(notification.type)}
-                              <h4 className="font-medium text-sm truncate">{notification.title}</h4>
-                            </div>
-                            <p className="text-xs text-gray-600 mb-2 line-clamp-2">{notification.content}</p>
-                            <div className="flex items-center justify-between">
-                              <Badge className={`text-xs ${getTypeBadge(notification.type).color}`}>
-                                {getTypeBadge(notification.type).label}
-                              </Badge>
-                              <span className="text-xs text-gray-500">{notification.author}</span>
+                  {isApiAvailable ? (
+                    <div className="space-y-4 max-h-96 overflow-y-auto">
+                      {feedItems.length > 0 ? (
+                        feedItems.map((item) => (
+                          <div key={item.id} className="border-b border-gray-100 pb-4 last:border-b-0">
+                            <div className="flex items-start gap-3">
+                              <Avatar className="h-8 w-8">
+                                <AvatarImage
+                                  src={item.member.photo || "/placeholder.svg?height=32&width=32"}
+                                  alt={item.member.name}
+                                />
+                                <AvatarFallback className="text-xs">{getInitials(item.member.name)}</AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <h4 className="font-medium text-sm">{item.member.name}</h4>
+                                </div>
+                                <p className="text-sm text-gray-800 mb-2">{item.content}</p>
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-1">
+                                    <Heart className="h-3.5 w-3.5 text-gray-500" />
+                                    <span className="text-xs text-gray-500">{item.likesCount}</span>
+                                  </div>
+                                  <span className="text-xs text-gray-500">{formatDate(item.created)}</span>
+                                </div>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                        ))
+                      ) : (
+                        <p className="text-center text-gray-500 py-4">Nenhuma publicação encontrada</p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-8 text-center">
+                      <MessageSquare className="h-12 w-12 text-gray-300 mb-2" />
+                      <h3 className="text-lg font-medium text-gray-900">Modo Demonstração</h3>
+                      <p className="text-sm text-gray-500 max-w-xs mt-1">
+                        Faça login com uma conta real para ver e criar publicações.
+                      </p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>

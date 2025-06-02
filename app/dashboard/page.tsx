@@ -8,7 +8,19 @@ import { Sidebar } from "@/components/sidebar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
-import { Calendar, Users, DollarSign, TrendingUp, ChevronLeft, ChevronRight, Star, Heart, Gift } from "lucide-react"
+import {
+  Calendar,
+  Users,
+  DollarSign,
+  TrendingUp,
+  ChevronLeft,
+  ChevronRight,
+  Star,
+  Heart,
+  Gift,
+  Plus,
+  Send,
+} from "lucide-react"
 import {
   getUser,
   getChurchData,
@@ -19,9 +31,18 @@ import {
   type ChurchData,
   type Notification,
 } from "@/lib/fake-api"
+import {
+  getFeedFromAPI,
+  createFeedPost,
+  isAuthenticated,
+  formatTimeAgo as formatApiTimeAgo,
+  type ApiFeedItem,
+  type ApiFeedResponse,
+} from "@/lib/api"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 
 // Função helper para gerar iniciais de forma segura
 const getInitials = (name: string | undefined | null): string => {
@@ -75,11 +96,17 @@ export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null)
   const [churchData, setChurchData] = useState<ChurchData | null>(null)
   const [notifications, setNotifications] = useState<Notification[]>([])
+  const [feedResponse, setFeedResponse] = useState<ApiFeedResponse | null>(null)
+  const [feedItems, setFeedItems] = useState<ApiFeedItem[]>([])
+  const [isLoadingFeed, setIsLoadingFeed] = useState(false)
   const [birthdays, setBirthdays] = useState<any[]>([])
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0)
   const [currentPromoIndex, setCurrentPromoIndex] = useState(0)
   const [visibleNotifications, setVisibleNotifications] = useState(3)
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
+  const [isNewPostModalOpen, setIsNewPostModalOpen] = useState(false)
+  const [newPostContent, setNewPostContent] = useState("")
+  const [isCreatingPost, setIsCreatingPost] = useState(false)
   const [editingUser, setEditingUser] = useState({
     name: "",
     email: "",
@@ -141,6 +168,32 @@ export default function DashboardPage() {
     },
   ]
 
+  // Função para carregar o feed
+  const loadFeed = async () => {
+    if (!isAuthenticated()) {
+      // Se não estiver autenticado, usar dados fake
+      setNotifications(getNotifications())
+      return
+    }
+
+    setIsLoadingFeed(true)
+    try {
+      const response = await getFeedFromAPI(1, 20) // Carregar primeira página com 20 itens
+      setFeedResponse(response)
+      setFeedItems(response.items)
+      // Limpar notificações fake se tiver feed real
+      setNotifications([])
+    } catch (error) {
+      console.error("Erro ao carregar feed:", error)
+      // Fallback para dados fake em caso de erro
+      setNotifications(getNotifications())
+      setFeedItems([])
+      setFeedResponse(null)
+    } finally {
+      setIsLoadingFeed(false)
+    }
+  }
+
   useEffect(() => {
     // Verificar se é usuário real ou fake
     let userData: User | null = null
@@ -158,8 +211,10 @@ export default function DashboardPage() {
 
     setUser(userData)
     setChurchData(getChurchData())
-    setNotifications(getNotifications())
     setBirthdays(getBirthdaysThisWeek())
+
+    // Carregar feed
+    loadFeed()
   }, [router])
 
   useEffect(() => {
@@ -286,8 +341,38 @@ export default function DashboardPage() {
     }
   }
 
+  const handleCreatePost = async () => {
+    if (!newPostContent.trim()) return
+
+    setIsCreatingPost(true)
+    try {
+      const newPost = await createFeedPost(newPostContent)
+      setFeedItems((prev) => [newPost, ...prev])
+      setNewPostContent("")
+      setIsNewPostModalOpen(false)
+
+      // Atualizar contadores se temos resposta da API
+      if (feedResponse) {
+        setFeedResponse({
+          ...feedResponse,
+          totalCount: feedResponse.totalCount + 1,
+          items: [newPost, ...feedResponse.items],
+        })
+      }
+    } catch (error) {
+      console.error("Erro ao criar post:", error)
+      alert("Erro ao criar post. Tente novamente.")
+    } finally {
+      setIsCreatingPost(false)
+    }
+  }
+
   const displayedNotifications = notifications.slice(0, visibleNotifications)
   const hasMoreNotifications = visibleNotifications < notifications.length
+
+  // Determinar se deve mostrar feed real ou fake
+  const showRealFeed = isAuthenticated() && feedItems.length > 0
+  const feedToShow = showRealFeed ? feedItems : displayedNotifications
 
   if (!user || !churchData) {
     return (
@@ -471,46 +556,154 @@ export default function DashboardPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pb-8">
               {/* Feed de Notificações */}
               <div className="lg:col-span-2">
-                <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-4 md:mb-6">Mural da Igreja</h2>
-
-                <div className="space-y-4 md:space-y-6">
-                  {displayedNotifications.map((notification) => (
-                    <Card key={notification.id} className="overflow-hidden">
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-8 w-8 md:h-10 md:w-10">
-                            <AvatarImage src="/placeholder.svg?height=40&width=40" />
-                            <AvatarFallback className="text-xs md:text-sm">
-                              {getInitials(notification.author)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <p className="font-medium text-gray-900 text-sm md:text-base">
-                                {notification.author || "Usuário"}
-                              </p>
-                              <span className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded-full">
-                                {getNotificationBadge(notification.type)}
-                              </span>
-                            </div>
-                            <p className="text-xs md:text-sm text-gray-600">{formatTimeAgo(notification.timestamp)}</p>
+                <div className="flex items-center justify-between mb-4 md:mb-6">
+                  <h2 className="text-lg md:text-xl font-bold text-gray-900">
+                    {showRealFeed ? "Feed da Igreja" : "Mural da Igreja"}
+                  </h2>
+                  {isAuthenticated() && (
+                    <Dialog open={isNewPostModalOpen} onOpenChange={setIsNewPostModalOpen}>
+                      <DialogTrigger asChild>
+                        <Button
+                          size="sm"
+                          style={{ backgroundColor: "#89f0e6", color: "#000" }}
+                          className="hover:opacity-90"
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Nova Publicação
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                          <DialogTitle>Nova Publicação</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="content">Conteúdo</Label>
+                            <Textarea
+                              id="content"
+                              placeholder="O que você gostaria de compartilhar?"
+                              value={newPostContent}
+                              onChange={(e) => setNewPostContent(e.target.value)}
+                              rows={4}
+                            />
+                          </div>
+                          <div className="flex gap-2 pt-4">
+                            <Button
+                              onClick={handleCreatePost}
+                              disabled={!newPostContent.trim() || isCreatingPost}
+                              className="flex-1"
+                            >
+                              {isCreatingPost ? (
+                                <>
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                  Publicando...
+                                </>
+                              ) : (
+                                <>
+                                  <Send className="h-4 w-4 mr-2" />
+                                  Publicar
+                                </>
+                              )}
+                            </Button>
+                            <Button variant="outline" onClick={() => setIsNewPostModalOpen(false)} className="flex-1">
+                              Cancelar
+                            </Button>
                           </div>
                         </div>
-                      </CardHeader>
+                      </DialogContent>
+                    </Dialog>
+                  )}
+                </div>
 
-                      <CardContent className="pt-0">
-                        <div className="flex items-center gap-2 mb-3">
-                          {getNotificationIcon(notification.type)}
-                          <h3 className="font-semibold text-gray-900 text-sm md:text-base">{notification.title}</h3>
-                        </div>
+                {isLoadingFeed && (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                    <p className="text-gray-600">Carregando feed...</p>
+                  </div>
+                )}
 
-                        <p className="text-gray-700 mb-4 text-sm md:text-base">{notification.content}</p>
-                      </CardContent>
-                    </Card>
-                  ))}
+                <div className="space-y-4 md:space-y-6">
+                  {showRealFeed
+                    ? // Feed real da API
+                      feedItems.map((item) => (
+                        <Card key={item.id} className="overflow-hidden">
+                          <CardHeader className="pb-3">
+                            <div className="flex items-center gap-3">
+                              <Avatar className="h-8 w-8 md:h-10 md:w-10">
+                                <AvatarImage
+                                  src={item.member.photo || "/placeholder.svg?height=40&width=40&query=church+member"}
+                                />
+                                <AvatarFallback className="text-xs md:text-sm">
+                                  {getInitials(item.member.name)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                  <p className="font-medium text-gray-900 text-sm md:text-base">
+                                    {item.member.name || "Usuário"}
+                                  </p>
+                                  <span className="px-2 py-1 text-xs bg-blue-100 text-blue-600 rounded-full">
+                                    Publicação
+                                  </span>
+                                </div>
+                                <p className="text-xs md:text-sm text-gray-600">{formatApiTimeAgo(item.created)}</p>
+                              </div>
+                            </div>
+                          </CardHeader>
 
-                  {/* Botão Ver Mais */}
-                  {hasMoreNotifications && (
+                          <CardContent className="pt-0">
+                            <p className="text-gray-700 text-sm md:text-base whitespace-pre-wrap">{item.content}</p>
+
+                            {/* Mostrar contagem de likes se houver */}
+                            {item.likesCount > 0 && (
+                              <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
+                                <Heart className="h-4 w-4 text-red-500" />
+                                <span className="text-sm text-gray-600">{item.likesCount} curtidas</span>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      ))
+                    : // Feed fake (notificações)
+                      displayedNotifications.map((notification) => (
+                        <Card key={notification.id} className="overflow-hidden">
+                          <CardHeader className="pb-3">
+                            <div className="flex items-center gap-3">
+                              <Avatar className="h-8 w-8 md:h-10 md:w-10">
+                                <AvatarImage src="/placeholder.svg?height=40&width=40" />
+                                <AvatarFallback className="text-xs md:text-sm">
+                                  {getInitials(notification.author)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                  <p className="font-medium text-gray-900 text-sm md:text-base">
+                                    {notification.author || "Usuário"}
+                                  </p>
+                                  <span className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded-full">
+                                    {getNotificationBadge(notification.type)}
+                                  </span>
+                                </div>
+                                <p className="text-xs md:text-sm text-gray-600">
+                                  {formatTimeAgo(notification.timestamp)}
+                                </p>
+                              </div>
+                            </div>
+                          </CardHeader>
+
+                          <CardContent className="pt-0">
+                            <div className="flex items-center gap-2 mb-3">
+                              {getNotificationIcon(notification.type)}
+                              <h3 className="font-semibold text-gray-900 text-sm md:text-base">{notification.title}</h3>
+                            </div>
+
+                            <p className="text-gray-700 mb-4 text-sm md:text-base">{notification.content}</p>
+                          </CardContent>
+                        </Card>
+                      ))}
+
+                  {/* Botão Ver Mais - apenas para feed fake */}
+                  {!showRealFeed && hasMoreNotifications && (
                     <div className="text-center py-6">
                       <Button
                         onClick={loadMoreNotifications}
@@ -523,9 +716,32 @@ export default function DashboardPage() {
                   )}
 
                   {/* Mensagem quando todos os posts foram carregados */}
-                  {!hasMoreNotifications && notifications.length > 3 && (
+                  {!showRealFeed && !hasMoreNotifications && notifications.length > 3 && (
                     <div className="text-center py-6">
                       <p className="text-gray-500 text-sm">Você viu todos os posts do mural! 🎉</p>
+                    </div>
+                  )}
+
+                  {/* Mensagem quando não há posts no feed real */}
+                  {showRealFeed && feedItems.length === 0 && !isLoadingFeed && (
+                    <div className="text-center py-12">
+                      <Users className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                      <p className="text-gray-500 text-lg mb-2">Nenhuma publicação ainda</p>
+                      <p className="text-gray-400 text-sm">Seja o primeiro a compartilhar algo!</p>
+                    </div>
+                  )}
+
+                  {/* Informações de paginação - apenas para feed real */}
+                  {showRealFeed && feedResponse && (
+                    <div className="text-center py-6 border-t border-gray-200">
+                      <p className="text-sm text-gray-500">
+                        Mostrando {feedResponse.items.length} de {feedResponse.totalCount} publicações
+                      </p>
+                      {feedResponse.totalPages > 1 && (
+                        <p className="text-xs text-gray-400 mt-1">
+                          Página {feedResponse.pageNumber} de {feedResponse.totalPages}
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>
