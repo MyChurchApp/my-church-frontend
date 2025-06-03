@@ -95,7 +95,7 @@ export async function authFetch(url: string, options: AuthFetchOptions = {}): Pr
  * ✅ Fazer requisição JSON autenticada
  * Tratamento melhorado para diferentes tipos de resposta
  */
-export async function authFetchJson<T>(url: string, options: AuthFetchOptions = {}): Promise<T> {
+export async function authFetchJson(url: string, options: AuthFetchOptions = {}): Promise<any> {
   try {
     const response = await authFetch(url, options)
 
@@ -125,7 +125,7 @@ export async function authFetchJson<T>(url: string, options: AuthFetchOptions = 
     // Se for 204 (No Content), retorna null
     if (response.status === 204) {
       console.log("✅ Resposta 204 - No Content")
-      return null as T
+      return null
     }
 
     // Verificar o tipo de conteúdo da resposta
@@ -141,11 +141,11 @@ export async function authFetchJson<T>(url: string, options: AuthFetchOptions = 
       try {
         const parsed = JSON.parse(text)
         console.log("✅ Text/plain parseado como JSON:", parsed)
-        return parsed as T
+        return parsed
       } catch {
         // Se não conseguir fazer parse, retornar como texto
         console.log("✅ Retornando como texto puro")
-        return text as T
+        return text
       }
     }
 
@@ -153,15 +153,18 @@ export async function authFetchJson<T>(url: string, options: AuthFetchOptions = 
     if (contentType && contentType.includes("application/json")) {
       const data = await response.json()
       console.log("✅ Resposta JSON:", data)
-      return data as T
+      return data
     }
 
     // Fallback para texto
     const text = await response.text()
     console.log("✅ Fallback para texto:", text)
-    return text as T
+    return text
   } catch (error) {
     console.error("❌ Erro na requisição authFetchJson:", error)
     throw error
   }
 }
+
+// Exportação padrão para compatibilidade
+export default authFetch

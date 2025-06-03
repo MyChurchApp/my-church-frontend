@@ -97,14 +97,13 @@ const getCurrentUser = () => {
   }
 }
 
-// Função para fazer requisições autenticadas
-const authenticatedFetch = authFetch
+// Usar authFetch diretamente
 
 // Função para buscar o feed com paginação
 export const getFeedFromAPI = async (page = 1, pageSize = 10): Promise<ApiFeedResponse> => {
   try {
     const url = `https://demoapp.top1soft.com.br/api/Feed?pageNumber=${page}&pageSize=${pageSize}`
-    const response = await authenticatedFetch(url)
+    const response = await authFetch(url)
     const data: ApiFeedResponse = await response.json()
 
     return data
@@ -118,7 +117,7 @@ export const getFeedFromAPI = async (page = 1, pageSize = 10): Promise<ApiFeedRe
 export const getMembersFromAPI = async (page = 1, pageSize = 10): Promise<ApiMembersResponse> => {
   try {
     const url = `https://demoapp.top1soft.com.br/api/Member?pageNumber=${page}&pageSize=${pageSize}`
-    const response = await authenticatedFetch(url)
+    const response = await authFetch(url)
     const data: ApiMembersResponse = await response.json()
 
     return data
@@ -141,31 +140,24 @@ export const createMemberAPI = async (memberData: any): Promise<ApiMember> => {
     console.log("Token de autenticação:", token.substring(0, 20) + "...")
     console.log("Dados enviados para API:", JSON.stringify(memberData, null, 2))
 
-    const response = await authFetchJson("https://demoapp.top1soft.com.br/api/Member", {
+    const response = await fetch("https://demoapp.top1soft.com.br/api/Member", {
       method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        accept: "text/plain",
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify(memberData),
     })
 
     console.log("Status da resposta:", response.status)
-    console.log("Headers da resposta:", Object.fromEntries(response.headers.entries()))
 
     if (!response.ok) {
       const errorText = await response.text()
-      console.error("Erro da API (texto completo):", errorText)
-
-      // Tentar fazer parse do JSON de erro se possível
-      let errorDetails = errorText
-      try {
-        const errorJson = JSON.parse(errorText)
-        errorDetails = JSON.stringify(errorJson, null, 2)
-        console.error("Erro da API (JSON):", errorJson)
-      } catch (e) {
-        console.error("Erro não é JSON válido")
-      }
+      console.error("Erro da API:", response.status, errorText)
 
       if (response.status === 401) {
         console.error("Erro de autenticação 401: Token inválido ou expirado")
-        // Redirecionar para login
         if (typeof window !== "undefined") {
           localStorage.removeItem("authToken")
           localStorage.removeItem("userRole")
@@ -176,7 +168,7 @@ export const createMemberAPI = async (memberData: any): Promise<ApiMember> => {
         throw new Error("Token expirado. Redirecionando para login...")
       }
 
-      throw new Error(`Erro na API: ${response.status} - ${errorDetails}`)
+      throw new Error(`Erro na API: ${response.status} - ${errorText}`)
     }
 
     const data: ApiMember = await response.json()
@@ -191,17 +183,20 @@ export const createMemberAPI = async (memberData: any): Promise<ApiMember> => {
 // Função para atualizar um membro
 export const updateMemberAPI = async (memberId: number, memberData: any): Promise<ApiMember> => {
   try {
-    // Verificar se o token existe
     const token = getAuthToken()
     if (!token) {
-      console.error("Token de autenticação não encontrado")
       throw new Error("Token de autenticação não encontrado. Faça login novamente.")
     }
 
     console.log("Dados enviados para API (update):", JSON.stringify({ id: memberId, ...memberData }, null, 2))
 
-    const response = await authFetchJson(`https://demoapp.top1soft.com.br/api/Member/${memberId}`, {
+    const response = await fetch(`https://demoapp.top1soft.com.br/api/Member/${memberId}`, {
       method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        accept: "text/plain",
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify({ id: memberId, ...memberData }),
     })
 
@@ -210,7 +205,6 @@ export const updateMemberAPI = async (memberId: number, memberData: any): Promis
       console.error("Erro da API:", response.status, errorText)
 
       if (response.status === 401) {
-        // Redirecionar para login
         if (typeof window !== "undefined") {
           localStorage.removeItem("authToken")
           localStorage.removeItem("userRole")
@@ -238,16 +232,19 @@ export const deleteMemberAPI = async (memberId: number): Promise<boolean> => {
   try {
     const token = getAuthToken()
     if (!token) {
-      console.error("Token de autenticação não encontrado")
       throw new Error("Token de autenticação não encontrado. Faça login novamente.")
     }
 
-    const response = await authenticatedFetch(`https://demoapp.top1soft.com.br/api/Member/${memberId}`, {
+    const response = await fetch(`https://demoapp.top1soft.com.br/api/Member/${memberId}`, {
       method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        accept: "text/plain",
+        Authorization: `Bearer ${token}`,
+      },
     })
 
     if (!response.ok && response.status === 401) {
-      // Redirecionar para login
       if (typeof window !== "undefined") {
         localStorage.removeItem("authToken")
         localStorage.removeItem("userRole")
@@ -448,7 +445,7 @@ export const updateFeedPost = async (postId: number, content: string): Promise<A
 // Função para deletar um post no feed
 export const deleteFeedPost = async (postId: number): Promise<boolean> => {
   try {
-    const response = await authenticatedFetch(`https://demoapp.top1soft.com.br/api/Feed/${postId}`, {
+    const response = await authFetch(`https://demoapp.top1soft.com.br/api/Feed/${postId}`, {
       method: "DELETE",
     })
 
@@ -541,24 +538,23 @@ export const convertApiMemberToLocal = (apiMember: ApiMember) => {
 export const convertLocalMemberToApi = (localMember: any) => {
   // Estrutura baseada EXATAMENTE no exemplo que funciona (200)
   const apiData: any = {
-    name: localMember.name.trim(),
-    email: localMember.email.trim(),
-    document: localMember.document.trim(),
-    photo: "base64",
-    phone: localMember.phone.trim(),
-    birthDate: localMember.birthDate ? localMember.birthDate + "T00:00:00" : "1990-01-01T00:00:00",
+    name: localMember.name?.trim() || "",
+    email: localMember.email?.trim() || "",
+    document: localMember.document?.trim() || "",
+    photo: localMember.photo && localMember.photo !== "base64" ? localMember.photo : "",
+    phone: localMember.phone?.trim() || "",
+    birthDate: localMember.birthDate ? `${localMember.birthDate}T00:00:00` : "1990-01-01T00:00:00",
     isBaptized: Boolean(localMember.isBaptized),
-    baptizedDate: localMember.baptizedDate ? localMember.baptizedDate + "T00:00:00" : "2023-10-14T00:00:00", // SEMPRE obrigatório
+    baptizedDate: localMember.baptizedDate ? `${localMember.baptizedDate}T00:00:00` : "2023-10-14T00:00:00",
     isTither: Boolean(localMember.isTither),
     roleMember: 0,
-    maritalStatus: localMember.maritalStatus || "Solteiro",
-    memberSince: localMember.memberSince ? localMember.memberSince + "T00:00:00" : "2020-01-01T00:00:00",
-    ministry: localMember.ministry || "Louvor", // SEMPRE obrigatório
+    maritalStatus: localMember.maritalStatus || "",
+    memberSince: localMember.memberSince ? `${localMember.memberSince}T00:00:00` : "2020-01-01T00:00:00",
+    ministry: localMember.ministry || "",
     isActive: localMember.isActive !== undefined ? Boolean(localMember.isActive) : true,
-    notes: localMember.notes || "Participa do grupo de jovens", // SEMPRE obrigatório
+    notes: localMember.notes || "",
   }
 
-  // NÃO incluir churchId - não está no exemplo que funciona
   console.log("Dados convertidos para API (final):", apiData)
   return apiData
 }

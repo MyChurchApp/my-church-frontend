@@ -73,7 +73,7 @@ export default function MembrosPage() {
     email: "",
     phone: "",
     document: "", // Renomeado de cpf para document para corresponder à API
-    photo: "base64", // Valor padrão conforme exemplo
+    photo: "", // Valor padrão conforme exemplo
     birthDate: "",
     address: "",
     city: "",
@@ -89,6 +89,21 @@ export default function MembrosPage() {
     isActive: true,
     notes: "",
   })
+
+  // Função para converter imagem para base64
+  const convertImageToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.readAsDataURL(file)
+      reader.onload = () => {
+        const base64String = reader.result as string
+        // Remover o prefixo "data:image/jpeg;base64," para obter apenas o base64
+        const base64 = base64String.split(",")[1]
+        resolve(base64)
+      }
+      reader.onerror = (error) => reject(error)
+    })
+  }
 
   useEffect(() => {
     const userData = getUser()
@@ -477,7 +492,7 @@ export default function MembrosPage() {
       email: member.email,
       phone: member.phone,
       document: member.cpf, // Renomeado de cpf para document
-      photo: member.photo || "base64",
+      photo: member.photo || "",
       birthDate: member.birthDate,
       address: member.address,
       city: member.city,
@@ -501,20 +516,20 @@ export default function MembrosPage() {
       name: "",
       email: "",
       phone: "",
-      document: "", // Renomeado de cpf para document
-      photo: "base64", // Valor padrão
+      document: "",
+      photo: "", // Inicializar como string vazia
       birthDate: "",
       address: "",
       city: "",
       state: "",
       zipCode: "",
       maritalStatus: "",
-      isBaptized: false, // Renomeado de baptized para isBaptized
+      isBaptized: false,
       baptizedDate: "",
       isTither: false,
       memberSince: "",
       ministry: "",
-      roleMember: 0, // Valor padrão
+      roleMember: 0,
       isActive: true,
       notes: "",
     })
@@ -605,6 +620,29 @@ export default function MembrosPage() {
                               required
                             />
                           </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="member-photo">Foto</Label>
+                          <Input
+                            id="member-photo"
+                            type="file"
+                            accept="image/*"
+                            onChange={async (e) => {
+                              if (e.target.files && e.target.files[0]) {
+                                try {
+                                  const base64 = await convertImageToBase64(e.target.files[0])
+                                  setMemberForm({ ...memberForm, photo: base64 })
+                                } catch (error) {
+                                  console.error("Erro ao converter imagem:", error)
+                                  setError("Erro ao processar a imagem. Tente novamente.")
+                                }
+                              }
+                            }}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Opcional. Deixe em branco para não enviar foto.
+                          </p>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
@@ -780,6 +818,27 @@ export default function MembrosPage() {
                     required
                   />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-member-photo">Foto</Label>
+                <Input
+                  id="edit-member-photo"
+                  type="file"
+                  accept="image/*"
+                  onChange={async (e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      try {
+                        const base64 = await convertImageToBase64(e.target.files[0])
+                        setMemberForm({ ...memberForm, photo: base64 })
+                      } catch (error) {
+                        console.error("Erro ao converter imagem:", error)
+                        setError("Erro ao processar a imagem. Tente novamente.")
+                      }
+                    }
+                  }}
+                />
+                <p className="text-xs text-muted-foreground">Opcional. Deixe em branco para manter a foto atual.</p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
