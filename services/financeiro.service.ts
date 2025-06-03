@@ -293,9 +293,34 @@ export async function updateCashFlowCategory(id: number, data: CreateCategoryReq
  */
 export async function deleteCashFlowCategory(id: number): Promise<void> {
   console.log(`🗑️ Excluindo categoria ID: ${id}`)
-  return apiRequest<void>(`/CashFlow/categories/${id}`, {
-    method: "DELETE",
-  })
+
+  try {
+    const response = await apiRequest<void>(`/CashFlow/categories/${id}`, {
+      method: "DELETE",
+    })
+
+    console.log("✅ Categoria excluída com sucesso")
+    return response
+  } catch (error) {
+    console.error(`❌ Erro ao excluir categoria ID ${id}:`, error)
+
+    // Re-throw com informações mais específicas
+    if (error instanceof Error) {
+      const errorMessage = error.message
+
+      if (errorMessage.includes("expected to affect 1 row(s), but actually affected 0 row(s)")) {
+        throw new Error("Categoria não encontrada ou já foi excluída por outro usuário")
+      } else if (errorMessage.includes("foreign key constraint")) {
+        throw new Error("Categoria não pode ser excluída pois está sendo usada em transações")
+      } else if (errorMessage.includes("401")) {
+        throw new Error("Sessão expirada. Faça login novamente")
+      } else if (errorMessage.includes("403")) {
+        throw new Error("Permissão negada para excluir categoria")
+      }
+    }
+
+    throw error
+  }
 }
 
 // ==================== SALDO ====================

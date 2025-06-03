@@ -31,6 +31,8 @@ import {
   createCashFlow,
   updateCashFlow,
   createCashFlowCategory,
+  updateCashFlowCategory,
+  deleteCashFlowCategory,
   deleteCashFlow,
   formatCurrency,
   formatDate,
@@ -60,6 +62,7 @@ export default function FinanceiroPage() {
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [editingTransaction, setEditingTransaction] = useState<CashFlowItem | null>(null)
+  const [editingCategory, setEditingCategory] = useState<CashFlowCategory | null>(null)
 
   // Estados dos filtros
   const [filterType, setFilterType] = useState<string>("all")
@@ -306,6 +309,93 @@ export default function FinanceiroPage() {
     }
   }
 
+  const handleEditCategory = async (category: CashFlowCategory) => {
+    try {
+      console.log("✏️ Editando categoria:", category)
+
+      const data = {
+        name: category.name,
+        description: category.description,
+      }
+
+      await updateCashFlowCategory(category.id, data)
+      console.log("✅ Categoria editada com sucesso!")
+
+      // Recarregar categorias
+      const categoriesResponse = await getCashFlowCategories()
+      setFinanceCategories(Array.isArray(categoriesResponse) ? categoriesResponse : [])
+    } catch (err) {
+      console.error("❌ Erro ao editar categoria:", err)
+      setError(err instanceof Error ? err.message : "Erro ao editar categoria")
+    }
+  }
+
+  const handleDeleteCategory = async (id: number) => {
+    try {
+      console.log(`🗑️ Tentando excluir categoria ID: ${id}`)
+
+      // Verificar se a categoria ainda existe antes de tentar excluir
+      const currentCategories = financeCategories.find((cat) => cat.id === id)
+      if (!currentCategories) {
+        console.warn(`⚠️ Categoria ID ${id} não encontrada na lista atual`)
+        setError("Categoria não encontrada. A lista será atualizada.")
+
+        // Recarregar categorias para sincronizar
+        const categoriesResponse = await getCashFlowCategories()
+        setFinanceCategories(Array.isArray(categoriesResponse) ? categoriesResponse : [])
+        return
+      }
+
+      // Verificar se a categoria está sendo usada em transações
+      const categoryInUse = financeRecords.some((record) => record.categoryId === id)
+      if (categoryInUse) {
+        setError("Não é possível excluir esta categoria pois ela está sendo usada em transações existentes.")
+        return
+      }
+
+      await deleteCashFlowCategory(id)
+      console.log("✅ Categoria excluída com sucesso!")
+
+      // Recarregar categorias
+      const categoriesResponse = await getCashFlowCategories()
+      setFinanceCategories(Array.isArray(categoriesResponse) ? categoriesResponse : [])
+
+      // Mostrar mensagem de sucesso
+      alert("✅ Categoria excluída com sucesso!")
+    } catch (err) {
+      console.error("❌ Erro ao excluir categoria:", err)
+
+      // Tratar diferentes tipos de erro
+      let errorMessage = "Erro ao excluir categoria"
+
+      if (err instanceof Error) {
+        const errorText = err.message
+
+        if (errorText.includes("expected to affect 1 row(s), but actually affected 0 row(s)")) {
+          errorMessage = "Esta categoria já foi excluída ou não existe mais. A lista será atualizada."
+
+          // Recarregar categorias para sincronizar
+          try {
+            const categoriesResponse = await getCashFlowCategories()
+            setFinanceCategories(Array.isArray(categoriesResponse) ? categoriesResponse : [])
+          } catch (reloadErr) {
+            console.error("Erro ao recarregar categorias:", reloadErr)
+          }
+        } else if (errorText.includes("foreign key constraint")) {
+          errorMessage = "Não é possível excluir esta categoria pois ela está sendo usada em transações."
+        } else if (errorText.includes("401")) {
+          errorMessage = "Sessão expirada. Faça login novamente."
+        } else if (errorText.includes("403")) {
+          errorMessage = "Você não tem permissão para excluir esta categoria."
+        } else {
+          errorMessage = `Erro: ${errorText}`
+        }
+      }
+
+      setError(errorMessage)
+    }
+  }
+
   const handleDeleteTransaction = (recordId: string) => {
     setRecordToDelete(recordId)
     setDeleteDialogOpen(true)
@@ -503,6 +593,8 @@ export default function FinanceiroPage() {
         isOpen={isCategoryModalOpen}
         onOpenChange={setIsCategoryModalOpen}
         onCreateCategory={handleCreateCategory}
+        onEditCategory={handleEditCategory}
+        onDeleteCategory={handleDeleteCategory}
       />
 
       {/* Delete Confirmation Dialog */}
