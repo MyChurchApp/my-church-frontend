@@ -22,12 +22,14 @@ import { FiltersBar } from "@/components/financeiro/filters-bar"
 import { TransactionsList } from "@/components/financeiro/transactions-list"
 import { NewTransactionModal } from "@/components/financeiro/new-transaction-modal"
 import { CategoriesModal } from "@/components/financeiro/categories-modal"
+import { EditTransactionModal } from "@/components/financeiro/edit-transaction-modal"
 
 // Services
 import {
   getCashFlowList,
   getCashFlowCategories,
   createCashFlow,
+  updateCashFlow,
   createCashFlowCategory,
   deleteCashFlow,
   formatCurrency,
@@ -55,6 +57,9 @@ export default function FinanceiroPage() {
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [recordToDelete, setRecordToDelete] = useState<string | null>(null)
+
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [editingTransaction, setEditingTransaction] = useState<CashFlowItem | null>(null)
 
   // Estados dos filtros
   const [filterType, setFilterType] = useState<string>("all")
@@ -121,32 +126,6 @@ export default function FinanceiroPage() {
     } catch (error) {
       console.error("❌ Erro na requisição:", error)
       alert(`❌ Erro: ${error.message}`)
-    }
-  }
-
-  // ✅ Função para testar listagem com filtros
-  const handleTestCashFlowList = async () => {
-    console.log("🧪 Testando listagem de transações...")
-
-    try {
-      // Testar sem filtros
-      console.log("📋 Testando sem filtros...")
-      const allTransactions = await getCashFlowList()
-      console.log("✅ Todas as transações:", allTransactions)
-
-      // Testar com filtros
-      console.log("📋 Testando com filtros...")
-      const filteredTransactions = await getCashFlowList({
-        pageNumber: 1,
-        pageSize: 10,
-        type: 0, // Apenas entradas
-      })
-      console.log("✅ Transações filtradas:", filteredTransactions)
-
-      alert(`✅ Teste concluído! Verifique o console para detalhes.`)
-    } catch (error) {
-      console.error("❌ Erro no teste:", error)
-      alert(`❌ Erro no teste: ${error.message}`)
     }
   }
 
@@ -221,6 +200,54 @@ export default function FinanceiroPage() {
   }, [])
 
   // ✅ Funções de manipulação CORRIGIDAS para nova estrutura
+
+  // ✅ NOVA: Função para abrir modal de edição
+  const handleOpenEditModal = (transaction: CashFlowItem) => {
+    setEditingTransaction(transaction)
+    setIsEditModalOpen(true)
+  }
+
+  // ✅ NOVA: Função para editar transação
+  const handleEditTransaction = async (data: {
+    type: string
+    categoryId: string
+    description: string
+    amount: string
+    date: string
+  }) => {
+    if (!editingTransaction) return
+
+    try {
+      const recordData: CreateCashFlowRequest = {
+        amount: Number.parseFloat(data.amount),
+        date: formatDateToISO(new Date(data.date)),
+        description: data.description,
+        type: getCashFlowTypeNumber(data.type),
+        categoryId: Number.parseInt(data.categoryId),
+      }
+
+      console.log(`✏️ Editando transação ID ${editingTransaction.id}:`, recordData)
+
+      await updateCashFlow(editingTransaction.id, recordData)
+
+      // Recarregar dados
+      const cashFlowResponse = await getCashFlowList({ pageNumber: 1, pageSize: 100 })
+
+      if (cashFlowResponse.transactions?.items) {
+        setFinanceRecords(cashFlowResponse.transactions.items)
+      }
+
+      if (typeof cashFlowResponse.balance === "number") {
+        setBalance(cashFlowResponse.balance)
+      }
+
+      setIsEditModalOpen(false)
+      setEditingTransaction(null)
+    } catch (err) {
+      console.error("Erro ao editar transação:", err)
+      setError(err instanceof Error ? err.message : "Erro ao editar transação")
+    }
+  }
   const handleCreateTransaction = async (data: {
     type: string
     categoryId: string
@@ -445,9 +472,6 @@ export default function FinanceiroPage() {
               <Button onClick={() => setIsCategoryModalOpen(true)} variant="outline">
                 Gerenciar Categorias ({financeCategories.length})
               </Button>
-              <Button onClick={handleTestCashFlowList} variant="outline" size="sm">
-                🧪 Testar Listagem
-              </Button>
             </div>
 
             <TransactionsList
@@ -459,6 +483,7 @@ export default function FinanceiroPage() {
               getCashFlowTypeText={getCashFlowTypeText}
               getMethodIcon={getMethodIcon}
               onViewModeChange={setViewMode}
+              onEdit={handleOpenEditModal}
               onDelete={handleDeleteTransaction}
             />
           </div>
@@ -497,6 +522,13 @@ export default function FinanceiroPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <EditTransactionModal
+        transaction={editingTransaction}
+        categories={financeCategories}
+        isOpen={isEditModalOpen}
+        onOpenChange={setIsEditModalOpen}
+        onSubmit={handleEditTransaction}
+      />
     </div>
   )
 }

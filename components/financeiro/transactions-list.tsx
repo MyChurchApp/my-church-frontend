@@ -1,26 +1,32 @@
 "use client"
-
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Receipt, Grid3X3, Table, PiggyBank } from "lucide-react"
-import { TransactionCard } from "./transaction-card"
-import { TransactionsTable } from "./transactions-table"
-import type { CashFlowItem } from "@/services/financeiro.service"
+
+interface CashFlowItem {
+  id: string
+  date: string
+  description: string
+  category: string
+  method: string
+  value: number
+  type: number
+  amount: number
+}
 
 interface TransactionsListProps {
   transactions: CashFlowItem[]
   viewMode: "cards" | "table"
   formatCurrency: (value: number) => string
-  formatDate: (date: string) => string
+  formatDate: (dateString: string) => string
   getCategoryColor: (categoryName: string) => string
   getCashFlowTypeText: (type: number) => string
   getMethodIcon: (method: string) => string
   onViewModeChange: (mode: "cards" | "table") => void
-  onDelete: (id: string) => void
+  onEdit: (transaction: CashFlowItem) => void
+  onDelete: (recordId: string) => void
 }
 
 export function TransactionsList({
-  transactions = [], // Default para array vazio
+  transactions,
   viewMode,
   formatCurrency,
   formatDate,
@@ -28,70 +34,126 @@ export function TransactionsList({
   getCashFlowTypeText,
   getMethodIcon,
   onViewModeChange,
+  onEdit,
   onDelete,
 }: TransactionsListProps) {
-  // Garantir que transactions é sempre um array
-  const safeTransactions = Array.isArray(transactions) ? transactions : []
+  if (viewMode === "cards") {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {transactions.map((transaction) => (
+          <div key={transaction.id} className="bg-white rounded-lg shadow-md p-4">
+            <div className="flex justify-between items-center mb-2">
+              <div className="text-sm font-medium">{formatDate(transaction.date)}</div>
+              <div
+                className="w-2 h-2 rounded-full"
+                style={{ backgroundColor: getCategoryColor(transaction.category) }}
+              ></div>
+            </div>
+            <div className="text-lg font-semibold">{transaction.description}</div>
+            <div className="text-gray-500">{transaction.category}</div>
+            <div className="flex items-center mt-2">
+              {getMethodIcon(transaction.method)}
+              <span className="ml-1 text-sm">{transaction.method}</span>
+            </div>
+            <div className="mt-2 font-bold">{formatCurrency(transaction.amount)}</div>
+            <div className="text-sm text-gray-600">{getCashFlowTypeText(transaction.type)}</div>
+            <div className="flex justify-end mt-4 space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onEdit(transaction)}
+                className="text-blue-600 hover:text-blue-700"
+              >
+                ✏️ Editar
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onDelete(transaction.id)}
+                className="text-red-600 hover:text-red-700"
+              >
+                🗑️ Excluir
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
+    )
+  }
 
   return (
-    <Card>
-      <CardHeader className="p-4 md:p-6">
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-base md:text-lg">
-            <Receipt className="h-4 w-4 md:h-5 md:w-5" />
-            Histórico de Transações
-          </CardTitle>
-          <div className="flex border rounded-md">
-            <Button
-              onClick={() => onViewModeChange("cards")}
-              variant={viewMode === "cards" ? "default" : "ghost"}
-              size="sm"
-              className="rounded-r-none px-2 md:px-3"
-            >
-              <Grid3X3 className="h-3 w-3 md:h-4 md:w-4" />
-            </Button>
-            <Button
-              onClick={() => onViewModeChange("table")}
-              variant={viewMode === "table" ? "default" : "ghost"}
-              size="sm"
-              className="rounded-l-none px-2 md:px-3"
-            >
-              <Table className="h-3 w-3 md:h-4 md:w-4" />
-            </Button>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="p-4 md:p-6 pt-0">
-        {safeTransactions.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            <PiggyBank className="h-8 w-8 md:h-12 md:w-12 mx-auto mb-4 opacity-50" />
-            <p className="text-sm md:text-base">Nenhuma transação encontrada</p>
-          </div>
-        ) : viewMode === "cards" ? (
-          <div className="space-y-3 md:space-y-4">
-            {safeTransactions.map((transaction) => (
-              <TransactionCard
-                key={transaction.id}
-                transaction={transaction}
-                formatCurrency={formatCurrency}
-                formatDate={formatDate}
-                getCategoryColor={getCategoryColor}
-                getCashFlowTypeText={getCashFlowTypeText}
-                onDelete={onDelete}
-              />
-            ))}
-          </div>
-        ) : (
-          <TransactionsTable
-            transactions={safeTransactions}
-            formatCurrency={formatCurrency}
-            formatDate={formatDate}
-            getCategoryColor={getCategoryColor}
-            getCashFlowTypeText={getCashFlowTypeText}
-            onDelete={onDelete}
-          />
-        )}
-      </CardContent>
-    </Card>
+    <div className="overflow-x-auto">
+      <table className="min-w-full divide-y divide-gray-200">
+        <thead className="bg-gray-50">
+          <tr>
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Data
+            </th>
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Descrição
+            </th>
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Categoria
+            </th>
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Método
+            </th>
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Valor
+            </th>
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Tipo
+            </th>
+            <th scope="col" className="relative px-6 py-3">
+              <span className="sr-only">Ações</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody className="bg-white divide-y divide-gray-200">
+          {transactions.map((transaction) => (
+            <tr key={transaction.id}>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <div className="text-sm text-gray-900">{formatDate(transaction.date)}</div>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <div className="text-sm text-gray-900">{transaction.description}</div>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <div className="text-sm text-gray-900">{transaction.category}</div>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <div className="text-sm text-gray-900">{transaction.method}</div>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <div className="text-sm text-gray-900">{formatCurrency(transaction.amount)}</div>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                  {getCashFlowTypeText(transaction.type)}
+                </span>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onEdit(transaction)}
+                  className="text-blue-600 hover:text-blue-700 mr-2"
+                >
+                  ✏️
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onDelete(transaction.id)}
+                  className="text-red-600 hover:text-red-700"
+                >
+                  🗑️
+                </Button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   )
 }
