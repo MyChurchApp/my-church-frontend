@@ -1,17 +1,9 @@
 "use client"
 
-import type React from "react"
-
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Sidebar } from "@/components/sidebar"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,253 +14,312 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+
+// Componentes burros
+import { PageHeader } from "@/components/financeiro/page-header"
+import { SummaryCards } from "@/components/financeiro/summary-cards"
+import { FiltersBar } from "@/components/financeiro/filters-bar"
+import { TransactionsList } from "@/components/financeiro/transactions-list"
+import { NewTransactionModal } from "@/components/financeiro/new-transaction-modal"
+import { CategoriesModal } from "@/components/financeiro/categories-modal"
+
+// Services
 import {
-  DollarSign,
-  TrendingUp,
-  TrendingDown,
-  Plus,
-  PiggyBank,
-  Receipt,
-  Filter,
-  Trash2,
-  Settings,
-  Download,
-  Grid3X3,
-  Table,
-} from "lucide-react"
-import {
-  getUser,
-  getFinanceRecords,
-  getFinanceCategories,
+  getCashFlowList,
+  getCashFlowCategories,
+  createCashFlow,
+  createCashFlowCategory,
+  deleteCashFlow,
   formatCurrency,
-  type User,
-  type FinanceRecord,
-  type FinanceCategory,
-} from "@/lib/fake-api"
+  formatDate,
+  formatDateToISO,
+  getCashFlowTypeText,
+  getCashFlowTypeNumber,
+  type CashFlowItem,
+  type CashFlowCategory,
+  type CreateCashFlowRequest,
+} from "@/services/financeiro.service"
 
 export default function FinanceiroPage() {
   const router = useRouter()
-  const [user, setUser] = useState<User | null>(null)
-  const [financeRecords, setFinanceRecords] = useState<FinanceRecord[]>([])
-  const [financeCategories, setFinanceCategories] = useState<FinanceCategory[]>([])
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false)
+
+  // Estados com valores padrão seguros
+  const [financeRecords, setFinanceRecords] = useState<CashFlowItem[]>([])
+  const [financeCategories, setFinanceCategories] = useState<CashFlowCategory[]>([])
+  const [balance, setBalance] = useState<number>(0)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string>("")
+
+  // Estados dos modais
+  const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false)
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [recordToDelete, setRecordToDelete] = useState<string | null>(null)
+
+  // Estados dos filtros
   const [filterType, setFilterType] = useState<string>("all")
   const [filterStartDate, setFilterStartDate] = useState<string>("")
   const [filterEndDate, setFilterEndDate] = useState<string>("")
   const [filterCategory, setFilterCategory] = useState<string>("all")
   const [viewMode, setViewMode] = useState<"cards" | "table">("cards")
 
-  // Form state for new record
-  const [newRecord, setNewRecord] = useState({
-    type: "",
-    categoryId: "",
-    description: "",
-    amount: "",
-    date: "",
-    method: "",
-    member: "",
-  })
+  // ✅ Função de teste de autenticação CORRIGIDA com "Bearer "
+  const handleTestAuth = async () => {
+    console.log("🧪 Testando autenticação...")
 
-  // Form state for new category
-  const [newCategory, setNewCategory] = useState({
-    name: "",
-    type: "",
-    description: "",
-  })
+    const token = localStorage.getItem("authToken")
+    if (!token) {
+      alert("❌ Token não encontrado no localStorage!")
+      return
+    }
 
+    console.log(`🔑 Token encontrado: ${token.substring(0, 20)}...`)
+
+    try {
+      // ✅ CORRIGIDO: Agora usa "Bearer " (com espaço) antes do token
+      const response = await fetch("https://demoapp.top1soft.com.br/api/CashFlow", {
+        headers: {
+          Authorization: `Bearer ${token}`, // ✅ ESPAÇO APÓS "Bearer"
+          "Content-Type": "application/json",
+          Accept: "text/plain",
+        },
+      })
+
+      console.log(`📊 Status da resposta: ${response.status}`)
+
+      if (response.ok) {
+        const contentType = response.headers.get("content-type")
+        console.log(`📄 Content-Type: ${contentType}`)
+
+        let data
+        if (contentType && contentType.includes("application/json")) {
+          data = await response.json()
+        } else {
+          const text = await response.text()
+          try {
+            data = JSON.parse(text)
+          } catch {
+            data = text
+          }
+        }
+
+        console.log("✅ Resposta completa das transações:", data)
+
+        // ✅ CORRIGIDO: Verificar estrutura { result: {...}, balance: number }
+        const count =
+          data && data.result && data.result.items && Array.isArray(data.result.items)
+            ? data.result.items.length
+            : "N/A"
+        const total = data && data.result && data.result.totalCount ? data.result.totalCount : "N/A"
+        const balance = data && data.balance ? data.balance : "N/A"
+        alert(`✅ Sucesso! ${count} transações carregadas (${total} no total)\n💰 Saldo: R$ ${balance}`)
+      } else {
+        const errorText = await response.text()
+        console.error("❌ Erro:", errorText)
+        alert(`❌ Erro ${response.status}: ${errorText}`)
+      }
+    } catch (error) {
+      console.error("❌ Erro na requisição:", error)
+      alert(`❌ Erro: ${error.message}`)
+    }
+  }
+
+  // ✅ Função para testar listagem com filtros
+  const handleTestCashFlowList = async () => {
+    console.log("🧪 Testando listagem de transações...")
+
+    try {
+      // Testar sem filtros
+      console.log("📋 Testando sem filtros...")
+      const allTransactions = await getCashFlowList()
+      console.log("✅ Todas as transações:", allTransactions)
+
+      // Testar com filtros
+      console.log("📋 Testando com filtros...")
+      const filteredTransactions = await getCashFlowList({
+        pageNumber: 1,
+        pageSize: 10,
+        type: 0, // Apenas entradas
+      })
+      console.log("✅ Transações filtradas:", filteredTransactions)
+
+      alert(`✅ Teste concluído! Verifique o console para detalhes.`)
+    } catch (error) {
+      console.error("❌ Erro no teste:", error)
+      alert(`❌ Erro no teste: ${error.message}`)
+    }
+  }
+
+  // ✅ Carregar dados iniciais CORRIGIDO para nova estrutura da API
   useEffect(() => {
-    const userData = getUser()
-    if (!userData) {
-      router.push("/login")
-      return
+    const loadData = async () => {
+      try {
+        setLoading(true)
+        setError("")
+
+        console.log("🔄 Iniciando carregamento de dados...")
+
+        // ✅ CORRIGIDO: Agora getCashFlowList retorna { transactions, balance }
+        const [cashFlowResponse, categoriesResponse] = await Promise.allSettled([
+          getCashFlowList({ pageNumber: 1, pageSize: 100 }),
+          getCashFlowCategories(),
+        ])
+
+        console.log("📊 Respostas recebidas:", {
+          cashFlow: cashFlowResponse,
+          categories: categoriesResponse,
+        })
+
+        // ✅ CORRIGIDO: Processar resposta que inclui transactions e balance
+        if (cashFlowResponse.status === "fulfilled" && cashFlowResponse.value) {
+          const { transactions, balance: apiBalance } = cashFlowResponse.value
+
+          if (transactions?.items && Array.isArray(transactions.items)) {
+            setFinanceRecords(transactions.items)
+            console.log("✅ Registros carregados:", transactions.items.length)
+          } else {
+            setFinanceRecords([])
+            console.log("⚠️ Nenhum registro encontrado")
+          }
+
+          // ✅ CORRIGIDO: Usar o saldo que vem da listagem
+          if (typeof apiBalance === "number") {
+            setBalance(apiBalance)
+            console.log("✅ Saldo carregado:", apiBalance)
+          } else {
+            setBalance(0)
+            console.log("⚠️ Saldo não encontrado, usando 0")
+          }
+        } else {
+          console.log("⚠️ Erro ao carregar transações")
+          setFinanceRecords([])
+          setBalance(0)
+        }
+
+        // Processar categorias
+        if (categoriesResponse.status === "fulfilled" && categoriesResponse.value) {
+          const cats = categoriesResponse.value
+          setFinanceCategories(Array.isArray(cats) ? cats : [])
+          console.log("✅ Categorias carregadas:", cats.length)
+        } else {
+          console.log("⚠️ Nenhuma categoria encontrada")
+          setFinanceCategories([])
+        }
+      } catch (err) {
+        console.error("❌ Erro ao carregar dados:", err)
+        setError(err instanceof Error ? err.message : "Erro ao carregar dados")
+        // Garantir arrays vazios em caso de erro
+        setFinanceRecords([])
+        setFinanceCategories([])
+        setBalance(0)
+      } finally {
+        setLoading(false)
+      }
     }
 
-    if (userData.accessLevel !== "admin") {
-      router.push("/dashboard")
-      return
+    loadData()
+  }, [])
+
+  // ✅ Funções de manipulação CORRIGIDAS para nova estrutura
+  const handleCreateTransaction = async (data: {
+    type: string
+    categoryId: string
+    description: string
+    amount: string
+    date: string
+  }) => {
+    try {
+      const recordData: CreateCashFlowRequest = {
+        amount: Number.parseFloat(data.amount),
+        date: formatDateToISO(new Date(data.date)),
+        description: data.description,
+        type: getCashFlowTypeNumber(data.type),
+        categoryId: Number.parseInt(data.categoryId),
+      }
+
+      await createCashFlow(recordData)
+
+      // ✅ CORRIGIDO: Recarregar dados usando nova estrutura
+      const cashFlowResponse = await getCashFlowList({ pageNumber: 1, pageSize: 100 })
+
+      if (cashFlowResponse.transactions?.items) {
+        setFinanceRecords(cashFlowResponse.transactions.items)
+      }
+
+      if (typeof cashFlowResponse.balance === "number") {
+        setBalance(cashFlowResponse.balance)
+      }
+
+      setIsTransactionModalOpen(false)
+    } catch (err) {
+      console.error("Erro ao criar transação:", err)
+      setError(err instanceof Error ? err.message : "Erro ao criar transação")
     }
-
-    setUser(userData)
-    setFinanceRecords(getFinanceRecords())
-    setFinanceCategories(getFinanceCategories())
-  }, [router])
-
-  const handleCreateRecord = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newRecord.type || !newRecord.categoryId || !newRecord.description || !newRecord.amount || !newRecord.date)
-      return
-
-    const selectedCategory = financeCategories.find((cat) => cat.id === newRecord.categoryId)
-    if (!selectedCategory) return
-
-    const record: FinanceRecord = {
-      id: Date.now().toString(),
-      type: newRecord.type as "entrada" | "saida",
-      categoryId: newRecord.categoryId,
-      categoryName: selectedCategory.name,
-      description: newRecord.description,
-      amount: Number.parseFloat(newRecord.amount),
-      date: newRecord.date,
-      method: newRecord.method as any,
-      member: newRecord.member || undefined,
-    }
-
-    setFinanceRecords([record, ...financeRecords])
-    setNewRecord({ type: "", categoryId: "", description: "", amount: "", date: "", method: "", member: "" })
-    setIsDialogOpen(false)
   }
 
-  const handleCreateCategory = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newCategory.name || !newCategory.type) return
+  const handleCreateCategory = async (data: { name: string; description: string }) => {
+    try {
+      console.log("📝 Criando categoria:", data)
 
-    const category: FinanceCategory = {
-      id: Date.now().toString(),
-      name: newCategory.name,
-      type: newCategory.type as "entrada" | "saida",
-      description: newCategory.description,
-      isActive: true,
-      createdAt: new Date().toISOString().split("T")[0],
+      // Validar dados
+      if (!data.name.trim()) {
+        throw new Error("Nome da categoria é obrigatório")
+      }
+
+      await createCashFlowCategory(data)
+      console.log("✅ Categoria criada com sucesso!")
+
+      // Recarregar categorias
+      const categoriesResponse = await getCashFlowCategories()
+      setFinanceCategories(Array.isArray(categoriesResponse) ? categoriesResponse : [])
+      setIsCategoryModalOpen(false)
+    } catch (err) {
+      console.error("❌ Erro ao criar categoria:", err)
+      setError(err instanceof Error ? err.message : "Erro ao criar categoria")
     }
-
-    setFinanceCategories([...financeCategories, category])
-    setNewCategory({ name: "", type: "", description: "" })
-    setIsCategoryDialogOpen(false)
   }
 
-  const handleDeleteRecord = (recordId: string) => {
+  const handleDeleteTransaction = (recordId: string) => {
     setRecordToDelete(recordId)
     setDeleteDialogOpen(true)
   }
 
-  const confirmDeleteRecord = () => {
+  const confirmDeleteTransaction = async () => {
     if (recordToDelete) {
-      setFinanceRecords(financeRecords.filter((record) => record.id !== recordToDelete))
-      setRecordToDelete(null)
-      setDeleteDialogOpen(false)
+      try {
+        await deleteCashFlow(Number.parseInt(recordToDelete))
+
+        // ✅ CORRIGIDO: Recarregar dados usando nova estrutura
+        const cashFlowResponse = await getCashFlowList({ pageNumber: 1, pageSize: 100 })
+
+        if (cashFlowResponse.transactions?.items) {
+          setFinanceRecords(cashFlowResponse.transactions.items)
+        }
+
+        if (typeof cashFlowResponse.balance === "number") {
+          setBalance(cashFlowResponse.balance)
+        }
+
+        setRecordToDelete(null)
+        setDeleteDialogOpen(false)
+      } catch (err) {
+        console.error("Erro ao excluir transação:", err)
+        setError(err instanceof Error ? err.message : "Erro ao excluir transação")
+      }
     }
   }
 
   const generatePDFReport = () => {
-    const filteredRecords = getFilteredRecords()
-    const totalEntradas = getTotalEntradas()
-    const totalSaidas = getTotalSaidas()
-    const saldo = getSaldo()
-
-    // Criar conteúdo HTML para o PDF
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <title>Relatório Financeiro</title>
-        <style>
-          body { font-family: Arial, sans-serif; margin: 20px; }
-          .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 10px; }
-          .summary { margin-bottom: 30px; background: #f5f5f5; padding: 15px; border-radius: 5px; }
-          .summary-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
-          .summary-item { text-align: center; }
-          .summary-value { font-size: 24px; font-weight: bold; margin-bottom: 5px; }
-          .entrada { color: #22c55e; }
-          .saida { color: #ef4444; }
-          .saldo { color: #3b82f6; }
-          .transaction-section { margin-bottom: 30px; }
-          .transaction-item { margin-bottom: 15px; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
-          .transaction-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-          .transaction-title { font-weight: bold; font-size: 16px; }
-          .transaction-amount { font-size: 18px; font-weight: bold; }
-          .transaction-details { color: #666; font-size: 14px; }
-          .category-badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; margin-right: 10px; }
-          .category-entrada { background: #dcfce7; color: #166534; }
-          .category-saida { background: #fee2e2; color: #991b1b; }
-          h2 { color: #333; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <h1>RELATÓRIO FINANCEIRO</h1>
-          <p>Igreja Batista Central</p>
-          <p>Gerado em: ${new Date().toLocaleDateString("pt-BR")} às ${new Date().toLocaleTimeString("pt-BR")}</p>
-        </div>
-
-        <div class="summary">
-          <h2>RESUMO FINANCEIRO</h2>
-          <div class="summary-grid">
-            <div class="summary-item">
-              <div class="summary-value entrada">${formatCurrency(totalEntradas)}</div>
-              <p>Total de Entradas</p>
-            </div>
-            <div class="summary-item">
-              <div class="summary-value saida">${formatCurrency(totalSaidas)}</div>
-              <p>Total de Saídas</p>
-            </div>
-            <div class="summary-item">
-              <div class="summary-value ${saldo >= 0 ? "entrada" : "saida"}">${formatCurrency(saldo)}</div>
-              <p>Saldo Final</p>
-            </div>
-            <div class="summary-item">
-              <div class="summary-value">${filteredRecords.length}</div>
-              <p>Total de Transações</p>
-            </div>
-          </div>
-        </div>
-
-        <div class="transaction-section">
-          <h2>DETALHAMENTO DAS TRANSAÇÕES</h2>
-          ${filteredRecords
-            .map(
-              (record) => `
-            <div class="transaction-item">
-              <div class="transaction-header">
-                <div class="transaction-title">${record.description}</div>
-                <div class="transaction-amount ${record.type}">${record.type === "entrada" ? "+" : "-"}${formatCurrency(record.amount)}</div>
-              </div>
-              <div class="transaction-details">
-                <span class="category-badge category-${record.type}">${record.categoryName}</span>
-                <strong>Data:</strong> ${new Date(record.date).toLocaleDateString("pt-BR")} | 
-                <strong>Método:</strong> ${record.method} 
-                ${record.member ? `| <strong>Membro:</strong> ${record.member}` : ""}
-              </div>
-            </div>
-          `,
-            )
-            .join("")}
-        </div>
-
-        <div style="margin-top: 40px; text-align: center; color: #666; font-size: 12px;">
-          <p>Relatório gerado automaticamente pelo Sistema MyChurch</p>
-        </div>
-      </body>
-      </html>
-    `
-
-    // Criar e baixar o arquivo HTML que pode ser convertido para PDF
-    const blob = new Blob([htmlContent], { type: "text/html;charset=utf-8" })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement("a")
-    link.href = url
-    link.download = `relatorio-financeiro-${new Date().toISOString().split("T")[0]}.html`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
-
-    // Mostrar instruções para o usuário
-    alert(
-      "Relatório gerado! Para converter para PDF:\n1. Abra o arquivo HTML baixado\n2. Use Ctrl+P (ou Cmd+P no Mac)\n3. Selecione 'Salvar como PDF' como destino",
-    )
+    alert("Funcionalidade de relatório será implementada")
   }
 
+  // Funções de filtro com verificações de segurança
   const getFilteredRecords = () => {
+    if (!Array.isArray(financeRecords)) return []
     return financeRecords.filter((record) => {
-      const typeMatch = filterType === "all" || record.type === filterType
-      const categoryMatch = filterCategory === "all" || record.categoryId === filterCategory
+      const typeMatch = filterType === "all" || (filterType === "entrada" ? record.type === 0 : record.type === 1)
+      const categoryMatch = filterCategory === "all" || record.categoryId.toString() === filterCategory
 
-      // Filtro por data
       let dateMatch = true
       if (filterStartDate || filterEndDate) {
         const recordDate = new Date(record.date)
@@ -288,20 +339,17 @@ export default function FinanceiroPage() {
 
   const getTotalEntradas = () => {
     return getFilteredRecords()
-      .filter((record) => record.type === "entrada")
-      .reduce((sum, record) => sum + record.amount, 0)
+      .filter((record) => record.type === 0)
+      .reduce((sum, record) => sum + (record.amount || 0), 0)
   }
 
   const getTotalSaidas = () => {
     return getFilteredRecords()
-      .filter((record) => record.type === "saida")
-      .reduce((sum, record) => sum + record.amount, 0)
+      .filter((record) => record.type === 1)
+      .reduce((sum, record) => sum + (record.amount || 0), 0)
   }
 
-  const getSaldo = () => {
-    return getTotalEntradas() - getTotalSaidas()
-  }
-
+  // Funções utilitárias
   const getCategoryColor = (categoryName: string) => {
     const colors = {
       Dízimo: "bg-green-100 text-green-800",
@@ -310,6 +358,12 @@ export default function FinanceiroPage() {
       "Despesas Gerais": "bg-red-100 text-red-800",
       Salários: "bg-orange-100 text-orange-800",
       Manutenção: "bg-yellow-100 text-yellow-800",
+      teste: "bg-purple-100 text-purple-800",
+      test: "bg-blue-100 text-blue-800",
+      aaaaaa: "bg-yellow-100 text-yellow-800",
+      testes: "bg-green-100 text-green-800",
+      "teste ttt": "bg-orange-100 text-orange-800",
+      aaaaaaaaa: "bg-red-100 text-red-800",
     }
     return colors[categoryName as keyof typeof colors] || "bg-gray-100 text-gray-800"
   }
@@ -329,12 +383,18 @@ export default function FinanceiroPage() {
     }
   }
 
-  const getAvailableCategories = (type: string) => {
-    return financeCategories.filter((cat) => cat.isActive && (type === "" || cat.type === type))
-  }
-
-  if (!user) {
-    return <div>Carregando...</div>
+  if (loading) {
+    return (
+      <div className="flex h-screen bg-gray-50">
+        <Sidebar />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p>Carregando dados financeiros...</p>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -342,517 +402,83 @@ export default function FinanceiroPage() {
       <Sidebar />
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <header className="bg-white border-b border-gray-200 px-4 md:px-6 py-4 flex-shrink-0">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-xl md:text-2xl font-bold text-gray-900">Financeiro</h1>
-              <p className="text-sm md:text-base text-gray-600">Controle financeiro da igreja</p>
-            </div>
-            <div className="flex gap-1 md:gap-2">
-              <div className="flex border rounded-md">
-                <Button
-                  onClick={() => setViewMode("cards")}
-                  variant={viewMode === "cards" ? "default" : "ghost"}
-                  size="sm"
-                  className="rounded-r-none px-2 md:px-3"
-                >
-                  <Grid3X3 className="h-3 w-3 md:h-4 md:w-4" />
-                </Button>
-                <Button
-                  onClick={() => setViewMode("table")}
-                  variant={viewMode === "table" ? "default" : "ghost"}
-                  size="sm"
-                  className="rounded-l-none px-2 md:px-3"
-                >
-                  <Table className="h-3 w-3 md:h-4 md:w-4" />
-                </Button>
-              </div>
-              <Button
-                onClick={generatePDFReport}
-                variant="outline"
-                className="flex items-center gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-4"
-              >
-                <Download className="h-3 w-3 md:h-4 md:w-4" />
-                <span className="hidden sm:inline">Relatório</span>
-                <span className="sm:hidden">PDF</span>
-              </Button>
-              <Dialog open={isCategoryDialogOpen} onOpenChange={setIsCategoryDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="flex items-center gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-4"
-                  >
-                    <Settings className="h-3 w-3 md:h-4 md:w-4" />
-                    <span className="hidden sm:inline">Categorias</span>
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="w-[95vw] max-w-md mx-auto">
-                  <DialogHeader>
-                    <DialogTitle>Gerenciar Categorias</DialogTitle>
-                  </DialogHeader>
-                  <Tabs defaultValue="list" className="w-full">
-                    <TabsList className="grid w-full grid-cols-2">
-                      <TabsTrigger value="list">Lista</TabsTrigger>
-                      <TabsTrigger value="add">Adicionar</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="list" className="space-y-2 max-h-60 overflow-y-auto">
-                      {financeCategories.map((category) => (
-                        <div key={category.id} className="flex items-center justify-between p-2 border rounded">
-                          <div>
-                            <p className="font-medium">{category.name}</p>
-                            <p className="text-sm text-gray-500">{category.type === "entrada" ? "Entrada" : "Saída"}</p>
-                          </div>
-                          <Badge variant={category.type === "entrada" ? "default" : "destructive"}>
-                            {category.type === "entrada" ? "Entrada" : "Saída"}
-                          </Badge>
-                        </div>
-                      ))}
-                    </TabsContent>
-                    <TabsContent value="add">
-                      <form onSubmit={handleCreateCategory} className="space-y-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="category-name">Nome da Categoria</Label>
-                          <Input
-                            id="category-name"
-                            value={newCategory.name}
-                            onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
-                            placeholder="Ex: Manutenção"
-                            required
-                          />
-                        </div>
+        <PageHeader
+          onGenerateReport={generatePDFReport}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          onTestAuth={handleTestAuth}
+        />
 
-                        <div className="space-y-2">
-                          <Label htmlFor="category-type">Tipo</Label>
-                          <Select
-                            value={newCategory.type}
-                            onValueChange={(value) => setNewCategory({ ...newCategory, type: value })}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecione o tipo" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="entrada">Entrada</SelectItem>
-                              <SelectItem value="saida">Saída</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="category-description">Descrição (opcional)</Label>
-                          <Input
-                            id="category-description"
-                            value={newCategory.description}
-                            onChange={(e) => setNewCategory({ ...newCategory, description: e.target.value })}
-                            placeholder="Descrição da categoria"
-                          />
-                        </div>
-
-                        <Button type="submit" className="w-full">
-                          Criar Categoria
-                        </Button>
-                      </form>
-                    </TabsContent>
-                  </Tabs>
-                </DialogContent>
-              </Dialog>
-              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button className="flex items-center gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-4">
-                    <Plus className="h-3 w-3 md:h-4 md:w-4" />
-                    <span className="hidden sm:inline">Nova Transação</span>
-                    <span className="sm:hidden">Nova</span>
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="w-[95vw] max-w-md mx-auto max-h-[90vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle>Nova Transação</DialogTitle>
-                  </DialogHeader>
-                  <form onSubmit={handleCreateRecord} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="record-type">Tipo</Label>
-                      <Select
-                        value={newRecord.type}
-                        onValueChange={(value) => setNewRecord({ ...newRecord, type: value, categoryId: "" })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione o tipo" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="entrada">Entrada</SelectItem>
-                          <SelectItem value="saida">Saída</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="record-category">Categoria</Label>
-                      <Select
-                        value={newRecord.categoryId}
-                        onValueChange={(value) => setNewRecord({ ...newRecord, categoryId: value })}
-                        disabled={!newRecord.type}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione a categoria" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {getAvailableCategories(newRecord.type).map((category) => (
-                            <SelectItem key={category.id} value={category.id}>
-                              {category.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="record-description">Descrição</Label>
-                      <Input
-                        id="record-description"
-                        value={newRecord.description}
-                        onChange={(e) => setNewRecord({ ...newRecord, description: e.target.value })}
-                        placeholder="Descrição da transação"
-                        required
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="record-amount">Valor</Label>
-                        <Input
-                          id="record-amount"
-                          type="number"
-                          step="0.01"
-                          value={newRecord.amount}
-                          onChange={(e) => setNewRecord({ ...newRecord, amount: e.target.value })}
-                          placeholder="0,00"
-                          required
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="record-date">Data</Label>
-                        <Input
-                          id="record-date"
-                          type="date"
-                          value={newRecord.date}
-                          onChange={(e) => setNewRecord({ ...newRecord, date: e.target.value })}
-                          required
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="record-method">Método</Label>
-                      <Select
-                        value={newRecord.method}
-                        onValueChange={(value) => setNewRecord({ ...newRecord, method: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Forma de pagamento" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="dinheiro">Dinheiro</SelectItem>
-                          <SelectItem value="pix">PIX</SelectItem>
-                          <SelectItem value="cartao">Cartão</SelectItem>
-                          <SelectItem value="transferencia">Transferência</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {newRecord.type === "entrada" && (
-                      <div className="space-y-2">
-                        <Label htmlFor="record-member">Membro (opcional)</Label>
-                        <Input
-                          id="record-member"
-                          value={newRecord.member}
-                          onChange={(e) => setNewRecord({ ...newRecord, member: e.target.value })}
-                          placeholder="Nome do membro"
-                        />
-                      </div>
-                    )}
-
-                    <Button type="submit" className="w-full">
-                      Registrar Transação
-                    </Button>
-                  </form>
-                </DialogContent>
-              </Dialog>
-            </div>
-          </div>
-        </header>
-
-        {/* Main Content */}
         <div className="flex-1 overflow-y-auto">
           <div className="p-4 md:p-6">
-            {/* Summary Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 mb-4 md:mb-6">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-xs md:text-sm font-medium">Total Entradas</CardTitle>
-                  <TrendingUp className="h-3 w-3 md:h-4 md:w-4 text-green-600" />
-                </CardHeader>
-                <CardContent className="p-3 md:p-6 pt-0">
-                  <div className="text-lg md:text-2xl font-bold text-green-600">
-                    {formatCurrency(getTotalEntradas())}
-                  </div>
-                  <p className="text-xs text-muted-foreground hidden md:block">Dízimos, ofertas e doações</p>
-                </CardContent>
-              </Card>
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-4">
+                <p className="text-sm font-medium text-red-600">Erro: {error}</p>
+                <Button onClick={() => setError("")} variant="outline" size="sm" className="mt-2">
+                  Fechar
+                </Button>
+              </div>
+            )}
 
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-xs md:text-sm font-medium">Total Saídas</CardTitle>
-                  <TrendingDown className="h-3 w-3 md:h-4 md:w-4 text-red-600" />
-                </CardHeader>
-                <CardContent className="p-3 md:p-6 pt-0">
-                  <div className="text-lg md:text-2xl font-bold text-red-600">{formatCurrency(getTotalSaidas())}</div>
-                  <p className="text-xs text-muted-foreground hidden md:block">Despesas e salários</p>
-                </CardContent>
-              </Card>
+            <SummaryCards
+              totalEntradas={getTotalEntradas()}
+              totalSaidas={getTotalSaidas()}
+              saldo={balance}
+              totalTransacoes={getFilteredRecords().length}
+              formatCurrency={formatCurrency}
+            />
 
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-xs md:text-sm font-medium">Saldo</CardTitle>
-                  <DollarSign className="h-3 w-3 md:h-4 md:w-4 text-blue-600" />
-                </CardHeader>
-                <CardContent className="p-3 md:p-6 pt-0">
-                  <div
-                    className={`text-lg md:text-2xl font-bold ${getSaldo() >= 0 ? "text-green-600" : "text-red-600"}`}
-                  >
-                    {formatCurrency(getSaldo())}
-                  </div>
-                  <p className="text-xs text-muted-foreground hidden md:block">Entradas - Saídas</p>
-                </CardContent>
-              </Card>
+            <FiltersBar
+              filterType={filterType}
+              filterStartDate={filterStartDate}
+              filterEndDate={filterEndDate}
+              filterCategory={filterCategory}
+              categories={financeCategories}
+              onFilterTypeChange={setFilterType}
+              onFilterStartDateChange={setFilterStartDate}
+              onFilterEndDateChange={setFilterEndDate}
+              onFilterCategoryChange={setFilterCategory}
+            />
 
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-xs md:text-sm font-medium">Transações</CardTitle>
-                  <Receipt className="h-3 w-3 md:h-4 md:w-4 text-purple-600" />
-                </CardHeader>
-                <CardContent className="p-3 md:p-6 pt-0">
-                  <div className="text-lg md:text-2xl font-bold">{getFilteredRecords().length}</div>
-                  <p className="text-xs text-muted-foreground hidden md:block">Total de registros</p>
-                </CardContent>
-              </Card>
+            <div className="flex gap-2 mb-4">
+              <Button onClick={() => setIsTransactionModalOpen(true)}>Nova Transação</Button>
+              <Button onClick={() => setIsCategoryModalOpen(true)} variant="outline">
+                Gerenciar Categorias ({financeCategories.length})
+              </Button>
+              <Button onClick={handleTestCashFlowList} variant="outline" size="sm">
+                🧪 Testar Listagem
+              </Button>
             </div>
 
-            {/* Filters */}
-            <div className="mb-4 md:mb-6 flex items-center gap-2 md:gap-4 flex-wrap">
-              <div className="flex items-center gap-2">
-                <Filter className="h-3 w-3 md:h-4 md:w-4 text-gray-500" />
-                <Select value={filterType} onValueChange={setFilterType}>
-                  <SelectTrigger className="w-28 md:w-40 text-xs md:text-sm">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos</SelectItem>
-                    <SelectItem value="entrada">Entradas</SelectItem>
-                    <SelectItem value="saida">Saídas</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Input
-                  type="date"
-                  value={filterStartDate}
-                  onChange={(e) => setFilterStartDate(e.target.value)}
-                  placeholder="Data inicial"
-                  className="w-32 md:w-40 text-xs md:text-sm"
-                />
-                <span className="text-gray-500 text-xs">até</span>
-                <Input
-                  type="date"
-                  value={filterEndDate}
-                  onChange={(e) => setFilterEndDate(e.target.value)}
-                  placeholder="Data final"
-                  className="w-32 md:w-40 text-xs md:text-sm"
-                />
-              </div>
-
-              <Select value={filterCategory} onValueChange={setFilterCategory}>
-                <SelectTrigger className="w-32 md:w-40 text-xs md:text-sm">
-                  <SelectValue placeholder="Categoria" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas</SelectItem>
-                  {financeCategories.map((category) => (
-                    <SelectItem key={category.id} value={category.id}>
-                      {category.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Transactions List */}
-            <Card>
-              <CardHeader className="p-4 md:p-6">
-                <CardTitle className="flex items-center gap-2 text-base md:text-lg">
-                  <Receipt className="h-4 w-4 md:h-5 md:w-5" />
-                  Histórico de Transações
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 md:p-6 pt-0">
-                {viewMode === "cards" ? (
-                  // Visualização em Cards (código atual)
-                  <div className="space-y-3 md:space-y-4">
-                    {getFilteredRecords().map((record) => (
-                      <div
-                        key={record.id}
-                        className="flex flex-col md:flex-row md:items-center justify-between p-3 md:p-4 border border-gray-100 rounded-lg gap-3 md:gap-4"
-                      >
-                        <div className="flex items-start md:items-center gap-3 md:gap-4 flex-1">
-                          <div
-                            className={`p-2 rounded-full flex-shrink-0 ${record.type === "entrada" ? "bg-green-100" : "bg-red-100"}`}
-                          >
-                            {record.type === "entrada" ? (
-                              <TrendingUp className="h-3 w-3 md:h-4 md:w-4 text-green-600" />
-                            ) : (
-                              <TrendingDown className="h-3 w-3 md:h-4 md:w-4 text-red-600" />
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-medium text-sm md:text-base truncate">{record.description}</h4>
-                            <div className="flex flex-wrap items-center gap-1 md:gap-2 mt-1">
-                              <Badge className={`${getCategoryColor(record.categoryName)} text-xs`}>
-                                {record.categoryName}
-                              </Badge>
-                              <span className="text-xs md:text-sm text-gray-500">
-                                {getMethodIcon(record.method)} {record.method}
-                              </span>
-                              {record.member && (
-                                <span className="text-xs md:text-sm text-gray-500">• {record.member}</span>
-                              )}
-                            </div>
-                            <div className="text-xs text-gray-500 mt-1 md:hidden">
-                              {new Date(record.date).toLocaleDateString("pt-BR")}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-between md:justify-end gap-2 md:gap-2">
-                          <div className="text-left md:text-right">
-                            <div
-                              className={`text-base md:text-lg font-bold ${record.type === "entrada" ? "text-green-600" : "text-red-600"}`}
-                            >
-                              {record.type === "entrada" ? "+" : "-"}
-                              {formatCurrency(record.amount)}
-                            </div>
-                            <div className="text-xs md:text-sm text-gray-500 hidden md:block">
-                              {new Date(record.date).toLocaleDateString("pt-BR")}
-                            </div>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteRecord(record.id)}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50 p-1 md:p-2"
-                          >
-                            <Trash2 className="h-3 w-3 md:h-4 md:w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                    {getFilteredRecords().length === 0 && (
-                      <div className="text-center py-8 text-gray-500">
-                        <PiggyBank className="h-8 w-8 md:h-12 md:w-12 mx-auto mb-4 opacity-50" />
-                        <p className="text-sm md:text-base">Nenhuma transação encontrada</p>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  // Visualização em Tabela (estilo Excel)
-                  <div className="overflow-x-auto">
-                    <table className="w-full border-collapse">
-                      <thead>
-                        <tr className="border-b-2 border-gray-200">
-                          <th className="text-left p-3 font-semibold text-gray-700">Tipo</th>
-                          <th className="text-left p-3 font-semibold text-gray-700">Descrição</th>
-                          <th className="text-left p-3 font-semibold text-gray-700">Categoria</th>
-                          <th className="text-left p-3 font-semibold text-gray-700">Valor</th>
-                          <th className="text-left p-3 font-semibold text-gray-700">Data</th>
-                          <th className="text-left p-3 font-semibold text-gray-700">Método</th>
-                          <th className="text-left p-3 font-semibold text-gray-700">Membro</th>
-                          <th className="text-center p-3 font-semibold text-gray-700">Ações</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {getFilteredRecords().map((record, index) => (
-                          <tr
-                            key={record.id}
-                            className={`border-b border-gray-100 hover:bg-gray-50 ${index % 2 === 0 ? "bg-white" : "bg-gray-25"}`}
-                          >
-                            <td className="p-3">
-                              <div className="flex items-center gap-2">
-                                <div
-                                  className={`p-1 rounded-full ${record.type === "entrada" ? "bg-green-100" : "bg-red-100"}`}
-                                >
-                                  {record.type === "entrada" ? (
-                                    <TrendingUp className="h-3 w-3 text-green-600" />
-                                  ) : (
-                                    <TrendingDown className="h-3 w-3 text-red-600" />
-                                  )}
-                                </div>
-                                <span className="text-sm font-medium capitalize">{record.type}</span>
-                              </div>
-                            </td>
-                            <td className="p-3">
-                              <span className="text-sm font-medium">{record.description}</span>
-                            </td>
-                            <td className="p-3">
-                              <Badge className={`${getCategoryColor(record.categoryName)} text-xs`}>
-                                {record.categoryName}
-                              </Badge>
-                            </td>
-                            <td className="p-3">
-                              <span
-                                className={`text-sm font-bold ${record.type === "entrada" ? "text-green-600" : "text-red-600"}`}
-                              >
-                                {record.type === "entrada" ? "+" : "-"}
-                                {formatCurrency(record.amount)}
-                              </span>
-                            </td>
-                            <td className="p-3">
-                              <span className="text-sm text-gray-600">
-                                {new Date(record.date).toLocaleDateString("pt-BR")}
-                              </span>
-                            </td>
-                            <td className="p-3">
-                              <span className="text-sm text-gray-600">
-                                {getMethodIcon(record.method)} {record.method}
-                              </span>
-                            </td>
-                            <td className="p-3">
-                              <span className="text-sm text-gray-600">{record.member || "-"}</span>
-                            </td>
-                            <td className="p-3 text-center">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDeleteRecord(record.id)}
-                                className="text-red-600 hover:text-red-700 hover:bg-red-50 p-1"
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    {getFilteredRecords().length === 0 && (
-                      <div className="text-center py-8 text-gray-500">
-                        <PiggyBank className="h-8 w-8 md:h-12 md:w-12 mx-auto mb-4 opacity-50" />
-                        <p className="text-sm md:text-base">Nenhuma transação encontrada</p>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            <TransactionsList
+              transactions={getFilteredRecords()}
+              viewMode={viewMode}
+              formatCurrency={formatCurrency}
+              formatDate={formatDate}
+              getCategoryColor={getCategoryColor}
+              getCashFlowTypeText={getCashFlowTypeText}
+              getMethodIcon={getMethodIcon}
+              onViewModeChange={setViewMode}
+              onDelete={handleDeleteTransaction}
+            />
           </div>
         </div>
       </div>
+
+      {/* Modais */}
+      <NewTransactionModal
+        categories={financeCategories}
+        isOpen={isTransactionModalOpen}
+        onOpenChange={setIsTransactionModalOpen}
+        onSubmit={handleCreateTransaction}
+      />
+
+      <CategoriesModal
+        categories={financeCategories}
+        isOpen={isCategoryModalOpen}
+        onOpenChange={setIsCategoryModalOpen}
+        onCreateCategory={handleCreateCategory}
+      />
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
@@ -865,7 +491,7 @@ export default function FinanceiroPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDeleteRecord} className="bg-red-600 hover:bg-red-700">
+            <AlertDialogAction onClick={confirmDeleteTransaction} className="bg-red-600 hover:bg-red-700">
               Excluir
             </AlertDialogAction>
           </AlertDialogFooter>

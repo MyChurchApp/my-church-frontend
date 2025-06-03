@@ -1,3 +1,5 @@
+import { authFetch, authFetchJson } from "@/lib/auth-fetch"
+
 // Funções para interagir com a API real
 
 export interface ApiMember {
@@ -96,53 +98,7 @@ const getCurrentUser = () => {
 }
 
 // Função para fazer requisições autenticadas
-const authenticatedFetch = async (url: string, options: RequestInit = {}) => {
-  const token = getAuthToken()
-
-  if (!token) {
-    throw new Error("Token de autenticação não encontrado")
-  }
-
-  const headers = {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`,
-    ...options.headers,
-  }
-
-  console.log("Headers da requisição:", headers)
-
-  const response = await fetch(url, {
-    ...options,
-    headers,
-  })
-
-  if (!response.ok) {
-    // Capturar o texto de erro da resposta
-    let errorText = ""
-    try {
-      errorText = await response.text()
-      console.error("Resposta de erro da API:", errorText)
-    } catch (e) {
-      console.error("Não foi possível ler a resposta de erro")
-    }
-
-    if (response.status === 401) {
-      console.error("Erro de autenticação 401: Token inválido ou expirado")
-      // Token expirado ou inválido, redirecionar para login
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("authToken")
-        localStorage.removeItem("userRole")
-        localStorage.removeItem("user")
-        window.location.href = "/login"
-      }
-      throw new Error("Token expirado. Redirecionando para login...")
-    }
-
-    throw new Error(`Erro na API: ${response.status} - ${errorText || response.statusText}`)
-  }
-
-  return response
-}
+const authenticatedFetch = authFetch
 
 // Função para buscar o feed com paginação
 export const getFeedFromAPI = async (page = 1, pageSize = 10): Promise<ApiFeedResponse> => {
@@ -185,12 +141,8 @@ export const createMemberAPI = async (memberData: any): Promise<ApiMember> => {
     console.log("Token de autenticação:", token.substring(0, 20) + "...")
     console.log("Dados enviados para API:", JSON.stringify(memberData, null, 2))
 
-    const response = await fetch("https://demoapp.top1soft.com.br/api/Member", {
+    const response = await authFetchJson("https://demoapp.top1soft.com.br/api/Member", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
       body: JSON.stringify(memberData),
     })
 
@@ -248,12 +200,8 @@ export const updateMemberAPI = async (memberId: number, memberData: any): Promis
 
     console.log("Dados enviados para API (update):", JSON.stringify({ id: memberId, ...memberData }, null, 2))
 
-    const response = await fetch(`https://demoapp.top1soft.com.br/api/Member/${memberId}`, {
+    const response = await authFetchJson(`https://demoapp.top1soft.com.br/api/Member/${memberId}`, {
       method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
       body: JSON.stringify({ id: memberId, ...memberData }),
     })
 
@@ -294,12 +242,8 @@ export const deleteMemberAPI = async (memberId: number): Promise<boolean> => {
       throw new Error("Token de autenticação não encontrado. Faça login novamente.")
     }
 
-    const response = await fetch(`https://demoapp.top1soft.com.br/api/Member/${memberId}`, {
+    const response = await authenticatedFetch(`https://demoapp.top1soft.com.br/api/Member/${memberId}`, {
       method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
     })
 
     if (!response.ok && response.status === 401) {
@@ -324,7 +268,7 @@ export const deleteMemberAPI = async (memberId: number): Promise<boolean> => {
 // Função para criar um post no feed
 export const createFeedPost = async (content: string): Promise<ApiFeedItem> => {
   try {
-    const response = await authenticatedFetch("https://demoapp.top1soft.com.br/api/Feed", {
+    const response = await authFetchJson("https://demoapp.top1soft.com.br/api/Feed", {
       method: "POST",
       body: JSON.stringify({ content }),
     })
@@ -450,7 +394,7 @@ export const createFeedPost = async (content: string): Promise<ApiFeedItem> => {
 // Função para editar um post no feed
 export const updateFeedPost = async (postId: number, content: string): Promise<ApiFeedItem> => {
   try {
-    const response = await authenticatedFetch(`https://demoapp.top1soft.com.br/api/Feed/${postId}`, {
+    const response = await authFetchJson(`https://demoapp.top1soft.com.br/api/Feed/${postId}`, {
       method: "PUT",
       body: JSON.stringify({
         postId: 0, // Conforme a documentação da API
