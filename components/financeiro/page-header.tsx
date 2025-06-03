@@ -7,7 +7,6 @@ interface PageHeaderProps {
   viewMode: "cards" | "table"
   onViewModeChange: (mode: "cards" | "table") => void
   onGenerateReport: () => void
-  onTestAuth?: () => void
   onTestApi?: () => void
   onGetApiDetails?: () => void
 }
@@ -16,7 +15,6 @@ export function PageHeader({
   viewMode,
   onViewModeChange,
   onGenerateReport,
-  onTestAuth,
   onTestApi,
   onGetApiDetails,
 }: PageHeaderProps) {
@@ -28,12 +26,6 @@ export function PageHeader({
       </div>
 
       <div className="flex items-center space-x-2 mt-4 md:mt-0">
-        {onTestAuth && (
-          <Button onClick={onTestAuth} variant="outline" size="sm">
-            Testar Auth
-          </Button>
-        )}
-
         {onTestApi && (
           <Button onClick={onTestApi} variant="outline" size="sm">
             Testar API
