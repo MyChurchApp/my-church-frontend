@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Switch } from "@/components/ui/switch"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   Users,
   Plus,
@@ -32,35 +33,59 @@ import {
   UserX,
   Download,
   FileText,
+  Loader2,
+  AlertCircle,
+  Trash2,
 } from "lucide-react"
-import { getUser, getMembers, type User, type Member } from "@/lib/fake-api"
+import { getUser, type User } from "@/lib/fake-api"
+import {
+  getMembersFromAPI,
+  createMemberAPI,
+  updateMemberAPI,
+  deleteMemberAPI,
+  convertApiMemberToLocal,
+  convertLocalMemberToApi,
+} from "@/lib/api"
 
 export default function MembrosPage() {
   const router = useRouter()
   const [user, setUser] = useState<User | null>(null)
-  const [members, setMembers] = useState<Member[]>([])
-  const [filteredMembers, setFilteredMembers] = useState<Member[]>([])
+  const [members, setMembers] = useState<any[]>([])
+  const [filteredMembers, setFilteredMembers] = useState<any[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
-  const [selectedMember, setSelectedMember] = useState<Member | null>(null)
+  const [selectedMember, setSelectedMember] = useState<any | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+
+  // Paginação
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
+  const pageSize = 20
 
   // Form state for new/edit member
   const [memberForm, setMemberForm] = useState({
     name: "",
     email: "",
     phone: "",
-    cpf: "",
+    document: "", // Renomeado de cpf para document para corresponder à API
+    photo: "base64", // Valor padrão conforme exemplo
     birthDate: "",
     address: "",
     city: "",
     state: "",
     zipCode: "",
     maritalStatus: "",
-    baptized: false,
+    isBaptized: false, // Renomeado de baptized para isBaptized para corresponder à API
+    baptizedDate: "",
+    isTither: false,
     memberSince: "",
     ministry: "",
+    roleMember: 0, // Campo obrigatório conforme documentação
     isActive: true,
     notes: "",
   })
@@ -73,10 +98,50 @@ export default function MembrosPage() {
     }
 
     setUser(userData)
-    const membersData = getMembers()
-    setMembers(membersData)
-    setFilteredMembers(membersData)
-  }, [router])
+    loadMembers()
+  }, [router, currentPage])
+
+  // Atualizar o loadMembers para melhor tratamento de erros
+  const loadMembers = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      console.log("Carregando membros da API...")
+
+      const response = await getMembersFromAPI(currentPage, pageSize)
+      console.log("Resposta da API (membros):", response)
+
+      // Converter membros da API para o formato local
+      const convertedMembers = response.items.map(convertApiMemberToLocal)
+
+      setMembers(convertedMembers)
+      setFilteredMembers(convertedMembers)
+      setTotalPages(response.totalPages)
+      setTotalCount(response.totalCount)
+    } catch (error: any) {
+      console.error("Erro ao carregar membros:", error)
+
+      let errorMessage = "Erro ao carregar membros"
+      if (error.message) {
+        if (error.message.includes("401")) {
+          errorMessage = "Não autorizado. Faça login novamente."
+          // Redirecionar para login após um tempo
+          setTimeout(() => {
+            router.push("/login")
+          }, 2000)
+        } else if (error.message.includes("500")) {
+          errorMessage = "Erro interno do servidor. Tente novamente mais tarde."
+        } else {
+          errorMessage = error.message
+        }
+      }
+
+      setError(errorMessage)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
     let filtered = members
@@ -131,10 +196,10 @@ export default function MembrosPage() {
 
         <div class="summary">
           <h2>RESUMO GERAL</h2>
-          <p><strong>Total de Membros:</strong> ${members.length}</p>
+          <p><strong>Total de Membros:</strong> ${totalCount}</p>
           <p><strong>Membros Ativos:</strong> ${activeMembers.length}</p>
           <p><strong>Membros Inativos:</strong> ${inactiveMembers.length}</p>
-          <p><strong>Taxa de Atividade:</strong> ${((activeMembers.length / members.length) * 100).toFixed(1)}%</p>
+          <p><strong>Taxa de Atividade:</strong> ${totalCount > 0 ? ((activeMembers.length / totalCount) * 100).toFixed(1) : 0}%</p>
         </div>
 
         <div class="member-section">
@@ -148,11 +213,11 @@ export default function MembrosPage() {
                 <p><strong>Email:</strong> ${member.email}</p>
                 <p><strong>Telefone:</strong> ${member.phone}</p>
                 <p><strong>CPF:</strong> ${member.cpf}</p>
-                <p><strong>Data de Nascimento:</strong> ${new Date(member.birthDate).toLocaleDateString("pt-BR")}</p>
-                <p><strong>Estado Civil:</strong> ${member.maritalStatus}</p>
-                <p><strong>Endereço:</strong> ${member.address}, ${member.city} - ${member.state}, ${member.zipCode}</p>
-                <p><strong>Membro desde:</strong> ${new Date(member.memberSince).toLocaleDateString("pt-BR")}</p>
-                <p><strong>Ministério:</strong> ${member.ministry}</p>
+                <p><strong>Data de Nascimento:</strong> ${member.birthDate ? new Date(member.birthDate).toLocaleDateString("pt-BR") : "Não informado"}</p>
+                <p><strong>Estado Civil:</strong> ${member.maritalStatus || "Não informado"}</p>
+                <p><strong>Endereço:</strong> ${member.address || "Não informado"}, ${member.city || ""} - ${member.state || ""}, ${member.zipCode || ""}</p>
+                <p><strong>Membro desde:</strong> ${member.memberSince ? new Date(member.memberSince).toLocaleDateString("pt-BR") : "Não informado"}</p>
+                <p><strong>Ministério:</strong> ${member.ministry || "Não informado"}</p>
                 <p><strong>Batizado:</strong> ${member.baptized ? "Sim" : "Não"}</p>
                 ${member.notes ? `<p><strong>Observações:</strong> ${member.notes}</p>` : ""}
               </div>
@@ -175,7 +240,7 @@ export default function MembrosPage() {
               <div class="member-details">
                 <p><strong>Email:</strong> ${member.email}</p>
                 <p><strong>Telefone:</strong> ${member.phone}</p>
-                <p><strong>Membro desde:</strong> ${new Date(member.memberSince).toLocaleDateString("pt-BR")}</p>
+                <p><strong>Membro desde:</strong> ${member.memberSince ? new Date(member.memberSince).toLocaleDateString("pt-BR") : "Não informado"}</p>
                 ${member.notes ? `<p><strong>Observações:</strong> ${member.notes}</p>` : ""}
               </div>
             </div>
@@ -207,52 +272,224 @@ export default function MembrosPage() {
     )
   }
 
+  // Atualizar o handleCreateMember para melhor validação e tratamento de erros
   const handleCreateMember = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!memberForm.name || !memberForm.email || !memberForm.phone) return
 
-    const newMember: Member = {
-      id: Date.now().toString(),
-      ...memberForm,
-      photo: "/placeholder.svg?height=100&width=100&query=church+member",
+    // Validação básica mais rigorosa
+    if (!memberForm.name.trim()) {
+      setError("Nome é obrigatório")
+      return
     }
 
-    setMembers([...members, newMember])
-    resetForm()
-    setIsCreateDialogOpen(false)
+    if (!memberForm.email.trim()) {
+      setError("Email é obrigatório")
+      return
+    }
+
+    if (!memberForm.phone.trim()) {
+      setError("Telefone é obrigatório")
+      return
+    }
+
+    if (!memberForm.document.trim()) {
+      setError("Documento (CPF) é obrigatório")
+      return
+    }
+
+    if (!memberForm.birthDate.trim()) {
+      setError("Data de nascimento é obrigatória")
+      return
+    }
+
+    // Validar formato de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(memberForm.email.trim())) {
+      setError("Email deve ter um formato válido")
+      return
+    }
+
+    // Validar CPF (formato básico)
+    const cpfRegex = /^\d{11}$|^\d{3}\.\d{3}\.\d{3}-\d{2}$/
+    if (!cpfRegex.test(memberForm.document.trim())) {
+      setError("CPF deve ter 11 dígitos ou formato 000.000.000-00")
+      return
+    }
+
+    try {
+      setSubmitting(true)
+      setError(null)
+
+      console.log("Dados do formulário:", memberForm)
+
+      const apiMemberData = convertLocalMemberToApi(memberForm)
+      console.log("Dados convertidos para API:", apiMemberData)
+
+      const newApiMember = await createMemberAPI(apiMemberData)
+      const newMember = convertApiMemberToLocal(newApiMember)
+
+      setMembers([newMember, ...members])
+      resetForm()
+      setIsCreateDialogOpen(false)
+
+      // Recarregar a lista para garantir sincronização
+      await loadMembers()
+    } catch (error: any) {
+      console.error("Erro ao criar membro:", error)
+
+      // Extrair mensagem de erro mais específica
+      let errorMessage = "Erro ao criar membro"
+      if (error.message) {
+        if (error.message.includes("400")) {
+          errorMessage = "Dados inválidos. Verifique os campos obrigatórios."
+        } else if (error.message.includes("401")) {
+          errorMessage = "Não autorizado. Faça login novamente."
+        } else if (error.message.includes("500")) {
+          errorMessage = "Erro interno do servidor. Tente novamente mais tarde."
+        } else {
+          errorMessage = error.message
+        }
+      }
+
+      setError(errorMessage)
+    } finally {
+      setSubmitting(false)
+    }
   }
 
+  // Atualizar o handleEditMember para melhor validação e tratamento de erros
   const handleEditMember = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedMember || !memberForm.name || !memberForm.email || !memberForm.phone) return
 
-    const updatedMember: Member = {
-      ...selectedMember,
-      ...memberForm,
+    if (!selectedMember) {
+      setError("Nenhum membro selecionado")
+      return
     }
 
-    setMembers(members.map((member) => (member.id === selectedMember.id ? updatedMember : member)))
-    resetForm()
-    setSelectedMember(null)
-    setIsEditDialogOpen(false)
+    // Validação básica mais rigorosa
+    if (!memberForm.name.trim()) {
+      setError("Nome é obrigatório")
+      return
+    }
+
+    if (!memberForm.email.trim()) {
+      setError("Email é obrigatório")
+      return
+    }
+
+    if (!memberForm.phone.trim()) {
+      setError("Telefone é obrigatório")
+      return
+    }
+
+    if (!memberForm.document.trim()) {
+      setError("Documento (CPF) é obrigatório")
+      return
+    }
+
+    if (!memberForm.birthDate.trim()) {
+      setError("Data de nascimento é obrigatória")
+      return
+    }
+
+    // Validar formato de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(memberForm.email.trim())) {
+      setError("Email deve ter um formato válido")
+      return
+    }
+
+    // Validar CPF (formato básico)
+    const cpfRegex = /^\d{11}$|^\d{3}\.\d{3}\.\d{3}-\d{2}$/
+    if (!cpfRegex.test(memberForm.document.trim())) {
+      setError("CPF deve ter 11 dígitos ou formato 000.000.000-00")
+      return
+    }
+
+    try {
+      setSubmitting(true)
+      setError(null)
+
+      console.log("Dados do formulário (edit):", memberForm)
+
+      const apiMemberData = convertLocalMemberToApi(memberForm)
+      console.log("Dados convertidos para API (edit):", apiMemberData)
+
+      const updatedApiMember = await updateMemberAPI(Number.parseInt(selectedMember.id), apiMemberData)
+      const updatedMember = convertApiMemberToLocal(updatedApiMember)
+
+      setMembers(members.map((member) => (member.id === selectedMember.id ? updatedMember : member)))
+      resetForm()
+      setSelectedMember(null)
+      setIsEditDialogOpen(false)
+
+      // Recarregar a lista para garantir sincronização
+      await loadMembers()
+    } catch (error: any) {
+      console.error("Erro ao editar membro:", error)
+
+      // Extrair mensagem de erro mais específica
+      let errorMessage = "Erro ao editar membro"
+      if (error.message) {
+        if (error.message.includes("400")) {
+          errorMessage = "Dados inválidos. Verifique os campos obrigatórios."
+        } else if (error.message.includes("401")) {
+          errorMessage = "Não autorizado. Faça login novamente."
+        } else if (error.message.includes("404")) {
+          errorMessage = "Membro não encontrado."
+        } else if (error.message.includes("500")) {
+          errorMessage = "Erro interno do servidor. Tente novamente mais tarde."
+        } else {
+          errorMessage = error.message
+        }
+      }
+
+      setError(errorMessage)
+    } finally {
+      setSubmitting(false)
+    }
   }
 
-  const openEditDialog = (member: Member) => {
+  const handleDeleteMember = async (member: any) => {
+    if (!confirm(`Tem certeza que deseja excluir o membro ${member.name}?`)) return
+
+    try {
+      setSubmitting(true)
+      setError(null)
+
+      await deleteMemberAPI(Number.parseInt(member.id))
+      setMembers(members.filter((m) => m.id !== member.id))
+
+      // Recarregar a lista para garantir sincronização
+      await loadMembers()
+    } catch (error: any) {
+      console.error("Erro ao deletar membro:", error)
+      setError(error.message || "Erro ao deletar membro")
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const openEditDialog = (member: any) => {
     setSelectedMember(member)
     setMemberForm({
       name: member.name,
       email: member.email,
       phone: member.phone,
-      cpf: member.cpf,
+      document: member.cpf, // Renomeado de cpf para document
+      photo: member.photo || "base64",
       birthDate: member.birthDate,
       address: member.address,
       city: member.city,
       state: member.state,
       zipCode: member.zipCode,
       maritalStatus: member.maritalStatus,
-      baptized: member.baptized,
+      isBaptized: member.baptized, // Renomeado de baptized para isBaptized
+      baptizedDate: member.baptizedDate || "",
+      isTither: member.isTither || false,
       memberSince: member.memberSince,
       ministry: member.ministry,
+      roleMember: 0, // Valor padrão
       isActive: member.isActive,
       notes: member.notes || "",
     })
@@ -264,27 +501,31 @@ export default function MembrosPage() {
       name: "",
       email: "",
       phone: "",
-      cpf: "",
+      document: "", // Renomeado de cpf para document
+      photo: "base64", // Valor padrão
       birthDate: "",
       address: "",
       city: "",
       state: "",
       zipCode: "",
       maritalStatus: "",
-      baptized: false,
+      isBaptized: false, // Renomeado de baptized para isBaptized
+      baptizedDate: "",
+      isTither: false,
       memberSince: "",
       ministry: "",
+      roleMember: 0, // Valor padrão
       isActive: true,
       notes: "",
     })
   }
 
-  const handleSendPasswordReset = (member: Member) => {
+  const handleSendPasswordReset = (member: any) => {
     // Simular envio de email de recuperação
     alert(`Email de recuperação de senha enviado para ${member.email}`)
   }
 
-  const handleGenerateNewPassword = (member: Member) => {
+  const handleGenerateNewPassword = (member: any) => {
     // Simular geração de nova senha
     const newPassword = Math.random().toString(36).slice(-8)
     alert(`Nova senha gerada para ${member.name}: ${newPassword}`)
@@ -302,6 +543,10 @@ export default function MembrosPage() {
         Inativo
       </Badge>
     )
+  }
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page)
   }
 
   if (!user) {
@@ -351,12 +596,13 @@ export default function MembrosPage() {
                             />
                           </div>
                           <div className="space-y-2">
-                            <Label htmlFor="member-cpf">CPF</Label>
+                            <Label htmlFor="member-document">Documento (CPF) *</Label>
                             <Input
-                              id="member-cpf"
-                              value={memberForm.cpf}
-                              onChange={(e) => setMemberForm({ ...memberForm, cpf: e.target.value })}
+                              id="member-document"
+                              value={memberForm.document}
+                              onChange={(e) => setMemberForm({ ...memberForm, document: e.target.value })}
                               placeholder="000.000.000-00"
+                              required
                             />
                           </div>
                         </div>
@@ -387,12 +633,13 @@ export default function MembrosPage() {
 
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2">
-                            <Label htmlFor="member-birth">Data de Nascimento</Label>
+                            <Label htmlFor="member-birth">Data de Nascimento *</Label>
                             <Input
                               id="member-birth"
                               type="date"
                               value={memberForm.birthDate}
                               onChange={(e) => setMemberForm({ ...memberForm, birthDate: e.target.value })}
+                              required
                             />
                           </div>
                           <div className="space-y-2">
@@ -405,52 +652,12 @@ export default function MembrosPage() {
                                 <SelectValue placeholder="Selecione" />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="solteiro">Solteiro(a)</SelectItem>
-                                <SelectItem value="casado">Casado(a)</SelectItem>
-                                <SelectItem value="divorciado">Divorciado(a)</SelectItem>
-                                <SelectItem value="viuvo">Viúvo(a)</SelectItem>
+                                <SelectItem value="Solteiro">Solteiro(a)</SelectItem>
+                                <SelectItem value="Casado">Casado(a)</SelectItem>
+                                <SelectItem value="Divorciado">Divorciado(a)</SelectItem>
+                                <SelectItem value="Viuvo">Viúvo(a)</SelectItem>
                               </SelectContent>
                             </Select>
-                          </div>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="member-address">Endereço</Label>
-                          <Input
-                            id="member-address"
-                            value={memberForm.address}
-                            onChange={(e) => setMemberForm({ ...memberForm, address: e.target.value })}
-                            placeholder="Rua, número, complemento"
-                          />
-                        </div>
-
-                        <div className="grid grid-cols-3 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="member-city">Cidade</Label>
-                            <Input
-                              id="member-city"
-                              value={memberForm.city}
-                              onChange={(e) => setMemberForm({ ...memberForm, city: e.target.value })}
-                              placeholder="Cidade"
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="member-state">Estado</Label>
-                            <Input
-                              id="member-state"
-                              value={memberForm.state}
-                              onChange={(e) => setMemberForm({ ...memberForm, state: e.target.value })}
-                              placeholder="UF"
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="member-zip">CEP</Label>
-                            <Input
-                              id="member-zip"
-                              value={memberForm.zipCode}
-                              onChange={(e) => setMemberForm({ ...memberForm, zipCode: e.target.value })}
-                              placeholder="00000-000"
-                            />
                           </div>
                         </div>
 
@@ -478,10 +685,31 @@ export default function MembrosPage() {
                         <div className="flex items-center space-x-2">
                           <Switch
                             id="member-baptized"
-                            checked={memberForm.baptized}
-                            onCheckedChange={(checked) => setMemberForm({ ...memberForm, baptized: checked })}
+                            checked={memberForm.isBaptized}
+                            onCheckedChange={(checked) => setMemberForm({ ...memberForm, isBaptized: checked })}
                           />
                           <Label htmlFor="member-baptized">Batizado</Label>
+                        </div>
+
+                        {memberForm.isBaptized && (
+                          <div className="space-y-2">
+                            <Label htmlFor="member-baptized-date">Data de Batismo</Label>
+                            <Input
+                              id="member-baptized-date"
+                              type="date"
+                              value={memberForm.baptizedDate}
+                              onChange={(e) => setMemberForm({ ...memberForm, baptizedDate: e.target.value })}
+                            />
+                          </div>
+                        )}
+
+                        <div className="flex items-center space-x-2">
+                          <Switch
+                            id="member-tither"
+                            checked={memberForm.isTither}
+                            onCheckedChange={(checked) => setMemberForm({ ...memberForm, isTither: checked })}
+                          />
+                          <Label htmlFor="member-tither">Dizimista</Label>
                         </div>
 
                         <div className="space-y-2">
@@ -495,8 +723,15 @@ export default function MembrosPage() {
                           />
                         </div>
 
-                        <Button type="submit" className="w-full">
-                          Cadastrar Membro
+                        <Button type="submit" className="w-full" disabled={submitting}>
+                          {submitting ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Cadastrando...
+                            </>
+                          ) : (
+                            "Cadastrar Membro"
+                          )}
                         </Button>
                       </form>
                     </DialogContent>
@@ -506,6 +741,16 @@ export default function MembrosPage() {
             </div>
           </div>
         </header>
+
+        {/* Error Alert */}
+        {error && (
+          <div className="px-6 py-2">
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          </div>
+        )}
 
         {/* Edit Member Dialog */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
@@ -526,12 +771,13 @@ export default function MembrosPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="edit-member-cpf">CPF</Label>
+                  <Label htmlFor="edit-member-document">Documento (CPF) *</Label>
                   <Input
-                    id="edit-member-cpf"
-                    value={memberForm.cpf}
-                    onChange={(e) => setMemberForm({ ...memberForm, cpf: e.target.value })}
+                    id="edit-member-document"
+                    value={memberForm.document}
+                    onChange={(e) => setMemberForm({ ...memberForm, document: e.target.value })}
                     placeholder="000.000.000-00"
+                    required
                   />
                 </div>
               </div>
@@ -562,12 +808,13 @@ export default function MembrosPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="edit-member-birth">Data de Nascimento</Label>
+                  <Label htmlFor="edit-member-birth">Data de Nascimento *</Label>
                   <Input
                     id="edit-member-birth"
                     type="date"
                     value={memberForm.birthDate}
                     onChange={(e) => setMemberForm({ ...memberForm, birthDate: e.target.value })}
+                    required
                   />
                 </div>
                 <div className="space-y-2">
@@ -580,52 +827,12 @@ export default function MembrosPage() {
                       <SelectValue placeholder="Selecione" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="solteiro">Solteiro(a)</SelectItem>
-                      <SelectItem value="casado">Casado(a)</SelectItem>
-                      <SelectItem value="divorciado">Divorciado(a)</SelectItem>
-                      <SelectItem value="viuvo">Viúvo(a)</SelectItem>
+                      <SelectItem value="Solteiro">Solteiro(a)</SelectItem>
+                      <SelectItem value="Casado">Casado(a)</SelectItem>
+                      <SelectItem value="Divorciado">Divorciado(a)</SelectItem>
+                      <SelectItem value="Viuvo">Viúvo(a)</SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="edit-member-address">Endereço</Label>
-                <Input
-                  id="edit-member-address"
-                  value={memberForm.address}
-                  onChange={(e) => setMemberForm({ ...memberForm, address: e.target.value })}
-                  placeholder="Rua, número, complemento"
-                />
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="edit-member-city">Cidade</Label>
-                  <Input
-                    id="edit-member-city"
-                    value={memberForm.city}
-                    onChange={(e) => setMemberForm({ ...memberForm, city: e.target.value })}
-                    placeholder="Cidade"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-member-state">Estado</Label>
-                  <Input
-                    id="edit-member-state"
-                    value={memberForm.state}
-                    onChange={(e) => setMemberForm({ ...memberForm, state: e.target.value })}
-                    placeholder="UF"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-member-zip">CEP</Label>
-                  <Input
-                    id="edit-member-zip"
-                    value={memberForm.zipCode}
-                    onChange={(e) => setMemberForm({ ...memberForm, zipCode: e.target.value })}
-                    placeholder="00000-000"
-                  />
                 </div>
               </div>
 
@@ -653,10 +860,31 @@ export default function MembrosPage() {
               <div className="flex items-center space-x-2">
                 <Switch
                   id="edit-member-baptized"
-                  checked={memberForm.baptized}
-                  onCheckedChange={(checked) => setMemberForm({ ...memberForm, baptized: checked })}
+                  checked={memberForm.isBaptized}
+                  onCheckedChange={(checked) => setMemberForm({ ...memberForm, isBaptized: checked })}
                 />
                 <Label htmlFor="edit-member-baptized">Batizado</Label>
+              </div>
+
+              {memberForm.isBaptized && (
+                <div className="space-y-2">
+                  <Label htmlFor="edit-member-baptized-date">Data de Batismo</Label>
+                  <Input
+                    id="edit-member-baptized-date"
+                    type="date"
+                    value={memberForm.baptizedDate}
+                    onChange={(e) => setMemberForm({ ...memberForm, baptizedDate: e.target.value })}
+                  />
+                </div>
+              )}
+
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="edit-member-tither"
+                  checked={memberForm.isTither}
+                  onCheckedChange={(checked) => setMemberForm({ ...memberForm, isTither: checked })}
+                />
+                <Label htmlFor="edit-member-tither">Dizimista</Label>
               </div>
 
               <div className="flex items-center space-x-2">
@@ -705,8 +933,15 @@ export default function MembrosPage() {
                 </div>
               )}
 
-              <Button type="submit" className="w-full">
-                Salvar Alterações
+              <Button type="submit" className="w-full" disabled={submitting}>
+                {submitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Salvando...
+                  </>
+                ) : (
+                  "Salvar Alterações"
+                )}
               </Button>
             </form>
           </DialogContent>
@@ -726,7 +961,7 @@ export default function MembrosPage() {
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-blue-600">{members.length}</div>
+                    <div className="text-2xl font-bold text-blue-600">{totalCount}</div>
                     <p className="text-sm text-gray-600">Total de Membros</p>
                   </div>
                   <div className="text-center">
@@ -771,77 +1006,125 @@ export default function MembrosPage() {
               </div>
             </div>
 
+            {/* Loading State */}
+            {loading && (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                <span className="ml-2 text-gray-600">Carregando membros...</span>
+              </div>
+            )}
+
             {/* Members Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {filteredMembers.map((member) => (
-                <Card key={member.id} className="hover:shadow-md transition-shadow">
-                  <CardContent className="p-4">
-                    <div className="flex flex-col items-center text-center">
-                      <Avatar className="h-20 w-20 mb-3">
-                        <AvatarImage src={member.photo || "/placeholder.svg"} alt={member.name} />
-                        <AvatarFallback className="text-lg">
-                          {member.name
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")}
-                        </AvatarFallback>
-                      </Avatar>
+            {!loading && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {filteredMembers.map((member) => (
+                  <Card key={member.id} className="hover:shadow-md transition-shadow">
+                    <CardContent className="p-4">
+                      <div className="flex flex-col items-center text-center">
+                        <Avatar className="h-20 w-20 mb-3">
+                          <AvatarImage src={member.photo || "/placeholder.svg"} alt={member.name} />
+                          <AvatarFallback className="text-lg">
+                            {member.name
+                              .split(" ")
+                              .map((n) => n[0])
+                              .join("")}
+                          </AvatarFallback>
+                        </Avatar>
 
-                      <h3 className="font-semibold text-lg mb-1">{member.name}</h3>
+                        <h3 className="font-semibold text-lg mb-1">{member.name}</h3>
 
-                      {user.accessLevel === "admin" ? (
-                        <>
+                        {user.accessLevel === "admin" ? (
+                          <>
+                            <div className="mb-3">{getStatusBadge(member.isActive)}</div>
+
+                            <div className="w-full space-y-2 text-sm text-gray-600">
+                              <div className="flex items-center gap-2">
+                                <Mail className="h-4 w-4" />
+                                <span className="truncate">{member.email}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Phone className="h-4 w-4" />
+                                <span>{member.phone}</span>
+                              </div>
+                              {member.city && (
+                                <div className="flex items-center gap-2">
+                                  <MapPin className="h-4 w-4" />
+                                  <span className="truncate">
+                                    {member.city}, {member.state}
+                                  </span>
+                                </div>
+                              )}
+                              {member.memberSince && (
+                                <div className="flex items-center gap-2">
+                                  <Calendar className="h-4 w-4" />
+                                  <span>Membro desde {new Date(member.memberSince).getFullYear()}</span>
+                                </div>
+                              )}
+                              {member.ministry && (
+                                <div className="flex items-center gap-2">
+                                  <Heart className="h-4 w-4" />
+                                  <span className="truncate">{member.ministry}</span>
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="flex gap-2 mt-4 w-full">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => openEditDialog(member)}
+                                className="flex-1 flex items-center gap-2"
+                              >
+                                <Edit className="h-4 w-4" />
+                                Editar
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDeleteMember(member)}
+                                className="flex items-center gap-2 text-red-600 hover:text-red-700"
+                                disabled={submitting}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </>
+                        ) : (
                           <div className="mb-3">{getStatusBadge(member.isActive)}</div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
 
-                          <div className="w-full space-y-2 text-sm text-gray-600">
-                            <div className="flex items-center gap-2">
-                              <Mail className="h-4 w-4" />
-                              <span className="truncate">{member.email}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Phone className="h-4 w-4" />
-                              <span>{member.phone}</span>
-                            </div>
-                            {member.address && (
-                              <div className="flex items-center gap-2">
-                                <MapPin className="h-4 w-4" />
-                                <span className="truncate">
-                                  {member.city}, {member.state}
-                                </span>
-                              </div>
-                            )}
-                            <div className="flex items-center gap-2">
-                              <Calendar className="h-4 w-4" />
-                              <span>Membro desde {new Date(member.memberSince).getFullYear()}</span>
-                            </div>
-                            {member.ministry && (
-                              <div className="flex items-center gap-2">
-                                <Heart className="h-4 w-4" />
-                                <span className="truncate">{member.ministry}</span>
-                              </div>
-                            )}
-                          </div>
+            {/* Pagination */}
+            {!loading && totalPages > 1 && (
+              <div className="flex justify-center items-center gap-2 mt-6">
+                <Button
+                  variant="outline"
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                >
+                  Anterior
+                </Button>
 
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => openEditDialog(member)}
-                            className="mt-4 w-full flex items-center gap-2"
-                          >
-                            <Edit className="h-4 w-4" />
-                            Editar
-                          </Button>
-                        </>
-                      ) : (
-                        <div className="mb-3">{getStatusBadge(member.isActive)}</div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                <span className="text-sm text-gray-600">
+                  Página {currentPage} de {totalPages} ({totalCount} membros)
+                </span>
 
-            {filteredMembers.length === 0 && (
+                <Button
+                  variant="outline"
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                >
+                  Próxima
+                </Button>
+              </div>
+            )}
+
+            {!loading && filteredMembers.length === 0 && (
               <div className="text-center py-12">
                 <Users className="h-12 w-12 mx-auto mb-4 text-gray-400" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum membro encontrado</h3>

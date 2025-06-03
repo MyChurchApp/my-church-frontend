@@ -12,7 +12,24 @@ export interface ApiMember {
   baptizedDate: string
   isTither: boolean
   churchId: number
-  church: any
+  church: {
+    id: number
+    name: string
+    logo: string
+    address: {
+      id: number
+      street: string
+      city: string
+      state: string
+      zipCode: string
+      country: string
+      neighborhood: string
+    }
+    phone: string
+    description: string
+    members: string[]
+    subscription: any
+  }
   role: number
   created: string
   updated: string | null
@@ -21,6 +38,15 @@ export interface ApiMember {
   ministry: string | null
   isActive: boolean
   notes: string | null
+}
+
+// Interface para resposta paginada de membros
+export interface ApiMembersResponse {
+  items: ApiMember[]
+  pageNumber: number
+  pageSize: number
+  totalCount: number
+  totalPages: number
 }
 
 export interface ApiFeedItem {
@@ -61,6 +87,7 @@ const getCurrentUser = () => {
       id: payload.nameid || "1",
       name: payload.name || payload.email || "Usuário",
       email: payload.email || "",
+      churchId: payload.churchId || 0,
     }
   } catch (error) {
     console.error("Erro ao decodificar token:", error)
@@ -82,13 +109,25 @@ const authenticatedFetch = async (url: string, options: RequestInit = {}) => {
     ...options.headers,
   }
 
+  console.log("Headers da requisição:", headers)
+
   const response = await fetch(url, {
     ...options,
     headers,
   })
 
   if (!response.ok) {
+    // Capturar o texto de erro da resposta
+    let errorText = ""
+    try {
+      errorText = await response.text()
+      console.error("Resposta de erro da API:", errorText)
+    } catch (e) {
+      console.error("Não foi possível ler a resposta de erro")
+    }
+
     if (response.status === 401) {
+      console.error("Erro de autenticação 401: Token inválido ou expirado")
       // Token expirado ou inválido, redirecionar para login
       if (typeof window !== "undefined") {
         localStorage.removeItem("authToken")
@@ -98,7 +137,8 @@ const authenticatedFetch = async (url: string, options: RequestInit = {}) => {
       }
       throw new Error("Token expirado. Redirecionando para login...")
     }
-    throw new Error(`Erro na API: ${response.status}`)
+
+    throw new Error(`Erro na API: ${response.status} - ${errorText || response.statusText}`)
   }
 
   return response
@@ -114,6 +154,169 @@ export const getFeedFromAPI = async (page = 1, pageSize = 10): Promise<ApiFeedRe
     return data
   } catch (error) {
     console.error("Erro ao buscar feed da API:", error)
+    throw error
+  }
+}
+
+// Função para buscar membros da API
+export const getMembersFromAPI = async (page = 1, pageSize = 10): Promise<ApiMembersResponse> => {
+  try {
+    const url = `https://demoapp.top1soft.com.br/api/Member?pageNumber=${page}&pageSize=${pageSize}`
+    const response = await authenticatedFetch(url)
+    const data: ApiMembersResponse = await response.json()
+
+    return data
+  } catch (error) {
+    console.error("Erro ao buscar membros da API:", error)
+    throw error
+  }
+}
+
+// Função para criar um novo membro
+export const createMemberAPI = async (memberData: any): Promise<ApiMember> => {
+  try {
+    // Verificar se o token existe
+    const token = getAuthToken()
+    if (!token) {
+      console.error("Token de autenticação não encontrado")
+      throw new Error("Token de autenticação não encontrado. Faça login novamente.")
+    }
+
+    console.log("Token de autenticação:", token.substring(0, 20) + "...")
+    console.log("Dados enviados para API:", JSON.stringify(memberData, null, 2))
+
+    const response = await fetch("https://demoapp.top1soft.com.br/api/Member", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(memberData),
+    })
+
+    console.log("Status da resposta:", response.status)
+    console.log("Headers da resposta:", Object.fromEntries(response.headers.entries()))
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error("Erro da API (texto completo):", errorText)
+
+      // Tentar fazer parse do JSON de erro se possível
+      let errorDetails = errorText
+      try {
+        const errorJson = JSON.parse(errorText)
+        errorDetails = JSON.stringify(errorJson, null, 2)
+        console.error("Erro da API (JSON):", errorJson)
+      } catch (e) {
+        console.error("Erro não é JSON válido")
+      }
+
+      if (response.status === 401) {
+        console.error("Erro de autenticação 401: Token inválido ou expirado")
+        // Redirecionar para login
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("authToken")
+          localStorage.removeItem("userRole")
+          localStorage.removeItem("user")
+          alert("Sua sessão expirou. Por favor, faça login novamente.")
+          window.location.href = "/login"
+        }
+        throw new Error("Token expirado. Redirecionando para login...")
+      }
+
+      throw new Error(`Erro na API: ${response.status} - ${errorDetails}`)
+    }
+
+    const data: ApiMember = await response.json()
+    console.log("Resposta da API (sucesso):", data)
+    return data
+  } catch (error) {
+    console.error("Erro detalhado ao criar membro:", error)
+    throw error
+  }
+}
+
+// Função para atualizar um membro
+export const updateMemberAPI = async (memberId: number, memberData: any): Promise<ApiMember> => {
+  try {
+    // Verificar se o token existe
+    const token = getAuthToken()
+    if (!token) {
+      console.error("Token de autenticação não encontrado")
+      throw new Error("Token de autenticação não encontrado. Faça login novamente.")
+    }
+
+    console.log("Dados enviados para API (update):", JSON.stringify({ id: memberId, ...memberData }, null, 2))
+
+    const response = await fetch(`https://demoapp.top1soft.com.br/api/Member/${memberId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ id: memberId, ...memberData }),
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error("Erro da API:", response.status, errorText)
+
+      if (response.status === 401) {
+        // Redirecionar para login
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("authToken")
+          localStorage.removeItem("userRole")
+          localStorage.removeItem("user")
+          alert("Sua sessão expirou. Por favor, faça login novamente.")
+          window.location.href = "/login"
+        }
+        throw new Error("Token expirado. Redirecionando para login...")
+      }
+
+      throw new Error(`Erro na API: ${response.status} - ${errorText}`)
+    }
+
+    const data: ApiMember = await response.json()
+    console.log("Resposta da API (update):", data)
+    return data
+  } catch (error) {
+    console.error("Erro detalhado ao atualizar membro:", error)
+    throw error
+  }
+}
+
+// Função para deletar um membro
+export const deleteMemberAPI = async (memberId: number): Promise<boolean> => {
+  try {
+    const token = getAuthToken()
+    if (!token) {
+      console.error("Token de autenticação não encontrado")
+      throw new Error("Token de autenticação não encontrado. Faça login novamente.")
+    }
+
+    const response = await fetch(`https://demoapp.top1soft.com.br/api/Member/${memberId}`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    })
+
+    if (!response.ok && response.status === 401) {
+      // Redirecionar para login
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("authToken")
+        localStorage.removeItem("userRole")
+        localStorage.removeItem("user")
+        alert("Sua sessão expirou. Por favor, faça login novamente.")
+        window.location.href = "/login"
+      }
+      throw new Error("Token expirado. Redirecionando para login...")
+    }
+
+    return response.ok
+  } catch (error) {
+    console.error("Erro ao deletar membro:", error)
     throw error
   }
 }
@@ -365,6 +568,89 @@ export const createFeedPostWithFallback = async (content: string): Promise<ApiFe
     // Se ainda assim não conseguir, lançar o erro original
     throw error
   }
+}
+
+// Função helper para converter ApiMember para o formato usado no frontend
+export const convertApiMemberToLocal = (apiMember: ApiMember) => {
+  return {
+    id: apiMember.id.toString(),
+    name: apiMember.name,
+    email: apiMember.email,
+    phone: apiMember.phone,
+    cpf: apiMember.document,
+    birthDate: apiMember.birthDate.split("T")[0], // Converter para formato YYYY-MM-DD
+    address: apiMember.church?.address?.street || "",
+    city: apiMember.church?.address?.city || "",
+    state: apiMember.church?.address?.state || "",
+    zipCode: apiMember.church?.address?.zipCode || "",
+    maritalStatus: apiMember.maritalStatus || "",
+    baptized: apiMember.isBaptized,
+    memberSince: apiMember.memberSince ? apiMember.memberSince.split("T")[0] : "",
+    ministry: apiMember.ministry || "",
+    photo: apiMember.photo || "/placeholder.svg?height=100&width=100",
+    isActive: apiMember.isActive,
+    notes: apiMember.notes || "",
+  }
+}
+
+// Função helper para converter dados do formulário para o formato da API
+export const convertLocalMemberToApi = (localMember: any) => {
+  // Obter o churchId do token
+  const currentUser = getCurrentUser()
+  const churchId = currentUser?.churchId || 0
+
+  // Estrutura baseada EXATAMENTE no exemplo da documentação
+  const apiData: any = {
+    name: localMember.name.trim(),
+    email: localMember.email.trim(),
+    phone: localMember.phone.trim(),
+    document: localMember.document.trim(), // Always required
+    photo: "base64", // Default value as per API example
+    isBaptized: Boolean(localMember.isBaptized),
+    isTither: Boolean(localMember.isTither),
+    roleMember: 0, // Default role
+    isActive: localMember.isActive !== undefined ? Boolean(localMember.isActive) : true,
+    churchId: churchId,
+  }
+
+  // Add birthDate - this appears to be required based on the API example
+  if (localMember.birthDate && localMember.birthDate.trim()) {
+    apiData.birthDate = localMember.birthDate + "T00:00:00"
+  } else {
+    // If no birth date provided, use a default date
+    apiData.birthDate = "1990-01-01T00:00:00"
+  }
+
+  // Add baptizedDate only if baptized is true
+  if (apiData.isBaptized) {
+    if (localMember.baptizedDate && localMember.baptizedDate.trim()) {
+      apiData.baptizedDate = localMember.baptizedDate + "T00:00:00"
+    } else {
+      // If baptized but no date provided, use current date
+      const today = new Date().toISOString().split("T")[0]
+      apiData.baptizedDate = today + "T00:00:00"
+    }
+  }
+
+  // Add optional fields only if they have values
+  if (localMember.maritalStatus && localMember.maritalStatus.trim()) {
+    apiData.maritalStatus = localMember.maritalStatus.trim()
+  }
+
+  if (localMember.memberSince && localMember.memberSince.trim()) {
+    apiData.memberSince = localMember.memberSince + "T00:00:00"
+  }
+
+  if (localMember.ministry && localMember.ministry.trim()) {
+    apiData.ministry = localMember.ministry.trim()
+  }
+
+  if (localMember.notes && localMember.notes.trim()) {
+    apiData.notes = localMember.notes.trim()
+  }
+
+  console.log("Dados convertidos para API (final):", apiData)
+  return apiData
 }
 
 // Função para verificar se o usuário está autenticado
