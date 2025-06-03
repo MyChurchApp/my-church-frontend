@@ -112,15 +112,15 @@ export default function MemberRegistrationModal({ onMemberCreated }: MemberRegis
       })
 
       console.log("Status da resposta:", response.status)
+      console.log("Headers da resposta:", Object.fromEntries(response.headers.entries()))
 
       if (!response.ok) {
         let errorMessage = `Erro na API: ${response.status}`
 
         try {
           const errorData = await response.json()
-          console.error("Detalhes do erro:", errorData)
+          console.error("Detalhes do erro (JSON):", errorData)
 
-          // Tentar extrair mensagem de erro mais específica
           if (errorData.title) {
             errorMessage = errorData.title
           }
@@ -129,14 +129,14 @@ export default function MemberRegistrationModal({ onMemberCreated }: MemberRegis
           }
           if (errorData.errors) {
             const errorDetails = Object.entries(errorData.errors)
-              .map(([key, value]) => `${key}: ${value}`)
+              .map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(", ") : value}`)
               .join("; ")
-            errorMessage += ` - ${errorDetails}`
+            errorMessage += ` - Campos com erro: ${errorDetails}`
           }
         } catch (e) {
-          // Se não conseguir extrair JSON, tentar texto
           try {
             const errorText = await response.text()
+            console.error("Detalhes do erro (texto):", errorText)
             if (errorText) {
               errorMessage += `: ${errorText}`
             }
@@ -207,6 +207,37 @@ export default function MemberRegistrationModal({ onMemberCreated }: MemberRegis
       return
     }
 
+    // Validações mais rigorosas
+    if (!formData.name.trim() || formData.name.trim().length < 2) {
+      setError("Nome deve ter pelo menos 2 caracteres")
+      setLoading(false)
+      return
+    }
+
+    // Validar email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(formData.email.trim())) {
+      setError("Email deve ter um formato válido")
+      setLoading(false)
+      return
+    }
+
+    // Validar CPF (formato básico)
+    const documentNumbers = formData.document.replace(/\D/g, "")
+    if (documentNumbers.length !== 11) {
+      setError("Documento deve ter 11 dígitos")
+      setLoading(false)
+      return
+    }
+
+    // Validar telefone
+    const phoneNumbers = formData.phone.replace(/\D/g, "")
+    if (phoneNumbers.length < 10 || phoneNumbers.length > 11) {
+      setError("Telefone deve ter 10 ou 11 dígitos")
+      setLoading(false)
+      return
+    }
+
     try {
       // Extrair churchId do token
       const token = getAuthToken()
@@ -225,27 +256,30 @@ export default function MemberRegistrationModal({ onMemberCreated }: MemberRegis
       const today = new Date().toISOString().split("T")[0]
       const defaultDate = "2020-01-01" // Data padrão para campos de data
 
-      // Preparar dados para envio - EXATAMENTE como no exemplo do Swagger
+      // Preparar dados para envio - garantindo todos os campos obrigatórios
       const memberData = {
         name: formData.name.trim(),
         email: formData.email.trim(),
-        document: formData.document.trim(),
+        document: formData.document.replace(/\D/g, ""), // Remove caracteres não numéricos do CPF
         photo: "base64",
-        phone: formData.phone.trim(),
+        phone: formData.phone.replace(/\D/g, ""), // Remove caracteres não numéricos do telefone
         birthDate: formatDateToISO(formData.birthDate),
-        isBaptized: formData.isBaptized,
-        baptizedDate:
-          formData.isBaptized && formData.baptizedDate
-            ? formatDateToISO(formData.baptizedDate)
-            : formatDateToISO(defaultDate),
-        isTither: formData.isTither,
+        isBaptized: Boolean(formData.isBaptized),
+        baptizedDate: formatDateToISO(
+          formData.isBaptized && formData.baptizedDate ? formData.baptizedDate : defaultDate,
+        ),
+        isTither: Boolean(formData.isTither),
         roleMember: 0,
-        maritalStatus: formData.maritalStatus || "Solteiro", // Valor padrão
-        memberSince: formData.memberSince ? formatDateToISO(formData.memberSince) : formatDateToISO(defaultDate),
-        ministry: formData.ministry || "Louvor", // Valor padrão como no exemplo
-        isActive: formData.isActive,
-        notes: formData.notes || "Membro cadastrado pelo sistema", // Valor padrão
-        churchId: churchId,
+        maritalStatus: formData.maritalStatus || "Solteiro",
+        memberSince: formatDateToISO(formData.memberSince || defaultDate),
+        ministry: formData.ministry || "Louvor",
+        isActive: Boolean(formData.isActive),
+        notes: formData.notes || "Membro cadastrado pelo sistema",
+      }
+
+      // Só adicionar churchId se for maior que 0
+      if (churchId > 0) {
+        memberData.churchId = churchId
       }
 
       console.log("Enviando dados:", memberData)

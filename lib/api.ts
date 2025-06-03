@@ -595,60 +595,26 @@ export const convertApiMemberToLocal = (apiMember: ApiMember) => {
 
 // Função helper para converter dados do formulário para o formato da API
 export const convertLocalMemberToApi = (localMember: any) => {
-  // Obter o churchId do token
-  const currentUser = getCurrentUser()
-  const churchId = currentUser?.churchId || 0
-
-  // Estrutura baseada EXATAMENTE no exemplo da documentação
+  // Estrutura baseada EXATAMENTE no exemplo que funciona (200)
   const apiData: any = {
     name: localMember.name.trim(),
     email: localMember.email.trim(),
+    document: localMember.document.trim(),
+    photo: "base64",
     phone: localMember.phone.trim(),
-    document: localMember.document.trim(), // Always required
-    photo: "base64", // Default value as per API example
+    birthDate: localMember.birthDate ? localMember.birthDate + "T00:00:00" : "1990-01-01T00:00:00",
     isBaptized: Boolean(localMember.isBaptized),
+    baptizedDate: localMember.baptizedDate ? localMember.baptizedDate + "T00:00:00" : "2023-10-14T00:00:00", // SEMPRE obrigatório
     isTither: Boolean(localMember.isTither),
-    roleMember: 0, // Default role
+    roleMember: 0,
+    maritalStatus: localMember.maritalStatus || "Solteiro",
+    memberSince: localMember.memberSince ? localMember.memberSince + "T00:00:00" : "2020-01-01T00:00:00",
+    ministry: localMember.ministry || "Louvor", // SEMPRE obrigatório
     isActive: localMember.isActive !== undefined ? Boolean(localMember.isActive) : true,
-    churchId: churchId,
+    notes: localMember.notes || "Participa do grupo de jovens", // SEMPRE obrigatório
   }
 
-  // Add birthDate - this appears to be required based on the API example
-  if (localMember.birthDate && localMember.birthDate.trim()) {
-    apiData.birthDate = localMember.birthDate + "T00:00:00"
-  } else {
-    // If no birth date provided, use a default date
-    apiData.birthDate = "1990-01-01T00:00:00"
-  }
-
-  // Add baptizedDate only if baptized is true
-  if (apiData.isBaptized) {
-    if (localMember.baptizedDate && localMember.baptizedDate.trim()) {
-      apiData.baptizedDate = localMember.baptizedDate + "T00:00:00"
-    } else {
-      // If baptized but no date provided, use current date
-      const today = new Date().toISOString().split("T")[0]
-      apiData.baptizedDate = today + "T00:00:00"
-    }
-  }
-
-  // Add optional fields only if they have values
-  if (localMember.maritalStatus && localMember.maritalStatus.trim()) {
-    apiData.maritalStatus = localMember.maritalStatus.trim()
-  }
-
-  if (localMember.memberSince && localMember.memberSince.trim()) {
-    apiData.memberSince = localMember.memberSince + "T00:00:00"
-  }
-
-  if (localMember.ministry && localMember.ministry.trim()) {
-    apiData.ministry = localMember.ministry.trim()
-  }
-
-  if (localMember.notes && localMember.notes.trim()) {
-    apiData.notes = localMember.notes.trim()
-  }
-
+  // NÃO incluir churchId - não está no exemplo que funciona
   console.log("Dados convertidos para API (final):", apiData)
   return apiData
 }
