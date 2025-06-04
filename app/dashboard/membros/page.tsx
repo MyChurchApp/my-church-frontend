@@ -46,9 +46,11 @@ import {
   convertApiMemberToLocal,
   convertLocalMemberToApi,
 } from "@/lib/api"
+import { useToastContext } from "@/contexts/toast-context"
 
 export default function MembrosPage() {
   const router = useRouter()
+  const { toast } = useToastContext()
   const [user, setUser] = useState<User | null>(null)
   const [members, setMembers] = useState<any[]>([])
   const [filteredMembers, setFilteredMembers] = useState<any[]>([])
@@ -72,23 +74,41 @@ export default function MembrosPage() {
     name: "",
     email: "",
     phone: "",
-    document: "", // Renomeado de cpf para document para corresponder à API
-    photo: "", // Valor padrão conforme exemplo
+    document: "",
+    photo: "",
     birthDate: "",
     address: "",
     city: "",
     state: "",
     zipCode: "",
     maritalStatus: "",
-    isBaptized: false, // Renomeado de baptized para isBaptized para corresponder à API
+    isBaptized: false,
     baptizedDate: "",
     isTither: false,
     memberSince: "",
     ministry: "",
-    roleMember: 0, // Campo obrigatório conforme documentação
+    roleMember: 0,
     isActive: true,
     notes: "",
   })
+
+  // Listener para erros 500
+  useEffect(() => {
+    const handleApiError500 = (event: CustomEvent) => {
+      toast({
+        title: "Erro no servidor",
+        description: event.detail.message,
+        variant: "destructive",
+        duration: 6000,
+      })
+    }
+
+    window.addEventListener("api-error-500", handleApiError500 as EventListener)
+
+    return () => {
+      window.removeEventListener("api-error-500", handleApiError500 as EventListener)
+    }
+  }, [toast])
 
   // Função para converter imagem para base64
   const convertImageToBase64 = (file: File): Promise<string> => {
@@ -97,7 +117,6 @@ export default function MembrosPage() {
       reader.readAsDataURL(file)
       reader.onload = () => {
         const base64String = reader.result as string
-        // Remover o prefixo "data:image/jpeg;base64," para obter apenas o base64
         const base64 = base64String.split(",")[1]
         resolve(base64)
       }
@@ -116,18 +135,12 @@ export default function MembrosPage() {
     loadMembers()
   }, [router, currentPage])
 
-  // Atualizar o loadMembers para melhor tratamento de erros
   const loadMembers = async () => {
     try {
       setLoading(true)
       setError(null)
 
-      console.log("Carregando membros da API...")
-
       const response = await getMembersFromAPI(currentPage, pageSize)
-      console.log("Resposta da API (membros):", response)
-
-      // Converter membros da API para o formato local
       const convertedMembers = response.items.map(convertApiMemberToLocal)
 
       setMembers(convertedMembers)
@@ -141,18 +154,17 @@ export default function MembrosPage() {
       if (error.message) {
         if (error.message.includes("401")) {
           errorMessage = "Não autorizado. Faça login novamente."
-          // Redirecionar para login após um tempo
           setTimeout(() => {
             router.push("/login")
           }, 2000)
-        } else if (error.message.includes("500")) {
-          errorMessage = "Erro interno do servidor. Tente novamente mais tarde."
-        } else {
+        } else if (!error.message.includes("Erro interno do servidor")) {
           errorMessage = error.message
         }
       }
 
-      setError(errorMessage)
+      if (!error.message.includes("Erro interno do servidor")) {
+        setError(errorMessage)
+      }
     } finally {
       setLoading(false)
     }
@@ -161,7 +173,6 @@ export default function MembrosPage() {
   useEffect(() => {
     let filtered = members
 
-    // Filter by search term
     if (searchTerm) {
       filtered = filtered.filter(
         (member) =>
@@ -170,7 +181,6 @@ export default function MembrosPage() {
       )
     }
 
-    // Filter by status
     if (statusFilter !== "all") {
       filtered = filtered.filter((member) => (statusFilter === "active" ? member.isActive : !member.isActive))
     }
@@ -182,7 +192,6 @@ export default function MembrosPage() {
     const activeMembers = members.filter((member) => member.isActive)
     const inactiveMembers = members.filter((member) => !member.isActive)
 
-    // Criar conteúdo HTML para o PDF
     const htmlContent = `
       <!DOCTYPE html>
       <html>
@@ -270,7 +279,6 @@ export default function MembrosPage() {
       </html>
     `
 
-    // Criar e baixar o arquivo HTML que pode ser convertido para PDF
     const blob = new Blob([htmlContent], { type: "text/html;charset=utf-8" })
     const url = URL.createObjectURL(blob)
     const link = document.createElement("a")
@@ -281,17 +289,19 @@ export default function MembrosPage() {
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
 
-    // Mostrar instruções para o usuário
-    alert(
-      "Relatório gerado! Para converter para PDF:\n1. Abra o arquivo HTML baixado\n2. Use Ctrl+P (ou Cmd+P no Mac)\n3. Selecione 'Salvar como PDF' como destino",
-    )
+    toast({
+      title: "Relatório gerado!",
+      description:
+        "Para converter para PDF: abra o arquivo HTML baixado e use Ctrl+P (ou Cmd+P no Mac), depois selecione 'Salvar como PDF'",
+      variant: "success",
+      duration: 8000,
+    })
   }
 
-  // Atualizar o handleCreateMember para melhor validação e tratamento de erros
   const handleCreateMember = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // Validação básica mais rigorosa
+    // Validação básica
     if (!memberForm.name.trim()) {
       setError("Nome é obrigatório")
       return
@@ -317,14 +327,12 @@ export default function MembrosPage() {
       return
     }
 
-    // Validar formato de email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(memberForm.email.trim())) {
       setError("Email deve ter um formato válido")
       return
     }
 
-    // Validar CPF (formato básico)
     const cpfRegex = /^\d{11}$|^\d{3}\.\d{3}\.\d{3}-\d{2}$/
     if (!cpfRegex.test(memberForm.document.trim())) {
       setError("CPF deve ter 11 dígitos ou formato 000.000.000-00")
@@ -335,44 +343,56 @@ export default function MembrosPage() {
       setSubmitting(true)
       setError(null)
 
-      console.log("Dados do formulário:", memberForm)
+      console.log("Dados do formulário antes da conversão:", memberForm)
 
       const apiMemberData = convertLocalMemberToApi(memberForm)
       console.log("Dados convertidos para API:", apiMemberData)
 
       const newApiMember = await createMemberAPI(apiMemberData)
+      console.log("Resposta da API:", newApiMember)
+
+      if (!newApiMember) {
+        throw new Error("API retornou dados vazios")
+      }
+
       const newMember = convertApiMemberToLocal(newApiMember)
+      console.log("Membro convertido:", newMember)
 
       setMembers([newMember, ...members])
       resetForm()
       setIsCreateDialogOpen(false)
 
+      toast({
+        title: "Membro cadastrado!",
+        description: `${newMember.name} foi cadastrado com sucesso.`,
+        variant: "success",
+      })
+
       // Recarregar a lista para garantir sincronização
       await loadMembers()
     } catch (error: any) {
-      console.error("Erro ao criar membro:", error)
+      console.error("Erro detalhado ao criar membro:", error)
 
-      // Extrair mensagem de erro mais específica
-      let errorMessage = "Erro ao criar membro"
-      if (error.message) {
-        if (error.message.includes("400")) {
-          errorMessage = "Dados inválidos. Verifique os campos obrigatórios."
-        } else if (error.message.includes("401")) {
-          errorMessage = "Não autorizado. Faça login novamente."
-        } else if (error.message.includes("500")) {
-          errorMessage = "Erro interno do servidor. Tente novamente mais tarde."
-        } else {
-          errorMessage = error.message
+      if (!error.message.includes("Erro interno do servidor")) {
+        let errorMessage = "Erro ao criar membro"
+        if (error.message) {
+          if (error.message.includes("400")) {
+            errorMessage = "Dados inválidos. Verifique os campos obrigatórios."
+          } else if (error.message.includes("401")) {
+            errorMessage = "Não autorizado. Faça login novamente."
+          } else if (error.message.includes("Resposta da API inválida")) {
+            errorMessage = "Erro na resposta do servidor. Tente novamente."
+          } else {
+            errorMessage = error.message
+          }
         }
+        setError(errorMessage)
       }
-
-      setError(errorMessage)
     } finally {
       setSubmitting(false)
     }
   }
 
-  // Atualizar o handleEditMember para melhor validação e tratamento de erros
   const handleEditMember = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -381,7 +401,7 @@ export default function MembrosPage() {
       return
     }
 
-    // Validação básica mais rigorosa
+    // Validação básica (mesma do create)
     if (!memberForm.name.trim()) {
       setError("Nome é obrigatório")
       return
@@ -407,14 +427,12 @@ export default function MembrosPage() {
       return
     }
 
-    // Validar formato de email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(memberForm.email.trim())) {
       setError("Email deve ter um formato válido")
       return
     }
 
-    // Validar CPF (formato básico)
     const cpfRegex = /^\d{11}$|^\d{3}\.\d{3}\.\d{3}-\d{2}$/
     if (!cpfRegex.test(memberForm.document.trim())) {
       setError("CPF deve ter 11 dígitos ou formato 000.000.000-00")
@@ -431,35 +449,48 @@ export default function MembrosPage() {
       console.log("Dados convertidos para API (edit):", apiMemberData)
 
       const updatedApiMember = await updateMemberAPI(Number.parseInt(selectedMember.id), apiMemberData)
+      console.log("Resposta da API (edit):", updatedApiMember)
+
+      if (!updatedApiMember) {
+        throw new Error("API retornou dados vazios")
+      }
+
       const updatedMember = convertApiMemberToLocal(updatedApiMember)
+      console.log("Membro atualizado:", updatedMember)
 
       setMembers(members.map((member) => (member.id === selectedMember.id ? updatedMember : member)))
       resetForm()
       setSelectedMember(null)
       setIsEditDialogOpen(false)
 
+      toast({
+        title: "Membro atualizado!",
+        description: `${updatedMember.name} foi atualizado com sucesso.`,
+        variant: "success",
+      })
+
       // Recarregar a lista para garantir sincronização
       await loadMembers()
     } catch (error: any) {
       console.error("Erro ao editar membro:", error)
 
-      // Extrair mensagem de erro mais específica
-      let errorMessage = "Erro ao editar membro"
-      if (error.message) {
-        if (error.message.includes("400")) {
-          errorMessage = "Dados inválidos. Verifique os campos obrigatórios."
-        } else if (error.message.includes("401")) {
-          errorMessage = "Não autorizado. Faça login novamente."
-        } else if (error.message.includes("404")) {
-          errorMessage = "Membro não encontrado."
-        } else if (error.message.includes("500")) {
-          errorMessage = "Erro interno do servidor. Tente novamente mais tarde."
-        } else {
-          errorMessage = error.message
+      if (!error.message.includes("Erro interno do servidor")) {
+        let errorMessage = "Erro ao editar membro"
+        if (error.message) {
+          if (error.message.includes("400")) {
+            errorMessage = "Dados inválidos. Verifique os campos obrigatórios."
+          } else if (error.message.includes("401")) {
+            errorMessage = "Não autorizado. Faça login novamente."
+          } else if (error.message.includes("404")) {
+            errorMessage = "Membro não encontrado."
+          } else if (error.message.includes("Resposta da API inválida")) {
+            errorMessage = "Erro na resposta do servidor. Tente novamente."
+          } else {
+            errorMessage = error.message
+          }
         }
+        setError(errorMessage)
       }
-
-      setError(errorMessage)
     } finally {
       setSubmitting(false)
     }
@@ -475,11 +506,19 @@ export default function MembrosPage() {
       await deleteMemberAPI(Number.parseInt(member.id))
       setMembers(members.filter((m) => m.id !== member.id))
 
-      // Recarregar a lista para garantir sincronização
+      toast({
+        title: "Membro excluído!",
+        description: `${member.name} foi excluído com sucesso.`,
+        variant: "success",
+      })
+
       await loadMembers()
     } catch (error: any) {
       console.error("Erro ao deletar membro:", error)
-      setError(error.message || "Erro ao deletar membro")
+
+      if (!error.message.includes("Erro interno do servidor")) {
+        setError(error.message || "Erro ao deletar membro")
+      }
     } finally {
       setSubmitting(false)
     }
@@ -491,7 +530,7 @@ export default function MembrosPage() {
       name: member.name,
       email: member.email,
       phone: member.phone,
-      document: member.cpf, // Renomeado de cpf para document
+      document: member.cpf,
       photo: member.photo || "",
       birthDate: member.birthDate,
       address: member.address,
@@ -499,12 +538,12 @@ export default function MembrosPage() {
       state: member.state,
       zipCode: member.zipCode,
       maritalStatus: member.maritalStatus,
-      isBaptized: member.baptized, // Renomeado de baptized para isBaptized
+      isBaptized: member.baptized,
       baptizedDate: member.baptizedDate || "",
       isTither: member.isTither || false,
       memberSince: member.memberSince,
       ministry: member.ministry,
-      roleMember: 0, // Valor padrão
+      roleMember: 0,
       isActive: member.isActive,
       notes: member.notes || "",
     })
@@ -517,7 +556,7 @@ export default function MembrosPage() {
       email: "",
       phone: "",
       document: "",
-      photo: "", // Inicializar como string vazia
+      photo: "",
       birthDate: "",
       address: "",
       city: "",
@@ -536,14 +575,21 @@ export default function MembrosPage() {
   }
 
   const handleSendPasswordReset = (member: any) => {
-    // Simular envio de email de recuperação
-    alert(`Email de recuperação de senha enviado para ${member.email}`)
+    toast({
+      title: "Email enviado!",
+      description: `Email de recuperação de senha enviado para ${member.email}`,
+      variant: "success",
+    })
   }
 
   const handleGenerateNewPassword = (member: any) => {
-    // Simular geração de nova senha
     const newPassword = Math.random().toString(36).slice(-8)
-    alert(`Nova senha gerada para ${member.name}: ${newPassword}`)
+    toast({
+      title: "Nova senha gerada!",
+      description: `Nova senha para ${member.name}: ${newPassword}`,
+      variant: "success",
+      duration: 10000,
+    })
   }
 
   const getStatusBadge = (isActive: boolean) => {

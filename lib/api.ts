@@ -97,15 +97,47 @@ const getCurrentUser = () => {
   }
 }
 
-// Usar authFetch diretamente
+// Função para tratar erros da API
+const handleApiError = (status: number, errorText: string) => {
+  if (status === 500) {
+    // Disparar evento customizado para mostrar toast
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("api-error-500", {
+          detail: { message: "Não foi possível completar a operação no momento. Tente novamente mais tarde." },
+        }),
+      )
+    }
+    throw new Error("Erro interno do servidor")
+  } else if (status === 401) {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("authToken")
+      localStorage.removeItem("userRole")
+      localStorage.removeItem("user")
+      window.location.href = "/login"
+    }
+    throw new Error("Sessão expirada. Redirecionando para login...")
+  } else if (status === 400) {
+    throw new Error("Dados inválidos. Verifique os campos obrigatórios.")
+  } else if (status === 404) {
+    throw new Error("Recurso não encontrado.")
+  } else {
+    throw new Error(`Erro na API: ${status} - ${errorText}`)
+  }
+}
 
 // Função para buscar o feed com paginação
 export const getFeedFromAPI = async (page = 1, pageSize = 10): Promise<ApiFeedResponse> => {
   try {
     const url = `https://demoapp.top1soft.com.br/api/Feed?pageNumber=${page}&pageSize=${pageSize}`
     const response = await authFetch(url)
-    const data: ApiFeedResponse = await response.json()
 
+    if (!response.ok) {
+      const errorText = await response.text()
+      handleApiError(response.status, errorText)
+    }
+
+    const data: ApiFeedResponse = await response.json()
     return data
   } catch (error) {
     console.error("Erro ao buscar feed da API:", error)
@@ -118,8 +150,13 @@ export const getMembersFromAPI = async (page = 1, pageSize = 10): Promise<ApiMem
   try {
     const url = `https://demoapp.top1soft.com.br/api/Member?pageNumber=${page}&pageSize=${pageSize}`
     const response = await authFetch(url)
-    const data: ApiMembersResponse = await response.json()
 
+    if (!response.ok) {
+      const errorText = await response.text()
+      handleApiError(response.status, errorText)
+    }
+
+    const data: ApiMembersResponse = await response.json()
     return data
   } catch (error) {
     console.error("Erro ao buscar membros da API:", error)
@@ -130,14 +167,11 @@ export const getMembersFromAPI = async (page = 1, pageSize = 10): Promise<ApiMem
 // Função para criar um novo membro
 export const createMemberAPI = async (memberData: any): Promise<ApiMember> => {
   try {
-    // Verificar se o token existe
     const token = getAuthToken()
     if (!token) {
-      console.error("Token de autenticação não encontrado")
       throw new Error("Token de autenticação não encontrado. Faça login novamente.")
     }
 
-    console.log("Token de autenticação:", token.substring(0, 20) + "...")
     console.log("Dados enviados para API:", JSON.stringify(memberData, null, 2))
 
     const response = await fetch("https://demoapp.top1soft.com.br/api/Member", {
@@ -155,25 +189,19 @@ export const createMemberAPI = async (memberData: any): Promise<ApiMember> => {
     if (!response.ok) {
       const errorText = await response.text()
       console.error("Erro da API:", response.status, errorText)
-
-      if (response.status === 401) {
-        console.error("Erro de autenticação 401: Token inválido ou expirado")
-        if (typeof window !== "undefined") {
-          localStorage.removeItem("authToken")
-          localStorage.removeItem("userRole")
-          localStorage.removeItem("user")
-          alert("Sua sessão expirou. Por favor, faça login novamente.")
-          window.location.href = "/login"
-        }
-        throw new Error("Token expirado. Redirecionando para login...")
-      }
-
-      throw new Error(`Erro na API: ${response.status} - ${errorText}`)
+      handleApiError(response.status, errorText)
     }
 
-    const data: ApiMember = await response.json()
+    const data = await response.json()
     console.log("Resposta da API (sucesso):", data)
-    return data
+
+    // Verificar se a resposta contém os dados esperados
+    if (!data || typeof data !== "object") {
+      console.error("Resposta da API inválida:", data)
+      throw new Error("Resposta da API inválida")
+    }
+
+    return data as ApiMember
   } catch (error) {
     console.error("Erro detalhado ao criar membro:", error)
     throw error
@@ -188,8 +216,6 @@ export const updateMemberAPI = async (memberId: number, memberData: any): Promis
       throw new Error("Token de autenticação não encontrado. Faça login novamente.")
     }
 
-    console.log("Dados enviados para API (update):", JSON.stringify({ id: memberId, ...memberData }, null, 2))
-
     const response = await fetch(`https://demoapp.top1soft.com.br/api/Member/${memberId}`, {
       method: "PUT",
       headers: {
@@ -203,23 +229,10 @@ export const updateMemberAPI = async (memberId: number, memberData: any): Promis
     if (!response.ok) {
       const errorText = await response.text()
       console.error("Erro da API:", response.status, errorText)
-
-      if (response.status === 401) {
-        if (typeof window !== "undefined") {
-          localStorage.removeItem("authToken")
-          localStorage.removeItem("userRole")
-          localStorage.removeItem("user")
-          alert("Sua sessão expirou. Por favor, faça login novamente.")
-          window.location.href = "/login"
-        }
-        throw new Error("Token expirado. Redirecionando para login...")
-      }
-
-      throw new Error(`Erro na API: ${response.status} - ${errorText}`)
+      handleApiError(response.status, errorText)
     }
 
     const data: ApiMember = await response.json()
-    console.log("Resposta da API (update):", data)
     return data
   } catch (error) {
     console.error("Erro detalhado ao atualizar membro:", error)
@@ -244,15 +257,9 @@ export const deleteMemberAPI = async (memberId: number): Promise<boolean> => {
       },
     })
 
-    if (!response.ok && response.status === 401) {
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("authToken")
-        localStorage.removeItem("userRole")
-        localStorage.removeItem("user")
-        alert("Sua sessão expirou. Por favor, faça login novamente.")
-        window.location.href = "/login"
-      }
-      throw new Error("Token expirado. Redirecionando para login...")
+    if (!response.ok) {
+      const errorText = await response.text()
+      handleApiError(response.status, errorText)
     }
 
     return response.ok
@@ -270,25 +277,11 @@ export const createFeedPost = async (content: string): Promise<ApiFeedItem> => {
       body: JSON.stringify({ content }),
     })
 
-    // Verificar se a resposta é válida
-    if (!response.ok) {
-      throw new Error(`Erro HTTP: ${response.status}`)
-    }
-
-    // Tentar fazer parse da resposta
-    let data
-    try {
-      data = await response.json()
-    } catch (parseError) {
-      console.error("Erro ao fazer parse da resposta:", parseError)
-      throw new Error("Resposta da API não é um JSON válido")
-    }
-
-    console.log("Resposta da API ao criar post:", data)
+    console.log("Resposta da API ao criar post:", response)
 
     // A API retorna apenas o ID do post criado
-    if (typeof data === "number") {
-      const postId = data
+    if (typeof response === "number") {
+      const postId = response
       console.log("Post criado com ID:", postId)
 
       // Buscar o feed atualizado para encontrar o post completo
@@ -297,11 +290,9 @@ export const createFeedPost = async (content: string): Promise<ApiFeedItem> => {
         const createdPost = feedData.items.find((item) => item.id === postId)
 
         if (createdPost) {
-          console.log("Post completo encontrado:", createdPost)
           return createdPost
         } else {
-          console.log("Post não encontrado no feed, criando objeto temporário")
-          // Se não encontrar, criar um objeto temporário
+          // Criar objeto temporário se não encontrar
           const currentUser = getCurrentUser()
           return {
             id: postId,
@@ -337,51 +328,16 @@ export const createFeedPost = async (content: string): Promise<ApiFeedItem> => {
         }
       } catch (feedError) {
         console.error("Erro ao buscar feed após criar post:", feedError)
-        // Criar objeto temporário se não conseguir buscar o feed
-        const currentUser = getCurrentUser()
-        return {
-          id: postId,
-          content: content,
-          memberId: Number.parseInt(currentUser?.id || "0"),
-          churchId: 0,
-          created: new Date().toISOString(),
-          updated: null,
-          member: {
-            id: Number.parseInt(currentUser?.id || "0"),
-            name: currentUser?.name || "Usuário",
-            document: "",
-            email: currentUser?.email || "",
-            phone: "",
-            photo: null,
-            birthDate: "1990-01-01T00:00:00",
-            isBaptized: false,
-            baptizedDate: "1990-01-01T00:00:00",
-            isTither: false,
-            churchId: 0,
-            church: null,
-            role: 0,
-            created: new Date().toISOString(),
-            updated: null,
-            maritalStatus: null,
-            memberSince: null,
-            ministry: null,
-            isActive: true,
-            notes: null,
-          },
-          likesCount: 0,
-        }
+        throw feedError
       }
     }
 
     // Se a resposta já é um objeto completo
-    if (typeof data === "object" && data.id !== undefined) {
-      console.log("Post completo retornado pela API:", data)
-      return data as ApiFeedItem
+    if (typeof response === "object" && response.id !== undefined) {
+      return response as ApiFeedItem
     }
 
-    // Se chegou até aqui, a estrutura não é reconhecida
-    console.error("Estrutura da resposta não reconhecida:", data)
-    throw new Error(`Estrutura da resposta não reconhecida. Tipo: ${typeof data}, Conteúdo: ${JSON.stringify(data)}`)
+    throw new Error("Estrutura da resposta não reconhecida")
   } catch (error) {
     console.error("Erro detalhado ao criar post:", error)
     throw error
@@ -394,47 +350,24 @@ export const updateFeedPost = async (postId: number, content: string): Promise<A
     const response = await authFetchJson(`https://demoapp.top1soft.com.br/api/Feed/${postId}`, {
       method: "PUT",
       body: JSON.stringify({
-        postId: 0, // Conforme a documentação da API
+        postId: 0,
         content,
       }),
     })
 
-    // Verificar se a resposta é válida
-    if (!response.ok) {
-      throw new Error(`Erro HTTP: ${response.status}`)
-    }
-
-    // Tentar fazer parse da resposta
-    let data
-    try {
-      data = await response.json()
-    } catch (parseError) {
-      console.error("Erro ao fazer parse da resposta:", parseError)
-      throw new Error("Resposta da API não é um JSON válido")
-    }
-
-    console.log("Resposta da API ao editar post:", data)
-
     // A API pode retornar o post completo atualizado
-    if (typeof data === "object" && data.id !== undefined) {
-      console.log("Post editado com sucesso:", data)
-      return data as ApiFeedItem
+    if (typeof response === "object" && response.id !== undefined) {
+      return response as ApiFeedItem
     }
 
     // Se a API retornar apenas sucesso, buscar o post atualizado
-    try {
-      const feedData = await getFeedFromAPI(1, 20)
-      const updatedPost = feedData.items.find((item) => item.id === postId)
+    const feedData = await getFeedFromAPI(1, 20)
+    const updatedPost = feedData.items.find((item) => item.id === postId)
 
-      if (updatedPost) {
-        console.log("Post atualizado encontrado no feed:", updatedPost)
-        return updatedPost
-      } else {
-        throw new Error("Post atualizado não encontrado no feed")
-      }
-    } catch (feedError) {
-      console.error("Erro ao buscar feed após editar post:", feedError)
-      throw new Error("Não foi possível verificar se o post foi atualizado")
+    if (updatedPost) {
+      return updatedPost
+    } else {
+      throw new Error("Post atualizado não encontrado no feed")
     }
   } catch (error) {
     console.error("Erro detalhado ao editar post:", error)
@@ -449,12 +382,11 @@ export const deleteFeedPost = async (postId: number): Promise<boolean> => {
       method: "DELETE",
     })
 
-    // Verificar se a resposta é válida
     if (!response.ok) {
-      throw new Error(`Erro HTTP: ${response.status}`)
+      const errorText = await response.text()
+      handleApiError(response.status, errorText)
     }
 
-    console.log("Post deletado com sucesso:", postId)
     return true
   } catch (error) {
     console.error("Erro detalhado ao deletar post:", error)
@@ -462,12 +394,10 @@ export const deleteFeedPost = async (postId: number): Promise<boolean> => {
   }
 }
 
-// Função para recarregar o feed (útil após criar um post)
+// Função para recarregar o feed
 export const refreshFeed = async (page = 1, pageSize = 10): Promise<ApiFeedResponse> => {
   try {
-    console.log("Recarregando feed da API...")
     const data = await getFeedFromAPI(page, pageSize)
-    console.log("Feed recarregado com sucesso:", data)
     return data
   } catch (error) {
     console.error("Erro ao recarregar feed:", error)
@@ -513,30 +443,34 @@ export const createFeedPostWithFallback = async (content: string): Promise<ApiFe
 
 // Função helper para converter ApiMember para o formato usado no frontend
 export const convertApiMemberToLocal = (apiMember: ApiMember) => {
+  if (!apiMember) {
+    console.error("apiMember é undefined ou null")
+    throw new Error("Dados do membro inválidos")
+  }
+
   return {
-    id: apiMember.id.toString(),
-    name: apiMember.name,
-    email: apiMember.email,
-    phone: apiMember.phone,
-    cpf: apiMember.document,
-    birthDate: apiMember.birthDate.split("T")[0], // Converter para formato YYYY-MM-DD
-    address: apiMember.church?.address?.street || "",
-    city: apiMember.church?.address?.city || "",
-    state: apiMember.church?.address?.state || "",
-    zipCode: apiMember.church?.address?.zipCode || "",
-    maritalStatus: apiMember.maritalStatus || "",
-    baptized: apiMember.isBaptized,
-    memberSince: apiMember.memberSince ? apiMember.memberSince.split("T")[0] : "",
-    ministry: apiMember.ministry || "",
-    photo: apiMember.photo || "/placeholder.svg?height=100&width=100",
-    isActive: apiMember.isActive,
-    notes: apiMember.notes || "",
+    id: apiMember?.id?.toString() || Math.random().toString(36).substr(2, 9),
+    name: apiMember?.name || "",
+    email: apiMember?.email || "",
+    phone: apiMember?.phone || "",
+    cpf: apiMember?.document || "",
+    birthDate: apiMember?.birthDate ? apiMember.birthDate.split("T")[0] : "",
+    address: apiMember?.church?.address?.street || "",
+    city: apiMember?.church?.address?.city || "",
+    state: apiMember?.church?.address?.state || "",
+    zipCode: apiMember?.church?.address?.zipCode || "",
+    maritalStatus: apiMember?.maritalStatus || "",
+    baptized: Boolean(apiMember?.isBaptized),
+    memberSince: apiMember?.memberSince ? apiMember.memberSince.split("T")[0] : "",
+    ministry: apiMember?.ministry || "",
+    photo: apiMember?.photo || "/placeholder.svg?height=100&width=100",
+    isActive: Boolean(apiMember?.isActive),
+    notes: apiMember?.notes || "",
   }
 }
 
 // Função helper para converter dados do formulário para o formato da API
 export const convertLocalMemberToApi = (localMember: any) => {
-  // Estrutura baseada EXATAMENTE no exemplo que funciona (200)
   const apiData: any = {
     name: localMember.name?.trim() || "",
     email: localMember.email?.trim() || "",
@@ -555,7 +489,6 @@ export const convertLocalMemberToApi = (localMember: any) => {
     notes: localMember.notes || "",
   }
 
-  console.log("Dados convertidos para API (final):", apiData)
   return apiData
 }
 
@@ -600,12 +533,12 @@ export const formatTimeAgo = (dateString: string): string => {
   }
 }
 
-// Função helper para verificar se o post pode ser editado/deletado (menos de 2 horas)
+// Função helper para verificar se o post pode ser editado/deletado
 export const canEditOrDeletePost = (createdDate: string): boolean => {
   const postTime = new Date(createdDate).getTime()
   const now = new Date().getTime()
   const timeDiff = now - postTime
-  const twoHoursInMs = 2 * 60 * 60 * 1000 // 2 horas em milissegundos
+  const twoHoursInMs = 2 * 60 * 60 * 1000
 
   return timeDiff < twoHoursInMs
 }

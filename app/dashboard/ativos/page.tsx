@@ -2,7 +2,8 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -29,145 +30,31 @@ import {
   List,
   FileText,
 } from "lucide-react"
+import {
+  getAssets,
+  createAsset,
+  updateAsset,
+  deleteAsset,
+  formatCurrency,
+  formatDate,
+  assetTypeOptions,
+  assetConditions,
+  getConditionColor,
+  convertFormDataToApi,
+  convertApiDataToForm,
+  type Asset,
+} from "@/services/assets.service"
 import { getUser, hasPermission } from "@/lib/fake-api"
-
-interface Asset {
-  id: string
-  name: string
-  category: "equipamento" | "mobiliario" | "veiculo" | "imovel" | "tecnologia" | "outros"
-  description: string
-  value: number
-  purchaseDate: string
-  condition: "excelente" | "bom" | "regular" | "ruim" | "manutencao"
-  location: string
-  responsible: string
-  warranty: string
-  notes?: string
-  lastMaintenance?: string
-  nextMaintenance?: string
-  image?: string
-}
-
-const fakeAssets: Asset[] = [
-  {
-    id: "1",
-    name: "Sistema de Som Principal",
-    category: "equipamento",
-    description: "Mesa de som digital 32 canais com amplificadores",
-    value: 15000,
-    purchaseDate: "2023-03-15",
-    condition: "excelente",
-    location: "Templo Principal",
-    responsible: "Carlos Oliveira",
-    warranty: "2025-03-15",
-    notes: "Equipamento principal para cultos",
-    lastMaintenance: "2024-12-10",
-    nextMaintenance: "2025-06-10",
-    image: "/placeholder.svg?height=200&width=300&query=sound+system+church",
-  },
-  {
-    id: "2",
-    name: "Projetor Multimídia",
-    category: "tecnologia",
-    description: "Projetor 4K para apresentações e cultos",
-    value: 8500,
-    purchaseDate: "2024-01-20",
-    condition: "excelente",
-    location: "Templo Principal",
-    responsible: "Gabriel Costa",
-    warranty: "2027-01-20",
-    notes: "Usado para projeções durante os cultos",
-    image: "/placeholder.svg?height=200&width=300&query=projector+4k",
-  },
-  {
-    id: "3",
-    name: "Van da Igreja",
-    category: "veiculo",
-    description: "Van 15 lugares para transporte de membros",
-    value: 85000,
-    purchaseDate: "2022-08-10",
-    condition: "bom",
-    location: "Garagem da Igreja",
-    responsible: "Pedro Mendes",
-    warranty: "2025-08-10",
-    notes: "Usada para retiros e eventos",
-    lastMaintenance: "2024-11-15",
-    nextMaintenance: "2025-05-15",
-    image: "/placeholder.svg?height=200&width=300&query=church+van+15+seats",
-  },
-  {
-    id: "4",
-    name: "Piano Digital",
-    category: "equipamento",
-    description: "Piano digital 88 teclas para ministério de música",
-    value: 12000,
-    purchaseDate: "2023-06-05",
-    condition: "excelente",
-    location: "Sala de Música",
-    responsible: "Beatriz Santos",
-    warranty: "2026-06-05",
-    notes: "Instrumento principal do grupo de louvor",
-    image: "/placeholder.svg?height=200&width=300&query=digital+piano+88+keys",
-  },
-  {
-    id: "5",
-    name: "Cadeiras do Templo",
-    category: "mobiliario",
-    description: "Conjunto de 200 cadeiras estofadas",
-    value: 25000,
-    purchaseDate: "2021-12-01",
-    condition: "bom",
-    location: "Templo Principal",
-    responsible: "Secretaria",
-    warranty: "2026-12-01",
-    notes: "Cadeiras principais do templo",
-    image: "/placeholder.svg?height=200&width=300&query=church+chairs+upholstered",
-  },
-  {
-    id: "6",
-    name: "Ar Condicionado Central",
-    category: "equipamento",
-    description: "Sistema de climatização central 60.000 BTUs",
-    value: 18000,
-    purchaseDate: "2023-02-10",
-    condition: "regular",
-    location: "Templo Principal",
-    responsible: "Manutenção",
-    warranty: "2028-02-10",
-    notes: "Necessita manutenção preventiva",
-    lastMaintenance: "2024-08-20",
-    nextMaintenance: "2025-02-20",
-    image: "/placeholder.svg?height=200&width=300&query=central+air+conditioning",
-  },
-]
-
-const categoryLabels = {
-  equipamento: "Equipamento",
-  mobiliario: "Mobiliário",
-  veiculo: "Veículo",
-  imovel: "Imóvel",
-  tecnologia: "Tecnologia",
-  outros: "Outros",
-}
-
-const conditionLabels = {
-  excelente: "Excelente",
-  bom: "Bom",
-  regular: "Regular",
-  ruim: "Ruim",
-  manutencao: "Em Manutenção",
-}
-
-const conditionColors = {
-  excelente: "bg-green-100 text-green-800",
-  bom: "bg-blue-100 text-blue-800",
-  regular: "bg-yellow-100 text-yellow-800",
-  ruim: "bg-red-100 text-red-800",
-  manutencao: "bg-orange-100 text-orange-800",
-}
+// Adicionar ao topo do arquivo, após os outros imports
+import { exportAssetsToCSV } from "@/lib/export-utils"
 
 export default function AtivosPage() {
-  const [assets, setAssets] = useState<Asset[]>(fakeAssets)
+  const router = useRouter()
+  const [assets, setAssets] = useState<Asset[]>([])
+  const [loading, setLoading] = useState(true)
+  const [totalCount, setTotalCount] = useState(0)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize] = useState(10)
   const [searchTerm, setSearchTerm] = useState("")
   const [categoryFilter, setCategoryFilter] = useState<string>("all")
   const [conditionFilter, setConditionFilter] = useState<string>("all")
@@ -175,23 +62,104 @@ export default function AtivosPage() {
   const [editingAsset, setEditingAsset] = useState<Asset | null>(null)
   const [formData, setFormData] = useState<Partial<Asset>>({})
   const [viewMode, setViewMode] = useState<"cards" | "table">("cards")
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
 
   const [dragActive, setDragActive] = useState(false)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
 
   const user = getUser()
+  const [hasAccess, setHasAccess] = useState(false)
+  const [totalPages, setTotalPages] = useState(1)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Redirecionar para home se não tiver permissão
+  useEffect(() => {
+    if (!user || !hasPermission(user.accessLevel, "admin") || user.accessLevel !== "admin") {
+      setHasAccess(false)
+      const timer = setTimeout(() => {
+        router.push("/")
+      }, 2000)
+
+      return () => clearTimeout(timer)
+    } else {
+      setHasAccess(true)
+    }
+  }, [user, router])
 
   // Todos os useEffect devem vir aqui, antes do return condicional
   useEffect(() => {
-    if (editingAsset && editingAsset.image) {
-      setImagePreview(editingAsset.image)
+    if (editingAsset && editingAsset.photo) {
+      setImagePreview(editingAsset.photo)
     } else if (!editingAsset) {
       setImagePreview(null)
     }
   }, [editingAsset])
 
+  // Carregar dados da API
+  const loadAssets = async (page = 1, filters = {}) => {
+    try {
+      setLoading(true)
+      const response = await getAssets({
+        page,
+        pageSize,
+        ...filters,
+      })
+      setAssets(response.items)
+      setTotalCount(response.totalCount)
+      setCurrentPage(response.pageNumber)
+      setTotalPages(response.totalPages)
+    } catch (error) {
+      console.error("Erro ao carregar ativos:", error)
+      // Toast de erro será mostrado automaticamente pelo sistema
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Carregar dados na inicialização
+  useEffect(() => {
+    loadAssets()
+  }, [])
+
+  // Adicionar debounce para busca em tempo real
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (searchTerm || categoryFilter !== "all" || conditionFilter !== "all") {
+        loadAssets(1, {
+          name: searchTerm,
+          type: categoryFilter !== "all" ? Number(categoryFilter) : undefined,
+          condition: conditionFilter !== "all" ? conditionFilter : undefined,
+        })
+      } else {
+        loadAssets(1)
+      }
+    }, 500)
+
+    return () => clearTimeout(timeoutId)
+  }, [searchTerm, categoryFilter, conditionFilter])
+
+  const validateForm = useCallback(() => {
+    const errors: Record<string, string> = {}
+
+    // Validar campos obrigatórios
+    if (!formData.name?.trim()) {
+      errors.name = "O nome do ativo é obrigatório"
+    }
+
+    if (!formData.identificationCode?.trim()) {
+      errors.identificationCode = "O código de identificação é obrigatório"
+    }
+
+    if (!formData.type) {
+      errors.type = "A categoria é obrigatória"
+    }
+
+    setFormErrors(errors)
+    return Object.keys(errors).length === 0
+  }, [formData])
+
   // Verificação de permissão APÓS todos os hooks
-  if (!user || !hasPermission(user.accessLevel, "admin") || user.accessLevel !== "admin") {
+  if (!hasAccess) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <Card className="w-96">
@@ -199,79 +167,106 @@ export default function AtivosPage() {
             <AlertTriangle className="h-16 w-16 text-red-500 mb-4" />
             <h2 className="text-xl font-semibold text-gray-900 mb-2">Acesso Negado</h2>
             <p className="text-gray-600 text-center">Esta página é restrita apenas para administradores da igreja.</p>
+            <p className="text-gray-500 text-sm mt-4">Redirecionando para a página inicial...</p>
           </CardContent>
         </Card>
       </div>
     )
   }
 
+  // Filtros locais
   const filteredAssets = assets.filter((asset) => {
     const matchesSearch =
       asset.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       asset.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
       asset.responsible.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesCategory = categoryFilter === "all" || asset.category === categoryFilter
-    const matchesCondition = conditionFilter === "all" || asset.condition === conditionFilter
+    const matchesCategory = categoryFilter === "all" || asset.type.toString() === categoryFilter
+    const matchesCondition = conditionFilter === "all" || asset.condition.toLowerCase() === conditionFilter
 
     return matchesSearch && matchesCategory && matchesCondition
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (editingAsset) {
-      // Editar ativo existente
-      setAssets(assets.map((asset) => (asset.id === editingAsset.id ? { ...asset, ...formData } : asset)))
-    } else {
-      // Criar novo ativo
-      const newAsset: Asset = {
-        id: Date.now().toString(),
-        name: formData.name || "",
-        category: (formData.category as Asset["category"]) || "outros",
-        description: formData.description || "",
-        value: formData.value || 0,
-        purchaseDate: formData.purchaseDate || "",
-        condition: (formData.condition as Asset["condition"]) || "bom",
-        location: formData.location || "",
-        responsible: formData.responsible || "",
-        warranty: formData.warranty || "",
-        notes: formData.notes,
-        lastMaintenance: formData.lastMaintenance,
-        nextMaintenance: formData.nextMaintenance,
-        image: formData.image,
-      }
-      setAssets([...assets, newAsset])
+    // Validar formulário antes de enviar
+    if (!validateForm()) {
+      return
     }
 
-    setIsDialogOpen(false)
-    setEditingAsset(null)
-    setFormData({})
+    try {
+      setIsSubmitting(true)
+      const apiData = convertFormDataToApi(formData)
+
+      if (editingAsset) {
+        // Editar ativo existente
+        await updateAsset(editingAsset.id, apiData)
+      } else {
+        // Criar novo ativo
+        await createAsset(apiData)
+      }
+
+      // Recarregar lista
+      await loadAssets(currentPage)
+
+      setIsDialogOpen(false)
+      setEditingAsset(null)
+      setFormData({})
+      setFormErrors({})
+
+      // Toast de sucesso será mostrado automaticamente
+    } catch (error) {
+      console.error("Erro ao salvar ativo:", error)
+      // Toast de erro será mostrado automaticamente
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleEdit = (asset: Asset) => {
     setEditingAsset(asset)
-    setFormData(asset)
+    setFormData(convertApiDataToForm(asset))
+    setFormErrors({})
     setIsDialogOpen(true)
   }
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: number) => {
     if (confirm("Tem certeza que deseja excluir este ativo?")) {
-      setAssets(assets.filter((asset) => asset.id !== id))
+      try {
+        await deleteAsset(id)
+        await loadAssets(currentPage)
+        // Toast de sucesso será mostrado automaticamente
+      } catch (error) {
+        console.error("Erro ao excluir ativo:", error)
+        // Toast de erro será mostrado automaticamente
+      }
     }
   }
 
   const handleFileUpload = (file: File) => {
-    if (file && file.type.startsWith("image/")) {
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        const result = e.target?.result as string
-        setFormData({ ...formData, image: result })
-        setImagePreview(result)
-      }
-      reader.readAsDataURL(file)
-    } else {
-      alert("Por favor, selecione apenas arquivos de imagem.")
+    // Validar tipo de arquivo
+    if (!file.type.startsWith("image/")) {
+      alert("Por favor, selecione apenas arquivos de imagem (PNG, JPG, JPEG).")
+      return
     }
+
+    // Validar tamanho do arquivo (máximo 10MB)
+    const maxSize = 10 * 1024 * 1024 // 10MB em bytes
+    if (file.size > maxSize) {
+      alert("O arquivo é muito grande. O tamanho máximo permitido é 10MB.")
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const result = e.target?.result as string
+      setFormData({ ...formData, photo: result })
+      setImagePreview(result)
+    }
+    reader.onerror = () => {
+      alert("Erro ao ler o arquivo. Tente novamente.")
+    }
+    reader.readAsDataURL(file)
   }
 
   const handleDrag = (e: React.DragEvent) => {
@@ -301,34 +296,56 @@ export default function AtivosPage() {
   }
 
   const removeImage = () => {
-    setFormData({ ...formData, image: undefined })
+    setFormData({ ...formData, photo: "" })
     setImagePreview(null)
   }
 
   const openNewAssetDialog = () => {
     setEditingAsset(null)
-    setFormData({})
+    setFormData({
+      type: 1, // Categoria padrão
+    })
+    setFormErrors({})
     setImagePreview(null)
     setIsDialogOpen(true)
   }
 
-  const generatePDF = () => {
-    // Simular geração de PDF
-    alert("PDF gerado com sucesso! (Funcionalidade simulada)")
-  }
+  const handleExport = () => {
+    if (assets.length === 0) {
+      alert("Não há ativos para exportar.")
+      return
+    }
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(value)
-  }
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("pt-BR")
+    // Usar os ativos filtrados se houver filtros ativos
+    const dataToExport = filteredAssets.length > 0 ? filteredAssets : assets
+    exportAssetsToCSV(dataToExport)
   }
 
   const totalValue = assets.reduce((sum, asset) => sum + asset.value, 0)
+
+  // Mapeamento para labels
+  const categoryLabels = assetTypeOptions.reduce(
+    (acc, option) => {
+      acc[option.value] = option.label
+      return acc
+    },
+    {} as Record<number, string>,
+  )
+
+  const conditionLabels = assetConditions.reduce(
+    (acc, condition) => {
+      acc[condition.toLowerCase()] = condition
+      return acc
+    },
+    {} as Record<string, string>,
+  )
+
+  const clearFilters = () => {
+    setSearchTerm("")
+    setCategoryFilter("all")
+    setConditionFilter("all")
+    loadAssets(1)
+  }
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -341,11 +358,11 @@ export default function AtivosPage() {
             <p className="text-gray-600 mt-1">Gerencie os bens e equipamentos da igreja</p>
           </div>
           <div className="flex gap-2">
-            <Button onClick={generatePDF} variant="outline" className="hidden md:flex">
+            <Button onClick={handleExport} variant="outline" className="hidden md:flex">
               <FileText className="h-4 w-4 mr-2" />
-              Gerar PDF
+              Exportar CSV
             </Button>
-            <Button onClick={generatePDF} variant="outline" className="md:hidden">
+            <Button onClick={handleExport} variant="outline" className="md:hidden">
               <FileText className="h-4 w-4" />
             </Button>
             <Button onClick={openNewAssetDialog} style={{ backgroundColor: "#89f0e6" }} className="hover:opacity-90">
@@ -389,7 +406,11 @@ export default function AtivosPage() {
                 <div>
                   <p className="text-xs md:text-sm font-medium text-gray-600">Em Bom Estado</p>
                   <p className="text-lg md:text-2xl font-bold text-gray-900">
-                    {assets.filter((a) => a.condition === "excelente" || a.condition === "bom").length}
+                    {
+                      assets.filter(
+                        (a) => a.condition.toLowerCase() === "excelente" || a.condition.toLowerCase() === "bom",
+                      ).length
+                    }
                   </p>
                 </div>
               </div>
@@ -403,7 +424,11 @@ export default function AtivosPage() {
                 <div>
                   <p className="text-xs md:text-sm font-medium text-gray-600">Manutenção</p>
                   <p className="text-lg md:text-2xl font-bold text-gray-900">
-                    {assets.filter((a) => a.condition === "manutencao" || a.condition === "regular").length}
+                    {
+                      assets.filter(
+                        (a) => a.condition.toLowerCase() === "em manutenção" || a.condition.toLowerCase() === "regular",
+                      ).length
+                    }
                   </p>
                 </div>
               </div>
@@ -455,6 +480,10 @@ export default function AtivosPage() {
                     ))}
                   </SelectContent>
                 </Select>
+
+                <Button variant="outline" size="sm" onClick={clearFilters} className="w-full md:w-auto">
+                  Limpar Filtros
+                </Button>
               </div>
 
               {/* View Toggle */}
@@ -486,167 +515,254 @@ export default function AtivosPage() {
           </CardContent>
         </Card>
 
-        {/* Assets Display */}
-        {viewMode === "cards" ? (
-          /* Cards View */
-          <div className="grid gap-4 md:gap-6">
-            {filteredAssets.map((asset) => (
-              <Card key={asset.id}>
-                <CardContent className="p-4 md:p-6">
-                  <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-                    {asset.image && (
-                      <div className="w-full md:w-48 h-32 md:h-24 flex-shrink-0">
-                        <img
-                          src={asset.image || "/placeholder.svg"}
-                          alt={asset.name}
-                          className="w-full h-full object-cover rounded-md"
-                        />
-                      </div>
-                    )}
-
-                    <div className="flex-1">
-                      <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 mb-3">
-                        <h3 className="text-lg font-semibold text-gray-900">{asset.name}</h3>
-                        <div className="flex flex-wrap gap-2">
-                          <Badge variant="outline">{categoryLabels[asset.category]}</Badge>
-                          <Badge className={conditionColors[asset.condition]}>{conditionLabels[asset.condition]}</Badge>
-                        </div>
-                      </div>
-
-                      <p className="text-gray-600 mb-3">{asset.description}</p>
-
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 text-sm">
-                        <div className="flex items-center gap-2">
-                          <DollarSign className="h-4 w-4 text-gray-400" />
-                          <span className="font-medium">{formatCurrency(asset.value)}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <MapPin className="h-4 w-4 text-gray-400" />
-                          <span>{asset.location}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <User className="h-4 w-4 text-gray-400" />
-                          <span>{asset.responsible}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4 text-gray-400" />
-                          <span>Compra: {formatDate(asset.purchaseDate)}</span>
-                        </div>
-                        {asset.warranty && (
-                          <div className="flex items-center gap-2">
-                            <CheckCircle className="h-4 w-4 text-gray-400" />
-                            <span>Garantia: {formatDate(asset.warranty)}</span>
-                          </div>
-                        )}
-                        {asset.nextMaintenance && (
-                          <div className="flex items-center gap-2">
-                            <Clock className="h-4 w-4 text-gray-400" />
-                            <span>Próx. Manutenção: {formatDate(asset.nextMaintenance)}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {asset.notes && (
-                        <div className="mt-3 p-3 bg-gray-50 rounded-md">
-                          <p className="text-sm text-gray-600">{asset.notes}</p>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={() => handleEdit(asset)}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDelete(asset.id)}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        ) : (
-          /* Table View */
+        {/* Loading State */}
+        {loading && (
           <Card>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 border-b">
-                    <tr>
-                      <th className="text-left p-4 font-medium text-gray-900">Imagem</th>
-                      <th className="text-left p-4 font-medium text-gray-900">Nome</th>
-                      <th className="text-left p-4 font-medium text-gray-900">Categoria</th>
-                      <th className="text-left p-4 font-medium text-gray-900">Valor</th>
-                      <th className="text-left p-4 font-medium text-gray-900">Condição</th>
-                      <th className="text-left p-4 font-medium text-gray-900">Localização</th>
-                      <th className="text-left p-4 font-medium text-gray-900">Responsável</th>
-                      <th className="text-left p-4 font-medium text-gray-900">Data Compra</th>
-                      <th className="text-left p-4 font-medium text-gray-900">Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredAssets.map((asset, index) => (
-                      <tr key={asset.id} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                        <td className="p-4">
-                          {asset.image ? (
-                            <img
-                              src={asset.image || "/placeholder.svg"}
-                              alt={asset.name}
-                              className="w-12 h-8 object-cover rounded"
-                            />
-                          ) : (
-                            <div className="w-12 h-8 bg-gray-200 rounded flex items-center justify-center">
-                              <Package className="h-4 w-4 text-gray-400" />
-                            </div>
-                          )}
-                        </td>
-                        <td className="p-4 font-medium text-gray-900">{asset.name}</td>
-                        <td className="p-4">
-                          <Badge variant="outline">{categoryLabels[asset.category]}</Badge>
-                        </td>
-                        <td className="p-4 font-medium">{formatCurrency(asset.value)}</td>
-                        <td className="p-4">
-                          <Badge className={conditionColors[asset.condition]}>{conditionLabels[asset.condition]}</Badge>
-                        </td>
-                        <td className="p-4 text-gray-600">{asset.location}</td>
-                        <td className="p-4 text-gray-600">{asset.responsible}</td>
-                        <td className="p-4 text-gray-600">{formatDate(asset.purchaseDate)}</td>
-                        <td className="p-4">
-                          <div className="flex gap-1">
-                            <Button variant="outline" size="sm" onClick={() => handleEdit(asset)}>
-                              <Edit className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDelete(asset.id)}
-                              className="text-red-600 hover:text-red-700"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+            <CardContent className="p-12 text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
+              <p className="text-gray-600">Carregando ativos...</p>
             </CardContent>
           </Card>
         )}
 
-        {filteredAssets.length === 0 && (
+        {/* Assets Display */}
+        {!loading && (
+          <>
+            {viewMode === "cards" ? (
+              /* Cards View */
+              <div className="grid gap-4 md:gap-6">
+                {filteredAssets.map((asset) => (
+                  <Card key={asset.id}>
+                    <CardContent className="p-4 md:p-6">
+                      <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                        {asset.photo && (
+                          <div className="w-full md:w-48 h-32 md:h-24 flex-shrink-0">
+                            <img
+                              src={asset.photo || "/placeholder.svg"}
+                              alt={asset.name}
+                              className="w-full h-full object-cover rounded-md"
+                            />
+                          </div>
+                        )}
+
+                        <div className="flex-1">
+                          <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 mb-3">
+                            <h3 className="text-lg font-semibold text-gray-900">{asset.name || "Sem nome"}</h3>
+                            <div className="flex flex-wrap gap-2">
+                              <Badge variant="outline">{categoryLabels[asset.type] || "Outros"}</Badge>
+                              <Badge className={getConditionColor(asset.condition)}>
+                                {asset.condition || "Não informado"}
+                              </Badge>
+                            </div>
+                          </div>
+
+                          <p className="text-gray-600 mb-3">{asset.description || "Sem descrição"}</p>
+
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 text-sm">
+                            <div className="flex items-center gap-2">
+                              <DollarSign className="h-4 w-4 text-gray-400" />
+                              <span className="font-medium">{formatCurrency(asset.value)}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <MapPin className="h-4 w-4 text-gray-400" />
+                              <span>{asset.location || "Não informado"}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <User className="h-4 w-4 text-gray-400" />
+                              <span>{asset.responsible || "Não informado"}</span>
+                            </div>
+                            {asset.purchaseDate && (
+                              <div className="flex items-center gap-2">
+                                <Calendar className="h-4 w-4 text-gray-400" />
+                                <span>Compra: {formatDate(asset.purchaseDate)}</span>
+                              </div>
+                            )}
+                            {asset.warrantyUntil && (
+                              <div className="flex items-center gap-2">
+                                <CheckCircle className="h-4 w-4 text-gray-400" />
+                                <span>Garantia: {formatDate(asset.warrantyUntil)}</span>
+                              </div>
+                            )}
+                            {asset.nextMaintenance && (
+                              <div className="flex items-center gap-2">
+                                <Clock className="h-4 w-4 text-gray-400" />
+                                <span>Próx. Manutenção: {formatDate(asset.nextMaintenance)}</span>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="mt-2">
+                            <div className="flex items-center gap-2 text-sm">
+                              <span className="font-medium text-gray-600">Código:</span>
+                              <span className="bg-gray-100 px-2 py-0.5 rounded text-gray-700">
+                                {asset.identificationCode}
+                              </span>
+                            </div>
+                          </div>
+
+                          {asset.notes && (
+                            <div className="mt-3 p-3 bg-gray-50 rounded-md">
+                              <p className="text-sm text-gray-600">{asset.notes}</p>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" onClick={() => handleEdit(asset)}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDelete(asset.id)}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              /* Table View */
+              <Card>
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50 border-b">
+                        <tr>
+                          <th className="text-left p-4 font-medium text-gray-900">Imagem</th>
+                          <th className="text-left p-4 font-medium text-gray-900">Nome</th>
+                          <th className="text-left p-4 font-medium text-gray-900">Código</th>
+                          <th className="text-left p-4 font-medium text-gray-900">Categoria</th>
+                          <th className="text-left p-4 font-medium text-gray-900">Valor</th>
+                          <th className="text-left p-4 font-medium text-gray-900">Condição</th>
+                          <th className="text-left p-4 font-medium text-gray-900">Localização</th>
+                          <th className="text-left p-4 font-medium text-gray-900">Responsável</th>
+                          <th className="text-left p-4 font-medium text-gray-900">Data Compra</th>
+                          <th className="text-left p-4 font-medium text-gray-900">Ações</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredAssets.map((asset, index) => (
+                          <tr key={asset.id} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                            <td className="p-4">
+                              {asset.photo ? (
+                                <img
+                                  src={asset.photo || "/placeholder.svg"}
+                                  alt={asset.name}
+                                  className="w-12 h-8 object-cover rounded"
+                                />
+                              ) : (
+                                <div className="w-12 h-8 bg-gray-200 rounded flex items-center justify-center">
+                                  <Package className="h-4 w-4 text-gray-400" />
+                                </div>
+                              )}
+                            </td>
+                            <td className="p-4 font-medium text-gray-900">{asset.name || "Sem nome"}</td>
+                            <td className="p-4 text-gray-600">
+                              <span className="bg-gray-100 px-2 py-0.5 rounded text-gray-700 text-xs">
+                                {asset.identificationCode}
+                              </span>
+                            </td>
+                            <td className="p-4">
+                              <Badge variant="outline">{categoryLabels[asset.type] || "Outros"}</Badge>
+                            </td>
+                            <td className="p-4 font-medium">{formatCurrency(asset.value)}</td>
+                            <td className="p-4">
+                              <Badge className={getConditionColor(asset.condition)}>
+                                {asset.condition || "Não informado"}
+                              </Badge>
+                            </td>
+                            <td className="p-4 text-gray-600">{asset.location || "Não informado"}</td>
+                            <td className="p-4 text-gray-600">{asset.responsible || "Não informado"}</td>
+                            <td className="p-4 text-gray-600">{formatDate(asset.purchaseDate)}</td>
+                            <td className="p-4">
+                              <div className="flex gap-1">
+                                <Button variant="outline" size="sm" onClick={() => handleEdit(asset)}>
+                                  <Edit className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleDelete(asset.id)}
+                                  className="text-red-600 hover:text-red-700"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </>
+        )}
+
+        {!loading && filteredAssets.length === 0 && (
           <Card>
             <CardContent className="p-12 text-center">
               <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum ativo encontrado</h3>
               <p className="text-gray-600">Tente ajustar os filtros ou adicione um novo ativo.</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Pagination */}
+        {!loading && totalPages > 1 && (
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="text-sm text-gray-600">
+                  Mostrando {(currentPage - 1) * pageSize + 1} a {Math.min(currentPage * pageSize, totalCount)} de{" "}
+                  {totalCount} ativos
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => loadAssets(currentPage - 1)}
+                    disabled={currentPage <= 1}
+                  >
+                    Anterior
+                  </Button>
+
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      const pageNum = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i
+                      return (
+                        <Button
+                          key={pageNum}
+                          variant={pageNum === currentPage ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => loadAssets(pageNum)}
+                          style={pageNum === currentPage ? { backgroundColor: "#89f0e6" } : {}}
+                          className="w-8 h-8 p-0"
+                        >
+                          {pageNum}
+                        </Button>
+                      )
+                    })}
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => loadAssets(currentPage + 1)}
+                    disabled={currentPage >= totalPages}
+                  >
+                    Próxima
+                  </Button>
+                </div>
+              </div>
             </CardContent>
           </Card>
         )}
@@ -658,6 +774,7 @@ export default function AtivosPage() {
             setIsDialogOpen(open)
             if (!open) {
               setImagePreview(null)
+              setFormErrors({})
             }
           }}
         >
@@ -669,84 +786,124 @@ export default function AtivosPage() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="name">Nome do Ativo *</Label>
+                  <Label htmlFor="name" className="flex items-center">
+                    Nome do Ativo <span className="text-red-500 ml-1">*</span>
+                  </Label>
                   <Input
                     id="name"
                     value={formData.name || ""}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    required
+                    onChange={(e) => {
+                      setFormData({ ...formData, name: e.target.value })
+                      if (formErrors.name) {
+                        setFormErrors({ ...formErrors, name: "" })
+                      }
+                    }}
+                    placeholder="Digite o nome do ativo..."
+                    className={formErrors.name ? "border-red-500" : ""}
                   />
+                  {formErrors.name && <p className="text-red-500 text-xs mt-1">{formErrors.name}</p>}
                 </div>
 
                 <div>
-                  <Label htmlFor="category">Categoria *</Label>
+                  <Label htmlFor="type" className="flex items-center">
+                    Categoria <span className="text-red-500 ml-1">*</span>
+                  </Label>
                   <Select
-                    value={formData.category || ""}
-                    onValueChange={(value) => setFormData({ ...formData, category: value as Asset["category"] })}
+                    value={formData.type?.toString() || ""}
+                    onValueChange={(value) => {
+                      setFormData({ ...formData, type: Number.parseInt(value) })
+                      if (formErrors.type) {
+                        setFormErrors({ ...formErrors, type: "" })
+                      }
+                    }}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione..." />
+                    <SelectTrigger className={formErrors.type ? "border-red-500" : ""}>
+                      <SelectValue placeholder="Selecione uma categoria..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {Object.entries(categoryLabels).map(([value, label]) => (
-                        <SelectItem key={value} value={value}>
-                          {label}
+                      {assetTypeOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value.toString()}>
+                          {option.label}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  {formErrors.type && <p className="text-red-500 text-xs mt-1">{formErrors.type}</p>}
                 </div>
               </div>
 
               <div>
-                <Label htmlFor="description">Descrição *</Label>
+                <Label htmlFor="identificationCode" className="flex items-center">
+                  Código de Identificação <span className="text-red-500 ml-1">*</span>
+                </Label>
+                <Input
+                  id="identificationCode"
+                  value={formData.identificationCode || ""}
+                  onChange={(e) => {
+                    setFormData({ ...formData, identificationCode: e.target.value })
+                    if (formErrors.identificationCode) {
+                      setFormErrors({ ...formErrors, identificationCode: "" })
+                    }
+                  }}
+                  placeholder="Digite um código único para identificar este ativo..."
+                  className={formErrors.identificationCode ? "border-red-500" : ""}
+                />
+                {formErrors.identificationCode && (
+                  <p className="text-red-500 text-xs mt-1">{formErrors.identificationCode}</p>
+                )}
+                <p className="text-xs text-gray-500 mt-1">
+                  Este código é obrigatório e deve ser único para cada ativo.
+                </p>
+              </div>
+
+              <div>
+                <Label htmlFor="description">Descrição</Label>
                 <Textarea
                   id="description"
                   value={formData.description || ""}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  required
+                  placeholder="Descreva o ativo..."
                 />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="value">Valor (R$) *</Label>
+                  <Label htmlFor="value">Valor (R$)</Label>
                   <Input
                     id="value"
                     type="number"
                     step="0.01"
                     value={formData.value || ""}
-                    onChange={(e) => setFormData({ ...formData, value: Number.parseFloat(e.target.value) })}
-                    required
+                    onChange={(e) => setFormData({ ...formData, value: Number.parseFloat(e.target.value) || 0 })}
+                    placeholder="0,00"
                   />
                 </div>
 
                 <div>
-                  <Label htmlFor="purchaseDate">Data de Compra *</Label>
+                  <Label htmlFor="purchaseDate">Data de Compra</Label>
                   <Input
                     id="purchaseDate"
                     type="date"
                     value={formData.purchaseDate || ""}
                     onChange={(e) => setFormData({ ...formData, purchaseDate: e.target.value })}
-                    required
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="condition">Condição *</Label>
+                  <Label htmlFor="condition">Condição</Label>
                   <Select
                     value={formData.condition || ""}
-                    onValueChange={(value) => setFormData({ ...formData, condition: value as Asset["condition"] })}
+                    onValueChange={(value) => setFormData({ ...formData, condition: value })}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Selecione..." />
+                      <SelectValue placeholder="Selecione a condição..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {Object.entries(conditionLabels).map(([value, label]) => (
-                        <SelectItem key={value} value={value}>
-                          {label}
+                      {assetConditions.map((condition) => (
+                        <SelectItem key={condition} value={condition.toLowerCase()}>
+                          {condition}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -754,34 +911,34 @@ export default function AtivosPage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="location">Localização *</Label>
+                  <Label htmlFor="location">Localização</Label>
                   <Input
                     id="location"
                     value={formData.location || ""}
                     onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                    required
+                    placeholder="Onde está localizado..."
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="responsible">Responsável *</Label>
+                  <Label htmlFor="responsible">Responsável</Label>
                   <Input
                     id="responsible"
                     value={formData.responsible || ""}
                     onChange={(e) => setFormData({ ...formData, responsible: e.target.value })}
-                    required
+                    placeholder="Nome do responsável..."
                   />
                 </div>
 
                 <div>
-                  <Label htmlFor="warranty">Garantia até</Label>
+                  <Label htmlFor="warrantyUntil">Garantia até</Label>
                   <Input
-                    id="warranty"
+                    id="warrantyUntil"
                     type="date"
-                    value={formData.warranty || ""}
-                    onChange={(e) => setFormData({ ...formData, warranty: e.target.value })}
+                    value={formData.warrantyUntil || ""}
+                    onChange={(e) => setFormData({ ...formData, warrantyUntil: e.target.value })}
                   />
                 </div>
               </div>
@@ -839,7 +996,7 @@ export default function AtivosPage() {
                       id="image-upload"
                     />
 
-                    {!formData.image ? (
+                    {!formData.photo ? (
                       <div className="space-y-2">
                         <div className="mx-auto w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center">
                           <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -864,22 +1021,27 @@ export default function AtivosPage() {
                       </div>
                     ) : (
                       <div className="space-y-3">
-                        <img
-                          src={formData.image || "/placeholder.svg"}
-                          alt="Preview"
-                          className="mx-auto max-w-full h-32 object-cover rounded-md"
-                        />
+                        <div className="relative inline-block">
+                          <img
+                            src={formData.photo || "/placeholder.svg"}
+                            alt="Preview"
+                            className="mx-auto max-w-full h-32 object-cover rounded-md border"
+                          />
+                          <div className="absolute top-2 right-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
+                            Preview
+                          </div>
+                        </div>
                         <div className="flex gap-2 justify-center">
                           <label
                             htmlFor="image-upload"
-                            className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded cursor-pointer"
+                            className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded cursor-pointer transition-colors"
                           >
-                            Trocar
+                            Trocar Imagem
                           </label>
                           <button
                             type="button"
                             onClick={removeImage}
-                            className="px-3 py-1 text-sm bg-red-100 hover:bg-red-200 text-red-600 rounded"
+                            className="px-3 py-1 text-sm bg-red-100 hover:bg-red-200 text-red-600 rounded transition-colors"
                           >
                             Remover
                           </button>
@@ -889,8 +1051,13 @@ export default function AtivosPage() {
                   </div>
 
                   {/* URL Input alternativo */}
-                  <div className="text-center text-gray-500 text-sm">
-                    <span>ou</span>
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-white px-2 text-gray-500">ou</span>
+                    </div>
                   </div>
 
                   <div>
@@ -899,21 +1066,31 @@ export default function AtivosPage() {
                       id="imageUrl"
                       type="url"
                       value={
-                        typeof formData.image === "string" && formData.image.startsWith("http") ? formData.image : ""
+                        typeof formData.photo === "string" && formData.photo.startsWith("http") ? formData.photo : ""
                       }
                       onChange={(e) => {
-                        setFormData({ ...formData, image: e.target.value })
+                        setFormData({ ...formData, photo: e.target.value })
                         setImagePreview(e.target.value)
                       }}
                       placeholder="https://exemplo.com/imagem.jpg"
                     />
+                    <p className="text-xs text-gray-500 mt-1">Cole aqui a URL de uma imagem hospedada online</p>
                   </div>
                 </div>
               </div>
 
               <div className="flex gap-2 pt-4">
-                <Button type="submit" className="flex-1" style={{ backgroundColor: "#89f0e6" }}>
-                  {editingAsset ? "Salvar Alterações" : "Cadastrar Ativo"}
+                <Button type="submit" className="flex-1" style={{ backgroundColor: "#89f0e6" }} disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      {editingAsset ? "Salvando..." : "Cadastrando..."}
+                    </>
+                  ) : editingAsset ? (
+                    "Salvar Alterações"
+                  ) : (
+                    "Cadastrar Ativo"
+                  )}
                 </Button>
                 <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                   Cancelar

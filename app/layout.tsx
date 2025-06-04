@@ -1,29 +1,32 @@
 import type React from "react"
-import "./globals.css"
+import type { Metadata } from "next"
 import { Inter } from "next/font/google"
+import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { LanguageProvider } from "@/contexts/language-context"
-import ScrollToSection from "@/components/scroll-to-section"
 import { ErrorBoundary } from "@/components/error-boundary"
+import { ToastProvider } from "@/contexts/toast-context"
 
 const inter = Inter({ subsets: ["latin"] })
 
-export const metadata = {
-  title: "MyChurch - Software de Gestão para Igrejas",
-  description: "Transforme a gestão da sua igreja com uma solução digital completa e integrada.",
+export const metadata: Metadata = {
+  title: "MyChurch - Sistema de Gestão para Igrejas",
+  description: "Sistema completo de gestão para igrejas com controle de membros, finanças, eventos e comunicação.",
+  keywords: "igreja, gestão, membros, finanças, eventos, comunicação",
+  authors: [{ name: "MyChurch Team" }],
+  viewport: "width=device-width, initial-scale=1",
+  themeColor: "#3b82f6",
   manifest: "/manifest.json",
   icons: {
-    icon: "/api/icon/32",
-    apple: "/api/icon/180",
+    icon: [
+      { url: "/api/icon/16", sizes: "16x16", type: "image/png" },
+      { url: "/api/icon/32", sizes: "32x32", type: "image/png" },
+      { url: "/api/icon/192", sizes: "192x192", type: "image/png" },
+      { url: "/api/icon/512", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/api/icon/180", sizes: "180x180", type: "image/png" }],
   },
-  themeColor: "#3b82f6",
-  viewport: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: "MyChurch",
-  },
-  generator: "v0.dev",
+    generator: 'v0.dev'
 }
 
 export default function RootLayout({
@@ -32,26 +35,12 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="pt-BR">
-      <head>
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="MyChurch" />
-        <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="msapplication-TileColor" content="#3b82f6" />
-        <meta name="msapplication-tap-highlight" content="no" />
-        <link rel="apple-touch-icon" href="/api/icon/180" />
-        <link rel="mask-icon" href="/api/icon/192" color="#3b82f6" />
-        <link rel="icon" type="image/svg+xml" href="/api/icon/32" />
-        <link rel="icon" type="image/svg+xml" sizes="16x16" href="/api/icon/16" />
-        <link rel="icon" type="image/svg+xml" sizes="32x32" href="/api/icon/32" />
-      </head>
+    <html lang="pt-BR" suppressHydrationWarning>
       <body className={inter.className}>
         <ErrorBoundary>
-          <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
+          <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
             <LanguageProvider>
-              <ScrollToSection />
-              {children}
+              <ToastProvider>{children}</ToastProvider>
             </LanguageProvider>
           </ThemeProvider>
         </ErrorBoundary>
