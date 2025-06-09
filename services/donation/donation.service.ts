@@ -24,20 +24,21 @@ export interface DonationRequest {
   creditCardHolderInfo?: CreditCardHolderInfo
 }
 
+export interface PixQrCode {
+  encodedImage: string
+  payload: string
+  expirationDate: string
+}
+
 export interface DonationResponse {
-  id: string
-  value: number
-  description: string
-  billingType: string
+  donationId: number
+  paymentLink: string
   status: string
-  dueDate: string
-  pixQrCode?: string
-  pixCopyPaste?: string
-  createdAt: string
+  pixQrCode?: PixQrCode
 }
 
 class DonationService {
-  private baseUrl = process.env.NEXT_PUBLIC_API_URL || "https://localhost:7297"
+  private baseUrl = "https://demoapp.top1soft.com.br"
 
   async createDonation(donation: DonationRequest): Promise<DonationResponse> {
     const token = localStorage.getItem("authToken")
@@ -46,14 +47,28 @@ class DonationService {
       throw new Error("Token de autenticação não encontrado")
     }
 
+    // Preparar payload baseado no tipo de pagamento
+    const payload: any = {
+      value: donation.value,
+      description: donation.description,
+      billingType: donation.billingType,
+      dueDate: donation.dueDate,
+    }
+
+    // Só adicionar dados do cartão se for CREDIT_CARD
+    if (donation.billingType === "CREDIT_CARD") {
+      payload.creditCard = donation.creditCard
+      payload.creditCardHolderInfo = donation.creditCardHolderInfo
+    }
+
     try {
       const response = await fetch(`${this.baseUrl}/api/Donation`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          Authorization: `bearer ${token}`,
         },
-        body: JSON.stringify(donation),
+        body: JSON.stringify(payload),
       })
 
       if (!response.ok) {
@@ -170,6 +185,22 @@ class DonationService {
   formatCep(value: string): string {
     const v = value.replace(/\D/g, "")
     return v.replace(/(\d{5})(\d{3})/, "$1-$2")
+  }
+
+  // Método para formatar data de expiração
+  formatExpirationDate(dateString: string): string {
+    try {
+      const date = new Date(dateString)
+      return date.toLocaleString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    } catch {
+      return dateString
+    }
   }
 }
 

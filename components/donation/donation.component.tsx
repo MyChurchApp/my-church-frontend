@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -10,10 +9,11 @@ import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
-import { Heart, CreditCard, QrCode, CheckCircle, AlertCircle, Copy, ArrowLeft } from "lucide-react"
+import { Heart, CreditCard, QrCode, CheckCircle, AlertCircle, Copy, ArrowLeft, Loader2, Clock } from "lucide-react"
 import { donationService } from "@/services/donation/donation.service"
 import type { DonationFormData, DonationResponse } from "@/containers/donation/useDonation"
 import Link from "next/link"
+import Image from "next/image"
 
 interface DonationComponentProps {
   formData: DonationFormData
@@ -61,9 +61,9 @@ export function DonationComponent({
   }
 
   const copyPixCode = async () => {
-    if (success?.pixCopyPaste) {
+    if (success?.pixQrCode?.payload) {
       try {
-        await navigator.clipboard.writeText(success.pixCopyPaste)
+        await navigator.clipboard.writeText(success.pixQrCode.payload)
         setCopiedPix(true)
         setTimeout(() => setCopiedPix(false), 2000)
       } catch (err) {
@@ -75,6 +75,43 @@ export function DonationComponent({
   const handleNewDonation = () => {
     clearSuccess()
     resetForm()
+  }
+
+  const translateStatus = (status: string) => {
+    const statusTranslations: { [key: string]: string } = {
+      PENDING: "Pendente",
+      CONFIRMED: "Confirmado",
+      RECEIVED: "Recebido",
+      OVERDUE: "Vencido",
+      REFUNDED: "Reembolsado",
+      RECEIVED_IN_CASH: "Recebido em Dinheiro",
+      REFUND_REQUESTED: "Reembolso Solicitado",
+      REFUND_IN_PROGRESS: "Reembolso em Andamento",
+      CHARGEBACK_REQUESTED: "Estorno Solicitado",
+      CHARGEBACK_DISPUTE: "Disputa de Estorno",
+      AWAITING_CHARGEBACK_REVERSAL: "Aguardando Reversão de Estorno",
+      DUNNING_REQUESTED: "Cobrança Solicitada",
+      DUNNING_RECEIVED: "Cobrança Recebida",
+      AWAITING_RISK_ANALYSIS: "Aguardando Análise de Risco",
+    }
+    return statusTranslations[status] || status
+  }
+
+  // Tela de loading durante processamento
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Card className="w-full max-w-md">
+          <CardContent className="flex flex-col items-center justify-center p-8 space-y-4">
+            <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
+            <h3 className="text-xl font-semibold">Processando sua doação...</h3>
+            <p className="text-gray-600 text-center">
+              Aguarde enquanto processamos sua doação. Isso pode levar alguns segundos.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   // Se a doação foi bem-sucedida, mostrar tela de sucesso
@@ -94,47 +131,92 @@ export function DonationComponent({
               <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
                 <CheckCircle className="h-8 w-8 text-green-600" />
               </div>
-              <CardTitle className="text-2xl text-green-600">Doação Realizada com Sucesso!</CardTitle>
+              <CardTitle className="text-2xl text-green-600">Doação Criada com Sucesso!</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="bg-gray-50 p-4 rounded-lg">
-                <p className="text-sm text-gray-600 mb-2">Valor doado</p>
+                <p className="text-sm text-gray-600 mb-2">Valor da doação</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  R$ {success.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                  R${" "}
+                  {success.value
+                    ? Number(success.value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })
+                    : Number(formData.value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                 </p>
               </div>
 
               <div className="text-left space-y-2">
                 <p>
-                  <span className="font-medium">ID da doação:</span> {success.id}
-                </p>
-                <p>
-                  <span className="font-medium">Descrição:</span> {success.description}
+                  <span className="font-medium">Descrição:</span> {success.description || formData.description}
                 </p>
                 <p>
                   <span className="font-medium">Método:</span>{" "}
-                  {success.billingType === "PIX" ? "PIX" : "Cartão de Crédito"}
+                  {formData.billingType === "PIX" ? "PIX" : "Cartão de Crédito"}
                 </p>
                 <p>
-                  <span className="font-medium">Status:</span> {success.status}
+                  <span className="font-medium">Status:</span> {translateStatus(success.status)}
                 </p>
               </div>
 
-              {success.billingType === "PIX" && success.pixCopyPaste && (
+              {/* Exibir QR Code do PIX */}
+              {formData.billingType === "PIX" && success.pixQrCode && (
                 <div className="space-y-4">
                   <Separator />
                   <div>
-                    <h3 className="font-medium mb-3 flex items-center">
+                    <h3 className="font-medium mb-3 flex items-center justify-center">
                       <QrCode className="h-5 w-5 mr-2" />
-                      Código PIX para pagamento
+                      Escaneie o QR Code para pagar
                     </h3>
+
+                    {/* QR Code Image */}
+                    <div className="flex justify-center mb-4">
+                      <div className="bg-white p-4 rounded-lg border-2 border-gray-200">
+                        <Image
+                          src={`data:image/png;base64,${success.pixQrCode.encodedImage}`}
+                          alt="QR Code PIX"
+                          width={200}
+                          height={200}
+                          className="mx-auto"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Código PIX para copiar */}
                     <div className="bg-gray-50 p-3 rounded-lg">
-                      <p className="text-xs text-gray-600 mb-2 break-all">{success.pixCopyPaste}</p>
+                      <p className="text-sm text-gray-600 mb-2">Ou copie o código PIX:</p>
+                      <p className="text-xs text-gray-800 mb-3 break-all font-mono bg-white p-2 rounded border">
+                        {success.pixQrCode.payload}
+                      </p>
                       <Button onClick={copyPixCode} variant="outline" size="sm" className="w-full">
                         <Copy className="h-4 w-4 mr-2" />
                         {copiedPix ? "Copiado!" : "Copiar código PIX"}
                       </Button>
                     </div>
+
+                    {/* Data de expiração */}
+                    {success.pixQrCode.expirationDate && (
+                      <div className="flex items-center justify-center text-sm text-gray-600 mt-3">
+                        <Clock className="h-4 w-4 mr-1" />
+                        Válido até: {donationService.formatExpirationDate(success.pixQrCode.expirationDate)}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Link de pagamento para cartão */}
+              {formData.billingType === "CREDIT_CARD" && success.paymentLink && (
+                <div className="space-y-4">
+                  <Separator />
+                  <div>
+                    <h3 className="font-medium mb-3 flex items-center justify-center">
+                      <CreditCard className="h-5 w-5 mr-2" />
+                      Finalizar pagamento
+                    </h3>
+                    <Button asChild className="w-full">
+                      <a href={success.paymentLink} target="_blank" rel="noopener noreferrer">
+                        Ir para pagamento
+                      </a>
+                    </Button>
                   </div>
                 </div>
               )}
@@ -390,7 +472,7 @@ export function DonationComponent({
                 >
                   {isLoading ? (
                     <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
                       Processando...
                     </>
                   ) : (
