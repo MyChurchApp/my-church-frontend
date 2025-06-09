@@ -17,6 +17,7 @@ import {
   Menu,
   X,
   Package,
+  Heart,
 } from "lucide-react"
 import { getUser, getChurchData } from "@/lib/fake-api"
 
@@ -82,10 +83,10 @@ export function Sidebar({ className = "" }: SidebarProps) {
   }
 
   const allMenuItems: MenuItem[] = [
-    { icon: Home, label: "Dashboard", href: "/dashboard", accessLevel: "member" },
+    { icon: Home, label: "Início", href: "/dashboard", accessLevel: "member" },
     { icon: Users, label: "Membros", href: "/dashboard/membros", accessLevel: "member" },
     { icon: Calendar, label: "Eventos", href: "/dashboard/eventos", accessLevel: "member" },
-    // Comunicação com submenus
+    { icon: Heart, label: "Doações", href: "/dashboard/doacoes", accessLevel: "member" },
     {
       icon: MessageSquare,
       label: "Comunicação",

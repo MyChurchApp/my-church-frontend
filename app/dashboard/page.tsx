@@ -58,6 +58,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import Link from "next/link"
 
 // Função helper para gerar iniciais de forma segura
 const getInitials = (name: string | undefined | null): string => {
@@ -692,59 +693,67 @@ export default function DashboardPage() {
                   <h2 className="text-lg md:text-xl font-bold text-gray-900">
                     {showRealFeed ? "Feed da Igreja" : "Mural da Igreja"}
                   </h2>
-                  {isAuthenticated() && (
-                    <Dialog open={isNewPostModalOpen} onOpenChange={setIsNewPostModalOpen}>
-                      <DialogTrigger asChild>
-                        <Button
-                          size="sm"
-                          style={{ backgroundColor: "#89f0e6", color: "#000" }}
-                          className="hover:opacity-90"
-                        >
-                          <Plus className="h-4 w-4 mr-2" />
-                          Nova Publicação
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="sm:max-w-md">
-                        <DialogHeader>
-                          <DialogTitle>Nova Publicação</DialogTitle>
-                        </DialogHeader>
-                        <div className="space-y-4 py-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="content">Conteúdo</Label>
-                            <Textarea
-                              id="content"
-                              placeholder="O que você gostaria de compartilhar?"
-                              value={newPostContent}
-                              onChange={(e) => setNewPostContent(e.target.value)}
-                              rows={4}
-                            />
+                  <div className="flex items-center gap-2">
+                    <Link href="/dashboard/doacoes">
+                      <Button size="sm" variant="outline" className="border-green-500 text-green-600 hover:bg-green-50">
+                        <Heart className="h-4 w-4 mr-2" />
+                        Doar
+                      </Button>
+                    </Link>
+                    {isAuthenticated() && (
+                      <Dialog open={isNewPostModalOpen} onOpenChange={setIsNewPostModalOpen}>
+                        <DialogTrigger asChild>
+                          <Button
+                            size="sm"
+                            style={{ backgroundColor: "#89f0e6", color: "#000" }}
+                            className="hover:opacity-90"
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Nova Publicação
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-md">
+                          <DialogHeader>
+                            <DialogTitle>Nova Publicação</DialogTitle>
+                          </DialogHeader>
+                          <div className="space-y-4 py-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="content">Conteúdo</Label>
+                              <Textarea
+                                id="content"
+                                placeholder="O que você gostaria de compartilhar?"
+                                value={newPostContent}
+                                onChange={(e) => setNewPostContent(e.target.value)}
+                                rows={4}
+                              />
+                            </div>
+                            <div className="flex gap-2 pt-4">
+                              <Button
+                                onClick={handleCreatePost}
+                                disabled={!newPostContent.trim() || isCreatingPost}
+                                className="flex-1"
+                              >
+                                {isCreatingPost ? (
+                                  <>
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                    Publicando...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Send className="h-4 w-4 mr-2" />
+                                    Publicar
+                                  </>
+                                )}
+                              </Button>
+                              <Button variant="outline" onClick={() => setIsNewPostModalOpen(false)} className="flex-1">
+                                Cancelar
+                              </Button>
+                            </div>
                           </div>
-                          <div className="flex gap-2 pt-4">
-                            <Button
-                              onClick={handleCreatePost}
-                              disabled={!newPostContent.trim() || isCreatingPost}
-                              className="flex-1"
-                            >
-                              {isCreatingPost ? (
-                                <>
-                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                                  Publicando...
-                                </>
-                              ) : (
-                                <>
-                                  <Send className="h-4 w-4 mr-2" />
-                                  Publicar
-                                </>
-                              )}
-                            </Button>
-                            <Button variant="outline" onClick={() => setIsNewPostModalOpen(false)} className="flex-1">
-                              Cancelar
-                            </Button>
-                          </div>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-                  )}
+                        </DialogContent>
+                      </Dialog>
+                    )}
+                  </div>
                 </div>
 
                 {isLoadingFeed && (
