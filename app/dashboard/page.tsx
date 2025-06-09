@@ -116,6 +116,7 @@ export default function DashboardPage() {
   const [feedResponse, setFeedResponse] = useState<ApiFeedResponse | null>(null)
   const [feedItems, setFeedItems] = useState<ApiFeedItem[]>([])
   const [isLoadingFeed, setIsLoadingFeed] = useState(false)
+  const [feedError, setFeedError] = useState<string | null>(null)
   const [birthdays, setBirthdays] = useState<BirthdayMember[]>([])
   const [isLoadingBirthdays, setIsLoadingBirthdays] = useState(false)
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0)
@@ -196,24 +197,43 @@ export default function DashboardPage() {
   // Função para carregar o feed
   const loadFeed = async () => {
     if (!isAuthenticated()) {
-      // Se não estiver autenticado, usar dados fake
+      // Se não estiver autenticado, usar dados fake apenas para demonstração
       setNotifications(getNotifications())
       return
     }
 
     setIsLoadingFeed(true)
+    setFeedError(null)
     try {
-      const response = await getFeedFromAPI(1, 20) // Carregar primeira página com 20 itens
+      console.log("🔄 Carregando feed da API...")
+      const response = await getFeedFromAPI(1, 20)
+      console.log("✅ Feed carregado com sucesso:", response)
+
       setFeedResponse(response)
       setFeedItems(response.items)
       // Limpar notificações fake se tiver feed real
       setNotifications([])
     } catch (error) {
-      console.error("Erro ao carregar feed:", error)
-      // Fallback para dados fake em caso de erro
-      setNotifications(getNotifications())
+      console.error("❌ Erro ao carregar feed:", error)
+
+      // Definir mensagem de erro baseada no tipo
+      let errorMessage = "Erro ao carregar feed"
+      if (error instanceof Error) {
+        if (error.message.includes("401")) {
+          errorMessage = "Sessão expirada. Você será redirecionado para o login."
+        } else if (error.message.includes("404")) {
+          errorMessage = "Feed não encontrado"
+        } else if (error.message.includes("500")) {
+          errorMessage = "Erro interno do servidor"
+        } else {
+          errorMessage = error.message
+        }
+      }
+
+      setFeedError(errorMessage)
       setFeedItems([])
       setFeedResponse(null)
+      // NÃO usar dados fake em caso de erro
     } finally {
       setIsLoadingFeed(false)
     }
@@ -456,7 +476,7 @@ export default function DashboardPage() {
 
   // Determinar se deve mostrar feed real ou fake
   const showRealFeed = isAuthenticated() && feedItems.length > 0
-  const feedToShow = showRealFeed ? feedItems : displayedNotifications
+  const showFakeNotifications = !isAuthenticated() && notifications.length > 0
 
   const handleEditPost = (item: ApiFeedItem) => {
     setEditingPost(item)
@@ -793,7 +813,7 @@ export default function DashboardPage() {
               <div className="lg:col-span-2">
                 <div className="flex items-center justify-between mb-4 md:mb-6">
                   <h2 className="text-lg md:text-xl font-bold text-gray-900">
-                    {showRealFeed ? "Feed da Igreja" : "Mural da Igreja"}
+                    {showRealFeed ? "Feed da Igreja" : showFakeNotifications ? "Mural da Igreja" : "Feed da Igreja"}
                   </h2>
                   <div className="flex items-center gap-2">
                     <Link href="/dashboard/doacoes">
@@ -858,6 +878,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
+                {/* Loading do Feed */}
                 {isLoadingFeed && (
                   <div className="text-center py-8">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
@@ -865,154 +886,179 @@ export default function DashboardPage() {
                   </div>
                 )}
 
-                <div className="space-y-4 md:space-y-6">
-                  {showRealFeed
-                    ? // Feed real da API
-                      feedItems.map((item) => (
-                        <Card key={item.id} className="overflow-hidden">
-                          <CardHeader className="pb-3">
-                            <div className="flex items-center gap-3">
-                              <Avatar className="h-8 w-8 md:h-10 md:w-10">
-                                <AvatarImage
-                                  src={item.member.photo || "/placeholder.svg?height=40&width=40&query=church+member"}
-                                />
-                                <AvatarFallback className="text-xs md:text-sm">
-                                  {getInitials(item.member.name)}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2">
-                                  <p className="font-medium text-gray-900 text-sm md:text-base">
-                                    {item.member.name || "Usuário"}
-                                  </p>
-                                  <span className="px-2 py-1 text-xs bg-blue-100 text-blue-600 rounded-full">
-                                    Publicação
-                                  </span>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                  <p className="text-xs md:text-sm text-gray-600">{formatApiTimeAgo(item.created)}</p>
-                                  {/* Botões de editar e deletar - só mostra se for o post do usuário e dentro de 2h */}
-                                  {canUserEditOrDeletePost(item) && (
-                                    <div className="flex items-center gap-1">
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => handleEditPost(item)}
-                                        className="hover:bg-gray-100 rounded-full h-8 w-8"
-                                        title="Editar publicação"
-                                      >
-                                        <Pencil className="h-4 w-4 text-gray-600" />
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => handleDeletePost(item)}
-                                        className="hover:bg-red-50 rounded-full h-8 w-8"
-                                        title="Deletar publicação"
-                                      >
-                                        <Trash2 className="h-4 w-4 text-red-600" />
-                                      </Button>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          </CardHeader>
-
-                          <CardContent className="pt-0">
-                            <p className="text-gray-700 text-sm md:text-base whitespace-pre-wrap">{item.content}</p>
-
-                            {/* Mostrar contagem de likes se houver */}
-                            {item.likesCount > 0 && (
-                              <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
-                                <Heart className="h-4 w-4 text-red-500" />
-                                <span className="text-sm text-gray-600">{item.likesCount} curtidas</span>
-                              </div>
-                            )}
-                          </CardContent>
-                        </Card>
-                      ))
-                    : // Feed fake (notificações)
-                      displayedNotifications.map((notification) => (
-                        <Card key={notification.id} className="overflow-hidden">
-                          <CardHeader className="pb-3">
-                            <div className="flex items-center gap-3">
-                              <Avatar className="h-8 w-8 md:h-10 md:w-10">
-                                <AvatarImage src="/placeholder.svg?height=40&width=40" />
-                                <AvatarFallback className="text-xs md:text-sm">
-                                  {getInitials(notification.author)}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2">
-                                  <p className="font-medium text-gray-900 text-sm md:text-base">
-                                    {notification.author || "Usuário"}
-                                  </p>
-                                  <span className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded-full">
-                                    {getNotificationBadge(notification.type)}
-                                  </span>
-                                </div>
-                                <p className="text-xs md:text-sm text-gray-600">
-                                  {formatTimeAgo(notification.timestamp)}
-                                </p>
-                              </div>
-                            </div>
-                          </CardHeader>
-
-                          <CardContent className="pt-0">
-                            <div className="flex items-center gap-2 mb-3">
-                              {getNotificationIcon(notification.type)}
-                              <h3 className="font-semibold text-gray-900 text-sm md:text-base">{notification.title}</h3>
-                            </div>
-
-                            <p className="text-gray-700 mb-4 text-sm md:text-base">{notification.content}</p>
-                          </CardContent>
-                        </Card>
-                      ))}
-
-                  {/* Botão Ver Mais - apenas para feed fake */}
-                  {!showRealFeed && hasMoreNotifications && (
-                    <div className="text-center py-6">
+                {/* Erro do Feed */}
+                {feedError && !isLoadingFeed && (
+                  <div className="text-center py-12">
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md mx-auto">
+                      <div className="text-red-600 mb-2">
+                        <Users className="h-12 w-12 mx-auto mb-3" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-red-800 mb-2">Erro ao carregar feed</h3>
+                      <p className="text-red-600 text-sm mb-4">{feedError}</p>
                       <Button
-                        onClick={loadMoreNotifications}
+                        onClick={loadFeed}
                         variant="outline"
-                        className="px-8 py-2 text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-300"
+                        className="border-red-300 text-red-600 hover:bg-red-50"
                       >
-                        Ver mais posts ({notifications.length - visibleNotifications} restantes)
+                        Tentar novamente
                       </Button>
                     </div>
-                  )}
+                  </div>
+                )}
 
-                  {/* Mensagem quando todos os posts foram carregados */}
-                  {!showRealFeed && !hasMoreNotifications && notifications.length > 3 && (
-                    <div className="text-center py-6">
-                      <p className="text-gray-500 text-sm">Você viu todos os posts do mural! 🎉</p>
-                    </div>
-                  )}
+                {/* Conteúdo do Feed */}
+                {!isLoadingFeed && !feedError && (
+                  <div className="space-y-4 md:space-y-6">
+                    {showRealFeed
+                      ? // Feed real da API
+                        feedItems.map((item) => (
+                          <Card key={item.id} className="overflow-hidden">
+                            <CardHeader className="pb-3">
+                              <div className="flex items-center gap-3">
+                                <Avatar className="h-8 w-8 md:h-10 md:w-10">
+                                  <AvatarImage
+                                    src={item.member.photo || "/placeholder.svg?height=40&width=40&query=church+member"}
+                                  />
+                                  <AvatarFallback className="text-xs md:text-sm">
+                                    {getInitials(item.member.name)}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <p className="font-medium text-gray-900 text-sm md:text-base">
+                                      {item.member.name || "Usuário"}
+                                    </p>
+                                    <span className="px-2 py-1 text-xs bg-blue-100 text-blue-600 rounded-full">
+                                      Publicação
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center justify-between">
+                                    <p className="text-xs md:text-sm text-gray-600">{formatApiTimeAgo(item.created)}</p>
+                                    {/* Botões de editar e deletar - só mostra se for o post do usuário e dentro de 2h */}
+                                    {canUserEditOrDeletePost(item) && (
+                                      <div className="flex items-center gap-1">
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          onClick={() => handleEditPost(item)}
+                                          className="hover:bg-gray-100 rounded-full h-8 w-8"
+                                          title="Editar publicação"
+                                        >
+                                          <Pencil className="h-4 w-4 text-gray-600" />
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          onClick={() => handleDeletePost(item)}
+                                          className="hover:bg-red-50 rounded-full h-8 w-8"
+                                          title="Deletar publicação"
+                                        >
+                                          <Trash2 className="h-4 w-4 text-red-600" />
+                                        </Button>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </CardHeader>
 
-                  {/* Mensagem quando não há posts no feed real */}
-                  {showRealFeed && feedItems.length === 0 && !isLoadingFeed && (
-                    <div className="text-center py-12">
-                      <Users className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                      <p className="text-gray-500 text-lg mb-2">Nenhuma publicação ainda</p>
-                      <p className="text-gray-400 text-sm">Seja o primeiro a compartilhar algo!</p>
-                    </div>
-                  )}
+                            <CardContent className="pt-0">
+                              <p className="text-gray-700 text-sm md:text-base whitespace-pre-wrap">{item.content}</p>
 
-                  {/* Informações de paginação - apenas para feed real */}
-                  {showRealFeed && feedResponse && (
-                    <div className="text-center py-6 border-t border-gray-200">
-                      <p className="text-sm text-gray-500">
-                        Mostrando {feedResponse.items.length} de {feedResponse.totalCount} publicações
-                      </p>
-                      {feedResponse.totalPages > 1 && (
-                        <p className="text-xs text-gray-400 mt-1">
-                          Página {feedResponse.pageNumber} de {feedResponse.totalPages}
+                              {/* Mostrar contagem de likes se houver */}
+                              {item.likesCount > 0 && (
+                                <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
+                                  <Heart className="h-4 w-4 text-red-500" />
+                                  <span className="text-sm text-gray-600">{item.likesCount} curtidas</span>
+                                </div>
+                              )}
+                            </CardContent>
+                          </Card>
+                        ))
+                      : showFakeNotifications
+                        ? // Feed fake (notificações) - apenas para usuários não autenticados
+                          displayedNotifications.map((notification) => (
+                            <Card key={notification.id} className="overflow-hidden">
+                              <CardHeader className="pb-3">
+                                <div className="flex items-center gap-3">
+                                  <Avatar className="h-8 w-8 md:h-10 md:w-10">
+                                    <AvatarImage src="/placeholder.svg?height=40&width=40" />
+                                    <AvatarFallback className="text-xs md:text-sm">
+                                      {getInitials(notification.author)}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2">
+                                      <p className="font-medium text-gray-900 text-sm md:text-base">
+                                        {notification.author || "Usuário"}
+                                      </p>
+                                      <span className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded-full">
+                                        {getNotificationBadge(notification.type)}
+                                      </span>
+                                    </div>
+                                    <p className="text-xs md:text-sm text-gray-600">
+                                      {formatTimeAgo(notification.timestamp)}
+                                    </p>
+                                  </div>
+                                </div>
+                              </CardHeader>
+
+                              <CardContent className="pt-0">
+                                <div className="flex items-center gap-2 mb-3">
+                                  {getNotificationIcon(notification.type)}
+                                  <h3 className="font-semibold text-gray-900 text-sm md:text-base">
+                                    {notification.title}
+                                  </h3>
+                                </div>
+
+                                <p className="text-gray-700 mb-4 text-sm md:text-base">{notification.content}</p>
+                              </CardContent>
+                            </Card>
+                          ))
+                        : // Mensagem quando não há posts e está autenticado
+                          isAuthenticated() && (
+                            <div className="text-center py-12">
+                              <Users className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                              <p className="text-gray-500 text-lg mb-2">Nenhuma publicação ainda</p>
+                              <p className="text-gray-400 text-sm">Seja o primeiro a compartilhar algo!</p>
+                            </div>
+                          )}
+
+                    {/* Botão Ver Mais - apenas para feed fake */}
+                    {showFakeNotifications && hasMoreNotifications && (
+                      <div className="text-center py-6">
+                        <Button
+                          onClick={loadMoreNotifications}
+                          variant="outline"
+                          className="px-8 py-2 text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-300"
+                        >
+                          Ver mais posts ({notifications.length - visibleNotifications} restantes)
+                        </Button>
+                      </div>
+                    )}
+
+                    {/* Mensagem quando todos os posts foram carregados */}
+                    {showFakeNotifications && !hasMoreNotifications && notifications.length > 3 && (
+                      <div className="text-center py-6">
+                        <p className="text-gray-500 text-sm">Você viu todos os posts do mural! 🎉</p>
+                      </div>
+                    )}
+
+                    {/* Informações de paginação - apenas para feed real */}
+                    {showRealFeed && feedResponse && (
+                      <div className="text-center py-6 border-t border-gray-200">
+                        <p className="text-sm text-gray-500">
+                          Mostrando {feedResponse.items.length} de {feedResponse.totalCount} publicações
                         </p>
-                      )}
-                    </div>
-                  )}
-                </div>
+                        {feedResponse.totalPages > 1 && (
+                          <p className="text-xs text-gray-400 mt-1">
+                            Página {feedResponse.pageNumber} de {feedResponse.totalPages}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Sidebar - Aniversários e Banners */}
