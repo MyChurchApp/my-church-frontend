@@ -122,7 +122,7 @@ export function DonationComponent({
           <div className="mb-6">
             <Link href="/dashboard" className="flex items-center text-gray-600 hover:text-gray-900">
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Voltar ao Dashboard
+              Voltar ao Início
             </Link>
           </div>
 
@@ -131,7 +131,7 @@ export function DonationComponent({
               <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
                 <CheckCircle className="h-8 w-8 text-green-600" />
               </div>
-              <CardTitle className="text-2xl text-green-600">Doação Criada com Sucesso!</CardTitle>
+              <CardTitle className="text-2xl text-green-600">Obrigado pela doação</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="bg-gray-50 p-4 rounded-lg">
@@ -148,10 +148,7 @@ export function DonationComponent({
                 <p>
                   <span className="font-medium">Descrição:</span> {success.description || formData.description}
                 </p>
-                <p>
-                  <span className="font-medium">Método:</span>{" "}
-                  {formData.billingType === "PIX" ? "PIX" : "Cartão de Crédito"}
-                </p>
+
                 <p>
                   <span className="font-medium">Status:</span> {translateStatus(success.status)}
                 </p>
@@ -228,7 +225,7 @@ export function DonationComponent({
                 </Button>
                 <Link href="/dashboard" className="flex-1">
                   <Button variant="outline" className="w-full">
-                    Voltar ao Dashboard
+                    Voltar ao Início
                   </Button>
                 </Link>
               </div>
@@ -245,7 +242,7 @@ export function DonationComponent({
         <div className="mb-6">
           <Link href="/dashboard" className="flex items-center text-gray-600 hover:text-gray-900">
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Voltar ao Dashboard
+            Voltar ao Início
           </Link>
         </div>
 

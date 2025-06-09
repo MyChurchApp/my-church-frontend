@@ -645,8 +645,10 @@ export default function DashboardPage() {
                     <Users className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-lg md:text-2xl font-bold">{churchData.members}</div>
-                    <p className="text-xs text-muted-foreground">+12 este mês</p>
+                    <div className="text-lg md:text-2xl font-bold">{churchData.members || "..."}</div>
+                    <p className="text-xs text-muted-foreground">
+                      {churchData.newMembers > 0 ? `+${churchData.newMembers} este mês` : "Sem novos membros"}
+                    </p>
                   </CardContent>
                 </Card>
 
@@ -656,8 +658,14 @@ export default function DashboardPage() {
                     <Calendar className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-lg md:text-2xl font-bold">8</div>
-                    <p className="text-xs text-muted-foreground">+2 da semana passada</p>
+                    <div className="text-lg md:text-2xl font-bold">{churchData.events?.monthly || "0"}</div>
+                    <p className="text-xs text-muted-foreground">
+                      {churchData.events?.weeklyChange > 0
+                        ? `+${churchData.events?.weeklyChange} da semana passada`
+                        : churchData.events?.weeklyChange < 0
+                          ? `${churchData.events?.weeklyChange} da semana passada`
+                          : "Mesmo número da semana passada"}
+                    </p>
                   </CardContent>
                 </Card>
 
@@ -667,8 +675,18 @@ export default function DashboardPage() {
                     <DollarSign className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-lg md:text-2xl font-bold">R$ 28.450</div>
-                    <p className="text-xs text-muted-foreground">+15% vs mês anterior</p>
+                    <div className="text-lg md:text-2xl font-bold">
+                      {churchData.finances?.total
+                        ? `R$ ${churchData.finances.total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
+                        : "R$ 0,00"}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {churchData.finances?.monthlyChange > 0
+                        ? `+${churchData.finances.monthlyChange}% vs mês anterior`
+                        : churchData.finances?.monthlyChange < 0
+                          ? `${churchData.finances.monthlyChange}% vs mês anterior`
+                          : "Mesmo valor do mês anterior"}
+                    </p>
                   </CardContent>
                 </Card>
 
@@ -678,7 +696,9 @@ export default function DashboardPage() {
                     <TrendingUp className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-lg md:text-2xl font-bold">+5.2%</div>
+                    <div className="text-lg md:text-2xl font-bold">
+                      {churchData.growth ? `+${churchData.growth}%` : "0%"}
+                    </div>
                     <p className="text-xs text-muted-foreground">Últimos 3 meses</p>
                   </CardContent>
                 </Card>
