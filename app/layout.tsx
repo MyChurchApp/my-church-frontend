@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { LanguageProvider } from "@/contexts/language-context"
 import { ErrorBoundary } from "@/components/error-boundary"
 import { ToastProvider } from "@/contexts/toast-context"
+import { GlobalAuthInterceptor } from "@/components/global-auth-interceptor"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -26,7 +27,7 @@ export const metadata: Metadata = {
     ],
     apple: [{ url: "/api/icon/180", sizes: "180x180", type: "image/png" }],
   },
-    generator: 'v0.dev'
+  generator: "v0.dev",
 }
 
 export default function RootLayout({
@@ -40,7 +41,10 @@ export default function RootLayout({
         <ErrorBoundary>
           <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
             <LanguageProvider>
-              <ToastProvider>{children}</ToastProvider>
+              <ToastProvider>
+                <GlobalAuthInterceptor />
+                {children}
+              </ToastProvider>
             </LanguageProvider>
           </ThemeProvider>
         </ErrorBoundary>

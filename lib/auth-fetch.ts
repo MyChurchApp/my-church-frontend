@@ -2,110 +2,40 @@
 // ✅ GARANTIA TOTAL de "Bearer " (com espaço) em TODAS as requisições
 // ✅ LOGOUT AUTOMÁTICO em caso de 401 - VERSÃO CORRIGIDA
 
-interface AuthFetchOptions extends RequestInit {
-  skipAuth?: boolean
-  skipAutoLogout?: boolean // Para casos específicos onde não queremos logout automático
-}
+import { getToken } from "./auth-utils"
 
 /**
- * Obter token do localStorage
+ * Função para fazer requisições autenticadas
+ * O interceptor global já cuida do logout em caso de 401
  */
-function getAuthToken(): string | null {
-  if (typeof window === "undefined") return null
-  return localStorage.getItem("authToken")
-}
+export async function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
+  const token = getToken()
 
-/**
- * Limpar dados de autenticação e redirecionar - VERSÃO MELHORADA
- */
-function clearAuthData(): void {
-  if (typeof window !== "undefined") {
-    console.log("🚪 INICIANDO LOGOUT AUTOMÁTICO devido a erro 401")
-
-    // Limpar dados do localStorage
-    localStorage.removeItem("authToken")
-    localStorage.removeItem("userRole")
-    localStorage.removeItem("user")
-    console.log("🗑️ Dados de autenticação removidos do localStorage")
-
-    // Mostrar toast de erro se disponível
-    try {
-      const event = new CustomEvent("auth-error", {
-        detail: { message: "Sessão expirada. Você será redirecionado para o login." },
-      })
-      window.dispatchEvent(event)
-      console.log("📢 Evento de erro de autenticação disparado")
-    } catch (e) {
-      console.log("⚠️ Toast não disponível:", e)
-    }
-
-    // Aguardar um pouco para o toast aparecer, depois redirecionar
-    setTimeout(() => {
-      console.log("🔄 Redirecionando para /login...")
-      window.location.href = "/login"
-    }, 1000)
+  if (!token) {
+    console.log("🚨 [authFetch] Token não encontrado")
+    throw new Error("Token de autenticação não encontrado")
   }
-}
 
-/**
- * ✅ Função padronizada para fazer requisições autenticadas
- * LOGOUT AUTOMÁTICO GARANTIDO em caso de 401
- */
-export async function authFetch(url: string, options: AuthFetchOptions = {}): Promise<Response> {
-  const { skipAuth = false, skipAutoLogout = false, ...fetchOptions } = options
-
-  console.log(`🔗 AuthFetch iniciado para: ${url}`)
-  console.log(`🔧 Opções: skipAuth=${skipAuth}, skipAutoLogout=${skipAutoLogout}`)
-
-  const headers: Record<string, string> = {
+  const headers = {
     "Content-Type": "application/json",
-    Accept: "text/plain",
-    ...((fetchOptions.headers as Record<string, string>) || {}),
+    Authorization: `Bearer ${token}`,
+    ...options.headers,
   }
 
-  // Adicionar token de autenticação se não for skipAuth
-  if (!skipAuth) {
-    const token = getAuthToken()
-    if (!token) {
-      console.error("❌ Token de autenticação não encontrado")
-      if (!skipAutoLogout) {
-        console.log("🚪 Fazendo logout por falta de token")
-        clearAuthData()
-      }
-      throw new Error("Token de autenticação não encontrado. Faça login novamente.")
-    }
-
-    headers.Authorization = `Bearer ${token}`
-    console.log(`🔑 Token adicionado: ${token.substring(0, 20)}...`)
-  }
+  console.log(`🔄 [authFetch] ${options.method || "GET"} ${url}`)
 
   try {
-    console.log(`📤 Fazendo requisição para: ${url}`)
     const response = await fetch(url, {
-      ...fetchOptions,
+      ...options,
       headers,
     })
 
-    console.log(`📊 Status da resposta: ${response.status}`)
+    console.log(`✅ [authFetch] ${response.status} ${url}`)
 
-    // ✅ TRATAMENTO CRÍTICO DE 401 - LOGOUT FORÇADO
-    if (response.status === 401) {
-      console.error("🚨 ERRO 401 DETECTADO!")
-      console.error("🚨 Token inválido ou expirado")
-      console.error(`🚨 URL que retornou 401: ${url}`)
-      console.error(`🚨 skipAuth: ${skipAuth}, skipAutoLogout: ${skipAutoLogout}`)
-
-      if (!skipAuth && !skipAutoLogout) {
-        console.log("🚪 Executando logout automático...")
-        clearAuthData()
-      } else {
-        console.log("⚠️ Logout automático pulado devido às opções")
-      }
-    }
-
+    // O interceptor global já cuida do 401, então só retornamos a response
     return response
   } catch (error) {
-    console.error("❌ Erro na requisição authFetch:", error)
+    console.error("🚨 [authFetch] Erro na requisição:", error)
     throw error
   }
 }
@@ -189,3 +119,8 @@ export async function authFetchJson(url: string, options: AuthFetchOptions = {})
 
 // Exportação padrão para compatibilidade
 export default authFetch
+
+interface AuthFetchOptions extends RequestInit {
+  skipAuth?: boolean
+  skipAutoLogout?: boolean // Para casos específicos onde não queremos logout automático
+}

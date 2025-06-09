@@ -51,3 +51,17 @@ export function getUser(): any {
     return null
   }
 }
+
+/**
+ * Obter token (alias para getAuthToken)
+ */
+export function getToken(): string | null {
+  return getAuthToken()
+}
+
+/**
+ * Fazer logout (alias para clearAuthData)
+ */
+export function logout(): void {
+  clearAuthData()
+}
