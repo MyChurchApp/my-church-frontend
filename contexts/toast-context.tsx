@@ -20,16 +20,24 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     })
   }
 
-  // Escutar eventos de erro 500
+  // Escutar eventos de erro
   useEffect(() => {
+    // Erro 500
     const handleApiError500 = (event: CustomEvent) => {
       showToast(event.detail.message, "error")
     }
 
+    // ✅ NOVO: Erro de autenticação (401)
+    const handleAuthError = (event: CustomEvent) => {
+      showToast(event.detail.message, "error")
+    }
+
     window.addEventListener("api-error-500", handleApiError500 as EventListener)
+    window.addEventListener("auth-error", handleAuthError as EventListener)
 
     return () => {
       window.removeEventListener("api-error-500", handleApiError500 as EventListener)
+      window.removeEventListener("auth-error", handleAuthError as EventListener)
     }
   }, [])
 
