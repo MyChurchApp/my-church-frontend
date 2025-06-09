@@ -45,12 +45,14 @@ import {
   deleteMemberAPI,
   convertApiMemberToLocal,
   convertLocalMemberToApi,
+  convertApiMemberToLocalForEdit, // ✅ Nova importação
 } from "@/lib/api"
 import { useToastContext } from "@/contexts/toast-context"
+import { toast } from "@/hooks/use-toast"
 
 export default function MembrosPage() {
   const router = useRouter()
-  const { toast } = useToastContext()
+  const { showToast } = useToastContext()
   const [user, setUser] = useState<User | null>(null)
   const [members, setMembers] = useState<any[]>([])
   const [filteredMembers, setFilteredMembers] = useState<any[]>([])
@@ -466,7 +468,6 @@ export default function MembrosPage() {
       toast({
         title: "Membro atualizado!",
         description: `${updatedMember.name} foi atualizado com sucesso.`,
-        variant: "success",
       })
 
       // Recarregar a lista para garantir sincronização
@@ -526,26 +527,30 @@ export default function MembrosPage() {
 
   const openEditDialog = (member: any) => {
     setSelectedMember(member)
+
+    // Usar a função específica para edição que trata os valores numéricos
+    const convertedMember = convertApiMemberToLocalForEdit(member)
+
     setMemberForm({
-      name: member.name,
-      email: member.email,
-      phone: member.phone,
-      document: member.cpf,
-      photo: member.photo || "",
-      birthDate: member.birthDate,
-      address: member.address,
-      city: member.city,
-      state: member.state,
-      zipCode: member.zipCode,
-      maritalStatus: member.maritalStatus,
-      isBaptized: member.baptized,
-      baptizedDate: member.baptizedDate || "",
-      isTither: member.isTither || false,
-      memberSince: member.memberSince,
-      ministry: member.ministry,
+      name: convertedMember.name,
+      email: convertedMember.email,
+      phone: convertedMember.phone,
+      document: convertedMember.cpf,
+      photo: convertedMember.photo || "",
+      birthDate: convertedMember.birthDate,
+      address: convertedMember.address,
+      city: convertedMember.city,
+      state: convertedMember.state,
+      zipCode: convertedMember.zipCode,
+      maritalStatus: convertedMember.maritalStatus,
+      isBaptized: convertedMember.baptized,
+      baptizedDate: convertedMember.baptizedDate || "",
+      isTither: convertedMember.isTither || false,
+      memberSince: convertedMember.memberSince,
+      ministry: convertedMember.ministry,
       roleMember: 0,
-      isActive: member.isActive,
-      notes: member.notes || "",
+      isActive: convertedMember.isActive,
+      notes: convertedMember.notes || "",
     })
     setIsEditDialogOpen(true)
   }

@@ -59,6 +59,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import Link from "next/link"
+import { MembersService, type BirthdayMember } from "@/services/members.service"
 
 // Função helper para gerar iniciais de forma segura
 const getInitials = (name: string | undefined | null): string => {
@@ -115,7 +116,8 @@ export default function DashboardPage() {
   const [feedResponse, setFeedResponse] = useState<ApiFeedResponse | null>(null)
   const [feedItems, setFeedItems] = useState<ApiFeedItem[]>([])
   const [isLoadingFeed, setIsLoadingFeed] = useState(false)
-  const [birthdays, setBirthdays] = useState<any[]>([])
+  const [birthdays, setBirthdays] = useState<BirthdayMember[]>([])
+  const [isLoadingBirthdays, setIsLoadingBirthdays] = useState(false)
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0)
   const [currentPromoIndex, setCurrentPromoIndex] = useState(0)
   const [visibleNotifications, setVisibleNotifications] = useState(3)
@@ -234,10 +236,12 @@ export default function DashboardPage() {
 
     setUser(userData)
     setChurchData(getChurchData())
-    setBirthdays(getBirthdaysThisWeek())
 
     // Carregar feed
     loadFeed()
+
+    // Carregar aniversários
+    loadBirthdays()
   }, [router])
 
   useEffect(() => {
@@ -287,6 +291,56 @@ export default function DashboardPage() {
         return "Financeiro"
       default:
         return "Notificação"
+    }
+  }
+
+  const loadBirthdays = async () => {
+    setIsLoadingBirthdays(true)
+    try {
+      if (isAuthenticated()) {
+        console.log("Tentando carregar aniversários da API...")
+
+        // Primeiro, testar se o endpoint existe
+        const isConnected = await MembersService.testConnection()
+
+        if (!isConnected) {
+          console.warn("Endpoint de aniversários não disponível. Usando dados fake.")
+          setBirthdays(getBirthdaysThisWeek())
+          return
+        }
+
+        // Usar API real se autenticado e endpoint disponível
+        const birthdayMembers = await MembersService.getWeeklyBirthdays()
+
+        if (birthdayMembers.length === 0) {
+          console.log("Nenhum aniversariante encontrado na API. Usando dados fake como demonstração.")
+          setBirthdays(getBirthdaysThisWeek())
+        } else {
+          console.log(`${birthdayMembers.length} aniversariantes carregados da API`)
+          setBirthdays(birthdayMembers)
+        }
+      } else {
+        console.log("Usuário não autenticado. Usando dados fake.")
+        setBirthdays(getBirthdaysThisWeek())
+      }
+    } catch (error) {
+      console.error("Erro ao carregar aniversários:", error)
+
+      // Mostrar mensagem de erro mais amigável
+      if (error instanceof Error) {
+        if (error.message.includes("404")) {
+          console.warn("Endpoint de aniversários não encontrado. Usando dados de demonstração.")
+        } else if (error.message.includes("401")) {
+          console.warn("Token de autenticação inválido. Usando dados de demonstração.")
+        } else {
+          console.warn("Erro de conexão com a API. Usando dados de demonstração.")
+        }
+      }
+
+      // Em caso de erro, sempre usar dados fake como fallback
+      setBirthdays(getBirthdaysThisWeek())
+    } finally {
+      setIsLoadingBirthdays(false)
     }
   }
 
@@ -958,7 +1012,12 @@ export default function DashboardPage() {
                       </div>
                     </CardHeader>
                     <CardContent>
-                      {birthdays.length > 0 ? (
+                      {isLoadingBirthdays ? (
+                        <div className="text-center py-6">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-3"></div>
+                          <p className="text-gray-500 text-sm">Carregando aniversários...</p>
+                        </div>
+                      ) : birthdays.length > 0 ? (
                         <div className="space-y-3">
                           {birthdays.map((member) => (
                             <div key={member.id} className="flex items-center gap-3 p-3 bg-purple-50 rounded-lg">
@@ -973,15 +1032,27 @@ export default function DashboardPage() {
                               <div className="flex-1 min-w-0">
                                 <p className="font-medium text-gray-900 text-sm truncate">{member.name || "Membro"}</p>
                                 <p className="text-xs text-gray-600">
-                                  {member.birthdayThisYear.toLocaleDateString("pt-BR", {
-                                    weekday: "short",
-                                    day: "numeric",
-                                    month: "short",
-                                  })}
+                                  {member.birthdayThisYear
+                                    ? MembersService.formatBirthdayDate(member.birthdayThisYear)
+                                    : new Date(member.birthDate).toLocaleDateString("pt-BR", {
+                                        weekday: "short",
+                                        day: "numeric",
+                                        month: "short",
+                                      })}
                                 </p>
                                 <p className="text-xs text-purple-600">
-                                  {new Date().getFullYear() - new Date(member.birthDate).getFullYear()} anos
+                                  {member.age
+                                    ? `${member.age} anos`
+                                    : `${MembersService.calculateAge(member.birthDate)} anos`}
                                 </p>
+                                {member.daysUntilBirthday !== undefined && member.daysUntilBirthday === 0 && (
+                                  <p className="text-xs text-green-600 font-semibold">🎉 Hoje!</p>
+                                )}
+                                {member.daysUntilBirthday !== undefined &&
+                                  member.daysUntilBirthday > 0 &&
+                                  member.daysUntilBirthday <= 7 && (
+                                    <p className="text-xs text-blue-600">Em {member.daysUntilBirthday} dias</p>
+                                  )}
                               </div>
                             </div>
                           ))}
