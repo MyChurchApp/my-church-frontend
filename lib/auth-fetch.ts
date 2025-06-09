@@ -1,6 +1,6 @@
 // Função utilitária para fazer requisições autenticadas padronizadas
 // ✅ GARANTIA TOTAL de "Bearer " (com espaço) em TODAS as requisições
-// ✅ LOGOUT AUTOMÁTICO em caso de 401
+// ✅ LOGOUT AUTOMÁTICO em caso de 401 - VERSÃO CORRIGIDA
 
 interface AuthFetchOptions extends RequestInit {
   skipAuth?: boolean
@@ -16,43 +16,50 @@ function getAuthToken(): string | null {
 }
 
 /**
- * Limpar dados de autenticação e redirecionar
+ * Limpar dados de autenticação e redirecionar - VERSÃO MELHORADA
  */
 function clearAuthData(): void {
   if (typeof window !== "undefined") {
-    console.log("🚪 Fazendo logout automático devido a erro 401")
+    console.log("🚪 INICIANDO LOGOUT AUTOMÁTICO devido a erro 401")
 
     // Limpar dados do localStorage
     localStorage.removeItem("authToken")
     localStorage.removeItem("userRole")
     localStorage.removeItem("user")
+    console.log("🗑️ Dados de autenticação removidos do localStorage")
 
     // Mostrar toast de erro se disponível
     try {
       const event = new CustomEvent("auth-error", {
-        detail: { message: "Sessão expirada. Faça login novamente." },
+        detail: { message: "Sessão expirada. Você será redirecionado para o login." },
       })
       window.dispatchEvent(event)
+      console.log("📢 Evento de erro de autenticação disparado")
     } catch (e) {
-      console.log("Toast não disponível")
+      console.log("⚠️ Toast não disponível:", e)
     }
 
-    // Redirecionar para login
-    window.location.href = "/login"
+    // Aguardar um pouco para o toast aparecer, depois redirecionar
+    setTimeout(() => {
+      console.log("🔄 Redirecionando para /login...")
+      window.location.href = "/login"
+    }, 1000)
   }
 }
 
 /**
  * ✅ Função padronizada para fazer requisições autenticadas
- * GARANTIA ABSOLUTA de "Bearer " (com espaço) antes do token
- * LOGOUT AUTOMÁTICO em caso de 401
+ * LOGOUT AUTOMÁTICO GARANTIDO em caso de 401
  */
 export async function authFetch(url: string, options: AuthFetchOptions = {}): Promise<Response> {
   const { skipAuth = false, skipAutoLogout = false, ...fetchOptions } = options
 
+  console.log(`🔗 AuthFetch iniciado para: ${url}`)
+  console.log(`🔧 Opções: skipAuth=${skipAuth}, skipAutoLogout=${skipAutoLogout}`)
+
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    Accept: "text/plain", // Conforme a API espera
+    Accept: "text/plain",
     ...((fetchOptions.headers as Record<string, string>) || {}),
   }
 
@@ -62,28 +69,18 @@ export async function authFetch(url: string, options: AuthFetchOptions = {}): Pr
     if (!token) {
       console.error("❌ Token de autenticação não encontrado")
       if (!skipAutoLogout) {
+        console.log("🚪 Fazendo logout por falta de token")
         clearAuthData()
       }
       throw new Error("Token de autenticação não encontrado. Faça login novamente.")
     }
 
-    // ✅ CRÍTICO: SEMPRE usar "Bearer " (com espaço) antes do token
     headers.Authorization = `Bearer ${token}`
-
-    // ✅ Verificações de segurança
-    console.log(`🔑 Authorization header: "${headers.Authorization.substring(0, 20)}..."`)
-    console.log(`🔑 Token length: ${token.length}`)
-
-    // ✅ Verificação adicional para garantir que está correto
-    if (!headers.Authorization.startsWith("Bearer ")) {
-      console.error("❌ ERRO CRÍTICO: Authorization header não começa com 'Bearer '")
-      throw new Error("Erro na formatação do token de autorização")
-    }
+    console.log(`🔑 Token adicionado: ${token.substring(0, 20)}...`)
   }
 
-  console.log(`🔗 AuthFetch para: ${url}`)
-
   try {
+    console.log(`📤 Fazendo requisição para: ${url}`)
     const response = await fetch(url, {
       ...fetchOptions,
       headers,
@@ -91,39 +88,41 @@ export async function authFetch(url: string, options: AuthFetchOptions = {}): Pr
 
     console.log(`📊 Status da resposta: ${response.status}`)
 
-    // ✅ TRATAMENTO AUTOMÁTICO DE 401 - LOGOUT FORÇADO
+    // ✅ TRATAMENTO CRÍTICO DE 401 - LOGOUT FORÇADO
     if (response.status === 401) {
-      console.error("❌ Erro 401 - Token inválido ou expirado")
-      console.error("🚪 Iniciando logout automático...")
+      console.error("🚨 ERRO 401 DETECTADO!")
+      console.error("🚨 Token inválido ou expirado")
+      console.error(`🚨 URL que retornou 401: ${url}`)
+      console.error(`🚨 skipAuth: ${skipAuth}, skipAutoLogout: ${skipAutoLogout}`)
 
       if (!skipAuth && !skipAutoLogout) {
-        // Fazer logout automático
+        console.log("🚪 Executando logout automático...")
         clearAuthData()
-        // A função clearAuthData já redireciona, mas vamos garantir
-        return response // Retorna a resposta para não quebrar o fluxo
+      } else {
+        console.log("⚠️ Logout automático pulado devido às opções")
       }
     }
 
     return response
   } catch (error) {
-    console.error("❌ Erro na requisição:", error)
+    console.error("❌ Erro na requisição authFetch:", error)
     throw error
   }
 }
 
 /**
- * ✅ Fazer requisição JSON autenticada
- * Tratamento melhorado para diferentes tipos de resposta
- * LOGOUT AUTOMÁTICO em caso de 401
+ * ✅ Fazer requisição JSON autenticada com LOGOUT AUTOMÁTICO
  */
 export async function authFetchJson(url: string, options: AuthFetchOptions = {}): Promise<any> {
   try {
+    console.log(`📋 AuthFetchJson iniciado para: ${url}`)
     const response = await authFetch(url, options)
 
-    console.log(`📊 Status final: ${response.status}`)
+    console.log(`📊 Status final no authFetchJson: ${response.status}`)
 
-    // Se for 401 e já foi tratado pelo authFetch, não precisa fazer nada mais
+    // Se for 401, o authFetch já tratou o logout, mas vamos garantir
     if (response.status === 401) {
+      console.error("🚨 401 confirmado no authFetchJson")
       throw new Error("Sessão expirada. Redirecionando para login...")
     }
 
@@ -154,37 +153,33 @@ export async function authFetchJson(url: string, options: AuthFetchOptions = {})
       return null
     }
 
-    // Verificar o tipo de conteúdo da resposta
+    // Processar resposta baseada no content-type
     const contentType = response.headers.get("content-type")
     console.log(`📄 Content-Type: ${contentType}`)
 
-    // Se a resposta for text/plain (como a API retorna para algumas operações)
     if (contentType && contentType.includes("text/plain")) {
       const text = await response.text()
-      console.log("📄 Resposta text/plain:", text)
+      console.log("📄 Resposta text/plain recebida")
 
-      // Tentar fazer parse como JSON se possível
       try {
         const parsed = JSON.parse(text)
-        console.log("✅ Text/plain parseado como JSON:", parsed)
+        console.log("✅ Text/plain parseado como JSON")
         return parsed
       } catch {
-        // Se não conseguir fazer parse, retornar como texto
         console.log("✅ Retornando como texto puro")
         return text
       }
     }
 
-    // Se for JSON, fazer parse
     if (contentType && contentType.includes("application/json")) {
       const data = await response.json()
-      console.log("✅ Resposta JSON:", data)
+      console.log("✅ Resposta JSON recebida")
       return data
     }
 
     // Fallback para texto
     const text = await response.text()
-    console.log("✅ Fallback para texto:", text)
+    console.log("✅ Fallback para texto")
     return text
   } catch (error) {
     console.error("❌ Erro na requisição authFetchJson:", error)
