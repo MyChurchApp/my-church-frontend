@@ -216,117 +216,23 @@ export const updateMemberAPI = async (memberId: number, memberData: any): Promis
       throw new Error("Token de autenticação não encontrado. Faça login novamente.")
     }
 
-    // Preparar dados no formato correto para o PUT
-    // A API PUT espera um formato específico com campo "command"
-    const updateData = {
-      command: "UpdateMember", // ✅ Campo obrigatório adicionado
-      id: memberId, // ✅ ID do membro
-      name: memberData.name?.trim() || "",
-      email: memberData.email?.trim() || "",
-      phone: memberData.phone?.replace(/\D/g, "") || "", // Apenas números
-      birthDate: memberData.birthDate ? new Date(memberData.birthDate).toISOString() : null, // ✅ Formato ISO correto
-      isBaptized: Boolean(memberData.isBaptized),
-      baptizedDate: memberData.baptizedDate ? new Date(memberData.baptizedDate).toISOString() : null, // ✅ Formato ISO correto
-      isTither: Boolean(memberData.isTither),
-      maritalStatus:
-        memberData.maritalStatus === "Solteiro"
-          ? 0
-          : memberData.maritalStatus === "Casado"
-            ? 1
-            : memberData.maritalStatus === "Divorciado"
-              ? 2
-              : memberData.maritalStatus === "Viuvo"
-                ? 3
-                : 0, // Converter para número
-      memberSince: memberData.memberSince ? new Date(memberData.memberSince).toISOString() : null, // ✅ Formato ISO correto
-      ministry:
-        memberData.ministry === "Louvor"
-          ? 0
-          : memberData.ministry === "Ensino"
-            ? 1
-            : memberData.ministry === "Evangelismo"
-              ? 2
-              : memberData.ministry === "Intercessão"
-                ? 3
-                : memberData.ministry === "Crianças"
-                  ? 4
-                  : memberData.ministry === "Jovens"
-                    ? 5
-                    : memberData.ministry === "Casais"
-                      ? 6
-                      : memberData.ministry === "Diaconia"
-                        ? 7
-                        : memberData.ministry === "Mídia"
-                          ? 8
-                          : memberData.ministry === "Recepção"
-                            ? 9
-                            : 0, // Converter para número
-      isActive: Boolean(memberData.isActive),
-      notes: memberData.notes || "",
-      photo: memberData.photo && memberData.photo !== "base64" ? memberData.photo : "",
-    }
-
-    console.log("Dados preparados para PUT (corrigidos):", JSON.stringify(updateData, null, 2))
-
     const response = await fetch(`https://demoapp.top1soft.com.br/api/Member/${memberId}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
         accept: "text/plain",
-        Authorization: `Bearer ${token}`, // ✅ GARANTINDO "Bearer " com espaço
+        Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify(updateData),
+      body: JSON.stringify({ id: memberId, ...memberData }),
     })
 
-    console.log("Status da resposta PUT:", response.status)
-    console.log("Headers da resposta PUT:", Object.fromEntries(response.headers.entries()))
-
     if (!response.ok) {
-      let errorMessage = `Erro na API: ${response.status}`
-
-      try {
-        const errorText = await response.text()
-        console.error("Erro da API (PUT):", response.status, errorText)
-
-        // Tentar fazer parse do JSON de erro para obter detalhes
-        try {
-          const errorData = JSON.parse(errorText)
-          if (errorData.errors) {
-            const errorDetails = Object.entries(errorData.errors)
-              .map(([field, messages]) => `${field}: ${(messages as string[]).join(", ")}`)
-              .join("; ")
-            errorMessage = `Erro de validação: ${errorDetails}`
-          } else if (errorData.title) {
-            errorMessage = errorData.title
-          }
-        } catch (parseError) {
-          // Se não conseguir fazer parse, usar o texto original
-          errorMessage += `: ${errorText}`
-        }
-
-        if (response.status === 401) {
-          errorMessage = "Sessão expirada. Faça login novamente."
-          // Limpar dados de autenticação
-          if (typeof window !== "undefined") {
-            localStorage.removeItem("authToken")
-            localStorage.removeItem("userRole")
-            localStorage.removeItem("user")
-            setTimeout(() => (window.location.href = "/login"), 1000)
-          }
-        } else if (response.status === 400) {
-          // Manter a mensagem de erro detalhada para 400
-        } else if (response.status === 404) {
-          errorMessage = "Membro não encontrado."
-        }
-      } catch (e) {
-        console.error("Erro ao processar resposta de erro:", e)
-      }
-
-      throw new Error(errorMessage)
+      const errorText = await response.text()
+      console.error("Erro da API:", response.status, errorText)
+      handleApiError(response.status, errorText)
     }
 
     const data: ApiMember = await response.json()
-    console.log("Resposta da API (PUT sucesso):", data)
     return data
   } catch (error) {
     console.error("Erro detalhado ao atualizar membro:", error)
@@ -571,71 +477,19 @@ export const convertLocalMemberToApi = (localMember: any) => {
     document: localMember.document?.trim() || "",
     photo: localMember.photo && localMember.photo !== "base64" ? localMember.photo : "",
     phone: localMember.phone?.trim() || "",
-    birthDate: localMember.birthDate ? new Date(localMember.birthDate).toISOString() : null, // ✅ Formato ISO
+    birthDate: localMember.birthDate ? `${localMember.birthDate}T00:00:00` : "1990-01-01T00:00:00",
     isBaptized: Boolean(localMember.isBaptized),
-    baptizedDate: localMember.baptizedDate ? new Date(localMember.baptizedDate).toISOString() : null, // ✅ Formato ISO
+    baptizedDate: localMember.baptizedDate ? `${localMember.baptizedDate}T00:00:00` : "2023-10-14T00:00:00",
     isTither: Boolean(localMember.isTither),
     roleMember: 0,
     maritalStatus: localMember.maritalStatus || "",
-    memberSince: localMember.memberSince ? new Date(localMember.memberSince).toISOString() : null, // ✅ Formato ISO
+    memberSince: localMember.memberSince ? `${localMember.memberSince}T00:00:00` : "2020-01-01T00:00:00",
     ministry: localMember.ministry || "",
     isActive: localMember.isActive !== undefined ? Boolean(localMember.isActive) : true,
     notes: localMember.notes || "",
   }
 
   return apiData
-}
-
-// Função helper para converter valores numéricos de volta para strings
-export const convertApiMemberToLocalForEdit = (apiMember: ApiMember) => {
-  if (!apiMember) {
-    console.error("apiMember é undefined ou null")
-    throw new Error("Dados do membro inválidos")
-  }
-
-  // Mapear maritalStatus de número para string
-  const maritalStatusMap: { [key: number]: string } = {
-    0: "Solteiro",
-    1: "Casado",
-    2: "Divorciado",
-    3: "Viuvo",
-  }
-
-  // Mapear ministry de número para string
-  const ministryMap: { [key: number]: string } = {
-    0: "Louvor",
-    1: "Ensino",
-    2: "Evangelismo",
-    3: "Intercessão",
-    4: "Crianças",
-    5: "Jovens",
-    6: "Casais",
-    7: "Diaconia",
-    8: "Mídia",
-    9: "Recepção",
-  }
-
-  return {
-    id: apiMember?.id?.toString() || Math.random().toString(36).substr(2, 9),
-    name: apiMember?.name || "",
-    email: apiMember?.email || "",
-    phone: apiMember?.phone || "",
-    cpf: apiMember?.document || "",
-    birthDate: apiMember?.birthDate ? apiMember.birthDate.split("T")[0] : "",
-    address: apiMember?.church?.address?.street || "",
-    city: apiMember?.church?.address?.city || "",
-    state: apiMember?.church?.address?.state || "",
-    zipCode: apiMember?.church?.address?.zipCode || "",
-    maritalStatus: maritalStatusMap[Number.parseInt(apiMember?.maritalStatus as any)] || apiMember?.maritalStatus || "",
-    baptized: Boolean(apiMember?.isBaptized),
-    baptizedDate: apiMember?.baptizedDate ? apiMember.baptizedDate.split("T")[0] : "",
-    memberSince: apiMember?.memberSince ? apiMember.memberSince.split("T")[0] : "",
-    ministry: ministryMap[Number.parseInt(apiMember?.ministry as any)] || apiMember?.ministry || "",
-    photo: apiMember?.photo || "/placeholder.svg?height=100&width=100",
-    isActive: Boolean(apiMember?.isActive),
-    notes: apiMember?.notes || "",
-    isTither: Boolean(apiMember?.isTither),
-  }
 }
 
 // Função para verificar se o usuário está autenticado

@@ -1,158 +1,307 @@
-import { authFetch, testAuthToken } from "@/lib/auth-fetch"
-import { isAuthenticated } from "@/lib/api"
-
+// Enum para tipos de filtro de aniversário
 export enum BirthdayFilterType {
   Day = 0,
   Week = 1,
   Month = 2,
 }
 
-export interface BirthdayMember {
+// Interface para membro aniversariante (baseada na API)
+export interface ApiBirthdayMember {
   id: number
   name: string
-  email?: string
-  phone?: string
-  photo?: string
+  document: Array<{
+    id: number
+    memberId: number
+    type: number
+    number: string
+  }>
+  email: string
+  phone: string
+  photo: string | null
   birthDate: string
-  birthdayThisYear?: Date
-  age?: number
-  daysUntilBirthday?: number
+  isBaptized: boolean
+  baptizedDate: string
+  isTither: boolean
+  churchId: number
+  church: {
+    id: number
+    name: string
+    logo: string
+    address: {
+      id: number
+      street: string
+      city: string
+      state: string
+      zipCode: string
+      country: string
+      neighborhood: string
+    }
+    phone: string
+    description: string
+    members: string[]
+    subscription: any
+  }
+  role: number
+  created: string
+  updated: string | null
+  maritalStatus: string | null
+  memberSince: string | null
+  ministry: string | null
+  isActive: boolean
+  notes: string | null
+}
+
+// Interface para membro aniversariante processado (para uso no frontend)
+export interface BirthdayMember {
+  id: string
+  name: string
+  email: string
+  phone: string
+  photo: string | null
+  birthDate: string
+  ageWillTurn: number // Idade que fará no aniversário
+  birthdayThisYear: Date
+  daysUntilBirthday: number
+  isToday: boolean
+  birthdayMessage: string // "fará X anos hoje", "fará X anos amanhã", "fará X anos daqui X dias"
 }
 
 export class MembersService {
-  /**
-   * Obtém os aniversariantes do dia atual
-   */
-  static async getDailyBirthdays(): Promise<BirthdayMember[]> {
-    return this.getBirthdays(BirthdayFilterType.Day)
+  private static readonly BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://demoapp.top1soft.com.br/api"
+
+  // Função para obter o token de autenticação
+  private static getAuthToken(): string | null {
+    if (typeof window === "undefined") return null
+    return localStorage.getItem("authToken")
   }
 
-  /**
-   * Obtém os aniversariantes da semana atual
-   */
-  static async getWeeklyBirthdays(): Promise<BirthdayMember[]> {
-    return this.getBirthdays(BirthdayFilterType.Week)
-  }
-
-  /**
-   * Obtém os aniversariantes do mês atual
-   */
-  static async getMonthlyBirthdays(): Promise<BirthdayMember[]> {
-    return this.getBirthdays(BirthdayFilterType.Month)
-  }
-
-  /**
-   * Obtém os aniversariantes com base no tipo de filtro
-   */
-  static async getBirthdays(filterType: BirthdayFilterType): Promise<BirthdayMember[]> {
-    if (!isAuthenticated()) {
-      throw new Error("Usuário não autenticado")
-    }
-
-    // Debug do token antes da requisição
-    console.log("🔍 Debugando autenticação antes da requisição:")
-    testAuthToken()
-
+  // Função para testar se o endpoint está disponível
+  static async testConnection(): Promise<boolean> {
     try {
-      // Construir a URL correta baseada na variável de ambiente
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "https://demoapp.top1soft.com.br"
-      // Remover /api duplicado - a URL base já deve incluir o caminho completo
-      const url = `${baseUrl}/Member/birthdays?filterType=${filterType}`
+      const token = this.getAuthToken()
+      if (!token) {
+        console.log("Token não encontrado para teste de conexão")
+        return false
+      }
 
-      console.log("📡 Fazendo requisição para aniversários:")
-      console.log(`🔗 URL: ${url}`)
-      console.log(`🎯 FilterType: ${filterType} (${BirthdayFilterType[filterType]})`)
+      console.log("Testando conexão com endpoint de aniversários...")
+      console.log("URL:", `${this.BASE_URL}/Member/birthdays`)
 
-      const response = await authFetch(url)
+      const response = await fetch(`${this.BASE_URL}/Member/birthdays?filterType=${BirthdayFilterType.Week}`, {
+        method: "GET",
+        headers: {
+          accept: "text/plain",
+          Authorization: `Bearer ${token}`,
+        },
+      })
 
-      console.log("📊 Resposta recebida:")
-      console.log(`📊 Status: ${response.status}`)
-      console.log(`📊 Status Text: ${response.statusText}`)
-      console.log(`📊 Headers:`, Object.fromEntries(response.headers.entries()))
+      console.log("Status da resposta:", response.status)
+
+      if (response.status === 404) {
+        console.warn("Endpoint de aniversários não encontrado (404)")
+        return false
+      }
+
+      if (response.status === 401) {
+        console.warn("Token de autenticação inválido (401)")
+        return false
+      }
 
       if (!response.ok) {
-        if (response.status === 404) {
-          console.warn("⚠️ Endpoint de aniversários não encontrado (404). Usando dados fake como fallback.")
-          return []
-        }
-
-        if (response.status === 401) {
-          console.error("❌ Não autorizado (401). Problemas com o token:")
-          testAuthToken()
-          throw new Error("Token de autenticação inválido ou expirado")
-        }
-
-        const errorText = await response.text().catch(() => "Erro desconhecido")
-        console.error("❌ Erro na resposta da API:", errorText)
-        throw new Error(`Erro ${response.status}: ${errorText}`)
+        console.warn(`Erro na conexão: ${response.status}`)
+        return false
       }
 
-      const members: BirthdayMember[] = await response.json()
-      console.log(`✅ Aniversariantes recebidos: ${members.length}`)
-      console.log("📋 Dados recebidos:", members)
-
-      // Processar os dados para adicionar informações úteis
-      return members
-        .map((member) => {
-          const birthDate = new Date(member.birthDate)
-          const today = new Date()
-          const age = this.calculateAge(member.birthDate)
-
-          // Calcular a data do aniversário deste ano
-          const birthdayThisYear = new Date(today.getFullYear(), birthDate.getMonth(), birthDate.getDate())
-
-          // Se o aniversário já passou este ano, calcular para o próximo ano
-          if (birthdayThisYear < today) {
-            birthdayThisYear.setFullYear(today.getFullYear() + 1)
-          }
-
-          // Calcular dias até o aniversário
-          const daysUntilBirthday = Math.ceil((birthdayThisYear.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-
-          return {
-            ...member,
-            birthdayThisYear,
-            age,
-            daysUntilBirthday: daysUntilBirthday === 0 ? 0 : daysUntilBirthday,
-          }
-        })
-        .sort((a, b) => (a.daysUntilBirthday || 0) - (b.daysUntilBirthday || 0))
+      console.log("Conexão com endpoint de aniversários bem-sucedida")
+      return true
     } catch (error) {
-      console.error("❌ Erro detalhado ao buscar aniversariantes:", error)
+      console.error("Erro ao testar conexão:", error)
+      return false
+    }
+  }
 
-      // Se for erro de rede ou 404, retornar array vazio para usar fallback
-      if (error instanceof Error) {
-        if (error.message.includes("404") || error.message.includes("fetch")) {
-          console.warn("⚠️ Usando fallback devido a erro de rede ou endpoint não encontrado")
-          return []
-        }
+  // Função para buscar aniversários da API
+  static async getBirthdays(filterType: BirthdayFilterType = BirthdayFilterType.Week): Promise<ApiBirthdayMember[]> {
+    try {
+      const token = this.getAuthToken()
+      if (!token) {
+        throw new Error("Token de autenticação não encontrado")
       }
 
+      console.log(`Buscando aniversários com filtro: ${filterType} (${BirthdayFilterType[filterType]})`)
+      console.log("URL:", `${this.BASE_URL}/Member/birthdays`)
+
+      const response = await fetch(`${this.BASE_URL}/Member/birthdays?filterType=${filterType}`, {
+        method: "GET",
+        headers: {
+          accept: "text/plain",
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      console.log("Status da resposta:", response.status)
+
+      if (response.status === 404) {
+        console.warn("Endpoint de aniversários não encontrado")
+        return []
+      }
+
+      if (response.status === 401) {
+        throw new Error("Token de autenticação inválido")
+      }
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error("Erro da API:", response.status, errorText)
+        throw new Error(`Erro na API: ${response.status}`)
+      }
+
+      const data: ApiBirthdayMember[] = await response.json()
+      console.log(`${data.length} aniversariantes encontrados`)
+
+      return data
+    } catch (error) {
+      console.error("Erro ao buscar aniversários:", error)
       throw error
     }
   }
 
-  /**
-   * Calcula a idade com base na data de nascimento
-   */
-  static calculateAge(birthDateStr: string): number {
-    const birthDate = new Date(birthDateStr)
+  // Função para buscar aniversários da semana
+  static async getWeeklyBirthdays(): Promise<BirthdayMember[]> {
+    try {
+      const apiBirthdays = await this.getBirthdays(BirthdayFilterType.Week)
+      return apiBirthdays.map((member) => this.convertApiBirthdayToLocal(member))
+    } catch (error) {
+      console.error("Erro ao buscar aniversários da semana:", error)
+      throw error
+    }
+  }
+
+  // Função para buscar aniversários do mês
+  static async getMonthlyBirthdays(): Promise<BirthdayMember[]> {
+    try {
+      const apiBirthdays = await this.getBirthdays(BirthdayFilterType.Month)
+      return apiBirthdays.map((member) => this.convertApiBirthdayToLocal(member))
+    } catch (error) {
+      console.error("Erro ao buscar aniversários do mês:", error)
+      throw error
+    }
+  }
+
+  // Função para buscar aniversários do dia
+  static async getDailyBirthdays(): Promise<BirthdayMember[]> {
+    try {
+      const apiBirthdays = await this.getBirthdays(BirthdayFilterType.Day)
+      return apiBirthdays.map((member) => this.convertApiBirthdayToLocal(member))
+    } catch (error) {
+      console.error("Erro ao buscar aniversários do dia:", error)
+      throw error
+    }
+  }
+
+  // Função para converter membro da API para formato local
+  private static convertApiBirthdayToLocal(apiMember: ApiBirthdayMember): BirthdayMember {
+    const birthDate = new Date(apiMember.birthDate)
+    const today = new Date()
+    const currentYear = today.getFullYear()
+
+    // Calcular aniversário deste ano
+    const birthdayThisYear = new Date(currentYear, birthDate.getMonth(), birthDate.getDate())
+
+    // Se o aniversário já passou este ano, considerar o próximo ano
+    if (birthdayThisYear < today) {
+      birthdayThisYear.setFullYear(currentYear + 1)
+    }
+
+    // Calcular idade que fará no aniversário
+    const ageWillTurn = this.calculateAgeWillTurn(apiMember.birthDate, birthdayThisYear)
+
+    // Calcular dias até o aniversário
+    const daysUntilBirthday = Math.ceil((birthdayThisYear.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+
+    // Verificar se é hoje
+    const isToday = daysUntilBirthday === 0
+
+    // Gerar mensagem de aniversário
+    const birthdayMessage = this.generateBirthdayMessage(ageWillTurn, daysUntilBirthday)
+
+    return {
+      id: apiMember.id.toString(),
+      name: apiMember.name,
+      email: apiMember.email,
+      phone: apiMember.phone,
+      photo: apiMember.photo,
+      birthDate: apiMember.birthDate,
+      ageWillTurn: ageWillTurn,
+      birthdayThisYear: birthdayThisYear,
+      daysUntilBirthday: daysUntilBirthday,
+      isToday: isToday,
+      birthdayMessage: birthdayMessage,
+    }
+  }
+
+  // Função para calcular idade que fará no aniversário
+  private static calculateAgeWillTurn(birthDateString: string, birthdayDate: Date): number {
+    const birthDate = new Date(birthDateString)
+    return birthdayDate.getFullYear() - birthDate.getFullYear()
+  }
+
+  // Função para gerar mensagem de aniversário
+  private static generateBirthdayMessage(ageWillTurn: number, daysUntilBirthday: number): string {
+    if (daysUntilBirthday === 0) {
+      return `faz ${ageWillTurn} anos hoje! 🎉`
+    } else if (daysUntilBirthday === 1) {
+      return `fará ${ageWillTurn} anos amanhã`
+    } else {
+      return `fará ${ageWillTurn} anos daqui ${daysUntilBirthday} dias`
+    }
+  }
+
+  // Função para calcular idade atual (mantida para compatibilidade)
+  static calculateAge(birthDateString: string): number {
+    const birthDate = new Date(birthDateString)
     const today = new Date()
 
-    let age = today.getFullYear() - birthDate.getFullYear()
-    const monthDiff = today.getMonth() - birthDate.getMonth()
+    // Garantir que estamos trabalhando apenas com as datas, sem horário
+    const birthYear = birthDate.getFullYear()
+    const birthMonth = birthDate.getMonth()
+    const birthDay = birthDate.getDate()
 
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    const currentYear = today.getFullYear()
+    const currentMonth = today.getMonth()
+    const currentDay = today.getDate()
+
+    let age = currentYear - birthYear
+
+    // Se ainda não chegou o mês do aniversário, subtrai 1
+    if (currentMonth < birthMonth) {
+      age--
+    }
+    // Se estamos no mês do aniversário mas ainda não chegou o dia, subtrai 1
+    else if (currentMonth === birthMonth && currentDay < birthDay) {
       age--
     }
 
     return age
   }
 
-  /**
-   * Formata a data de aniversário para exibição
-   */
+  // Função para formatar data de aniversário
   static formatBirthdayDate(date: Date): string {
+    const today = new Date()
+    const tomorrow = new Date(today)
+    tomorrow.setDate(today.getDate() + 1)
+
+    // Verificar se é hoje
+    if (date.toDateString() === today.toDateString()) {
+      return "Hoje"
+    }
+
+    // Verificar se é amanhã
+    if (date.toDateString() === tomorrow.toDateString()) {
+      return "Amanhã"
+    }
+
+    // Formato padrão
     return date.toLocaleDateString("pt-BR", {
       weekday: "short",
       day: "numeric",
@@ -160,31 +309,31 @@ export class MembersService {
     })
   }
 
-  /**
-   * Testa a conectividade com a API de membros
-   */
-  static async testConnection(): Promise<boolean> {
+  // Função para obter estatísticas de aniversários
+  static async getBirthdayStats(): Promise<{
+    today: number
+    thisWeek: number
+    thisMonth: number
+  }> {
     try {
-      console.log("🔍 Testando conectividade com API de membros...")
-      testAuthToken()
+      const [daily, weekly, monthly] = await Promise.all([
+        this.getDailyBirthdays(),
+        this.getWeeklyBirthdays(),
+        this.getMonthlyBirthdays(),
+      ])
 
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "https://demoapp.top1soft.com.br"
-      // Remover /api duplicado
-      const url = `${baseUrl}/Member/birthdays?filterType=1`
-
-      console.log(`🔗 URL de teste: ${url}`)
-
-      const response = await authFetch(url)
-
-      console.log(`📊 Status do teste: ${response.status}`)
-
-      const isConnected = response.status !== 404
-      console.log(`✅ Conectividade: ${isConnected ? "OK" : "Falhou"}`)
-
-      return isConnected
+      return {
+        today: daily.length,
+        thisWeek: weekly.length,
+        thisMonth: monthly.length,
+      }
     } catch (error) {
-      console.error("❌ Erro ao testar conexão:", error)
-      return false
+      console.error("Erro ao obter estatísticas de aniversários:", error)
+      return {
+        today: 0,
+        thisWeek: 0,
+        thisMonth: 0,
+      }
     }
   }
 }

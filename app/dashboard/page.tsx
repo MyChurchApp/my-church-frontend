@@ -294,57 +294,7 @@ export default function DashboardPage() {
     }
   }
 
-  const loadBirthdays = async () => {
-    setIsLoadingBirthdays(true)
-    try {
-      if (isAuthenticated()) {
-        console.log("Tentando carregar aniversários da API...")
-
-        // Primeiro, testar se o endpoint existe
-        const isConnected = await MembersService.testConnection()
-
-        if (!isConnected) {
-          console.warn("Endpoint de aniversários não disponível. Usando dados fake.")
-          setBirthdays(getBirthdaysThisWeek())
-          return
-        }
-
-        // Usar API real se autenticado e endpoint disponível
-        const birthdayMembers = await MembersService.getWeeklyBirthdays()
-
-        if (birthdayMembers.length === 0) {
-          console.log("Nenhum aniversariante encontrado na API. Usando dados fake como demonstração.")
-          setBirthdays(getBirthdaysThisWeek())
-        } else {
-          console.log(`${birthdayMembers.length} aniversariantes carregados da API`)
-          setBirthdays(birthdayMembers)
-        }
-      } else {
-        console.log("Usuário não autenticado. Usando dados fake.")
-        setBirthdays(getBirthdaysThisWeek())
-      }
-    } catch (error) {
-      console.error("Erro ao carregar aniversários:", error)
-
-      // Mostrar mensagem de erro mais amigável
-      if (error instanceof Error) {
-        if (error.message.includes("404")) {
-          console.warn("Endpoint de aniversários não encontrado. Usando dados de demonstração.")
-        } else if (error.message.includes("401")) {
-          console.warn("Token de autenticação inválido. Usando dados de demonstração.")
-        } else {
-          console.warn("Erro de conexão com a API. Usando dados de demonstração.")
-        }
-      }
-
-      // Em caso de erro, sempre usar dados fake como fallback
-      setBirthdays(getBirthdaysThisWeek())
-    } finally {
-      setIsLoadingBirthdays(false)
-    }
-  }
-
-  const getBirthdaysThisWeek = () => {
+  const getBirthdaysThisWeek = (): BirthdayMember[] => {
     const today = new Date()
     const weekStart = new Date(today)
     weekStart.setDate(today.getDate() - today.getDay())
@@ -357,14 +307,42 @@ export default function DashboardPage() {
         const thisYearBirthday = new Date(today.getFullYear(), birthDate.getMonth(), birthDate.getDate())
         return thisYearBirthday >= weekStart && thisYearBirthday <= weekEnd
       })
-      .map((member) => ({
-        ...member,
-        birthdayThisYear: new Date(
-          today.getFullYear(),
-          new Date(member.birthDate).getMonth(),
-          new Date(member.birthDate).getDate(),
-        ),
-      }))
+      .map((member) => {
+        const birthDate = new Date(member.birthDate)
+        const thisYearBirthday = new Date(today.getFullYear(), birthDate.getMonth(), birthDate.getDate())
+
+        // Se o aniversário já passou este ano, considerar o próximo ano
+        if (thisYearBirthday < today) {
+          thisYearBirthday.setFullYear(today.getFullYear() + 1)
+        }
+
+        const ageWillTurn = thisYearBirthday.getFullYear() - birthDate.getFullYear()
+        const daysUntilBirthday = Math.ceil((thisYearBirthday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+        const isToday = daysUntilBirthday === 0
+
+        let birthdayMessage = ""
+        if (daysUntilBirthday === 0) {
+          birthdayMessage = `faz ${ageWillTurn} anos hoje! 🎉`
+        } else if (daysUntilBirthday === 1) {
+          birthdayMessage = `fará ${ageWillTurn} anos amanhã`
+        } else {
+          birthdayMessage = `fará ${ageWillTurn} anos daqui ${daysUntilBirthday} dias`
+        }
+
+        return {
+          id: member.id,
+          name: member.name,
+          email: member.email || "",
+          phone: member.phone || "",
+          birthDate: member.birthDate,
+          photo: member.photo,
+          birthdayThisYear: thisYearBirthday,
+          ageWillTurn: ageWillTurn,
+          daysUntilBirthday: daysUntilBirthday,
+          isToday: isToday,
+          birthdayMessage: birthdayMessage,
+        }
+      })
       .sort((a, b) => a.birthdayThisYear.getTime() - b.birthdayThisYear.getTime())
   }
 
@@ -559,6 +537,56 @@ export default function DashboardPage() {
     const isOwner = user?.id === item.member.id.toString()
     const canEdit = canEditOrDeletePost(item.created)
     return isOwner && canEdit
+  }
+
+  const loadBirthdays = async () => {
+    setIsLoadingBirthdays(true)
+    try {
+      if (isAuthenticated()) {
+        console.log("Tentando carregar aniversários da API...")
+
+        // Primeiro, testar se o endpoint existe
+        const isConnected = await MembersService.testConnection()
+
+        if (!isConnected) {
+          console.warn("Endpoint de aniversários não disponível. Usando dados fake.")
+          setBirthdays(getBirthdaysThisWeek())
+          return
+        }
+
+        // Usar API real se autenticado e endpoint disponível
+        const birthdayMembers = await MembersService.getWeeklyBirthdays()
+
+        if (birthdayMembers.length === 0) {
+          console.log("Nenhum aniversariante encontrado na API. Usando dados fake como demonstração.")
+          setBirthdays(getBirthdaysThisWeek())
+        } else {
+          console.log(`${birthdayMembers.length} aniversariantes carregados da API`)
+          setBirthdays(birthdayMembers)
+        }
+      } else {
+        console.log("Usuário não autenticado. Usando dados fake.")
+        setBirthdays(getBirthdaysThisWeek())
+      }
+    } catch (error) {
+      console.error("Erro ao carregar aniversários:", error)
+
+      // Mostrar mensagem de erro mais amigável
+      if (error instanceof Error) {
+        if (error.message.includes("404")) {
+          console.warn("Endpoint de aniversários não encontrado. Usando dados de demonstração.")
+        } else if (error.message.includes("401")) {
+          console.warn("Token de autenticação inválido. Usando dados de demonstração.")
+        } else {
+          console.warn("Erro de conexão com a API. Usando dados de demonstração.")
+        }
+      }
+
+      // Em caso de erro, sempre usar dados fake como fallback
+      setBirthdays(getBirthdaysThisWeek())
+    } finally {
+      setIsLoadingBirthdays(false)
+    }
   }
 
   if (!user || !churchData) {
@@ -1032,27 +1060,9 @@ export default function DashboardPage() {
                               <div className="flex-1 min-w-0">
                                 <p className="font-medium text-gray-900 text-sm truncate">{member.name || "Membro"}</p>
                                 <p className="text-xs text-gray-600">
-                                  {member.birthdayThisYear
-                                    ? MembersService.formatBirthdayDate(member.birthdayThisYear)
-                                    : new Date(member.birthDate).toLocaleDateString("pt-BR", {
-                                        weekday: "short",
-                                        day: "numeric",
-                                        month: "short",
-                                      })}
+                                  {MembersService.formatBirthdayDate(member.birthdayThisYear)}
                                 </p>
-                                <p className="text-xs text-purple-600">
-                                  {member.age
-                                    ? `${member.age} anos`
-                                    : `${MembersService.calculateAge(member.birthDate)} anos`}
-                                </p>
-                                {member.daysUntilBirthday !== undefined && member.daysUntilBirthday === 0 && (
-                                  <p className="text-xs text-green-600 font-semibold">🎉 Hoje!</p>
-                                )}
-                                {member.daysUntilBirthday !== undefined &&
-                                  member.daysUntilBirthday > 0 &&
-                                  member.daysUntilBirthday <= 7 && (
-                                    <p className="text-xs text-blue-600">Em {member.daysUntilBirthday} dias</p>
-                                  )}
+                                <p className="text-xs text-purple-600 font-medium">{member.birthdayMessage}</p>
                               </div>
                             </div>
                           ))}

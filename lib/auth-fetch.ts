@@ -46,21 +46,12 @@ export async function authFetch(url: string, options: AuthFetchOptions = {}): Pr
     }
 
     // ✅ CRÍTICO: SEMPRE usar "Bearer " (com espaço) antes do token
-    // Verificar se o token já tem "Bearer " no início
-    let authHeader: string
-    if (token.startsWith("Bearer ")) {
-      authHeader = token
-    } else {
-      authHeader = `Bearer ${token}`
-    }
+    headers.Authorization = `Bearer ${token}`
 
-    headers.Authorization = authHeader
-
-    // ✅ Verificações de segurança extras
-    console.log(`🔑 Token original: "${token.substring(0, 20)}..."`)
-    console.log(`🔑 Authorization header: "${headers.Authorization.substring(0, 30)}..."`)
+    // ✅ Verificações de segurança
+    console.log(`🔑 Authorization header: "${headers.Authorization}"`)
     console.log(`🔑 Token length: ${token.length}`)
-    console.log(`🔑 Header length: ${headers.Authorization.length}`)
+    console.log(`🔑 Token preview: ${token.substring(0, 20)}...`)
     console.log(`🔑 Starts with "Bearer ": ${headers.Authorization.startsWith("Bearer ")}`)
 
     // ✅ Verificação adicional para garantir que está correto
@@ -70,27 +61,15 @@ export async function authFetch(url: string, options: AuthFetchOptions = {}): Pr
       throw new Error("Erro na formatação do token de autorização")
     }
 
-    // ✅ Verificação específica do espaço após "Bearer"
-    if (headers.Authorization.length < 8 || headers.Authorization.charAt(6) !== " ") {
+    // ✅ Verificação do espaço após "Bearer"
+    if (!headers.Authorization.startsWith("Bearer ")) {
       console.error("❌ ERRO CRÍTICO: Falta espaço após 'Bearer'")
-      console.error(`❌ Caractere na posição 6: "${headers.Authorization.charAt(6)}"`)
-      console.error(`❌ Header completo: "${headers.Authorization}"`)
       throw new Error("Token deve ter espaço após 'Bearer'")
-    }
-
-    // ✅ Verificação final do formato
-    const bearerPattern = /^Bearer [A-Za-z0-9\-._~+/]+=*$/
-    if (!bearerPattern.test(headers.Authorization)) {
-      console.warn("⚠️ AVISO: Token pode ter formato inválido")
-      console.warn(`⚠️ Header: "${headers.Authorization.substring(0, 50)}..."`)
     }
   }
 
   console.log(`🔗 AuthFetch para: ${url}`)
-  console.log(`🔑 Headers completos:`, {
-    ...headers,
-    Authorization: headers.Authorization ? `${headers.Authorization.substring(0, 20)}...` : "N/A",
-  })
+  console.log(`🔑 Headers completos:`, headers)
   console.log(`📦 Body:`, fetchOptions.body)
 
   const response = await fetch(url, {
@@ -99,22 +78,12 @@ export async function authFetch(url: string, options: AuthFetchOptions = {}): Pr
   })
 
   console.log(`📊 Status da resposta: ${response.status}`)
-  console.log(`📊 Response headers:`, Object.fromEntries(response.headers.entries()))
 
   // Tratar erros de autenticação
   if (response.status === 401 && !skipAuth) {
     console.error("❌ Erro 401 - Token inválido ou expirado")
     console.error("❌ Verifique se o token tem 'Bearer ' no início")
-    console.error(`❌ Header enviado: "${headers.Authorization?.substring(0, 30)}..."`)
-
-    // Tentar obter mais detalhes do erro
-    try {
-      const errorText = await response.text()
-      console.error("❌ Resposta do servidor:", errorText)
-    } catch (e) {
-      console.error("❌ Não foi possível ler a resposta de erro")
-    }
-
+    console.error(`❌ Header enviado: "${headers.Authorization}"`)
     clearAuthData()
     throw new Error("Sessão expirada. Faça login novamente.")
   }
@@ -194,42 +163,6 @@ export async function authFetchJson(url: string, options: AuthFetchOptions = {})
   } catch (error) {
     console.error("❌ Erro na requisição authFetchJson:", error)
     throw error
-  }
-}
-
-/**
- * ✅ Função para testar o token atual
- */
-export function testAuthToken(): void {
-  const token = getAuthToken()
-  if (!token) {
-    console.log("❌ Nenhum token encontrado")
-    return
-  }
-
-  console.log("🔍 Testando token atual:")
-  console.log(`📏 Comprimento: ${token.length}`)
-  console.log(`🔤 Primeiros 20 chars: "${token.substring(0, 20)}..."`)
-  console.log(`🔤 Últimos 10 chars: "...${token.substring(token.length - 10)}`)
-  console.log(`✅ Tem "Bearer ": ${token.startsWith("Bearer ")}`)
-
-  if (token.startsWith("Bearer ")) {
-    const actualToken = token.substring(7)
-    console.log(`🎯 Token sem Bearer: "${actualToken.substring(0, 20)}..."`)
-    console.log(`📏 Comprimento do token: ${actualToken.length}`)
-  }
-
-  // Tentar decodificar JWT se possível
-  try {
-    const tokenPart = token.startsWith("Bearer ") ? token.substring(7) : token
-    const parts = tokenPart.split(".")
-    if (parts.length === 3) {
-      const payload = JSON.parse(atob(parts[1]))
-      console.log("🔓 Payload do JWT:", payload)
-      console.log(`⏰ Expira em: ${new Date(payload.exp * 1000).toLocaleString()}`)
-    }
-  } catch (e) {
-    console.log("⚠️ Não foi possível decodificar como JWT")
   }
 }
 
