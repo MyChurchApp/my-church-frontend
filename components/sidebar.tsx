@@ -86,7 +86,16 @@ export function Sidebar({ className = "" }: SidebarProps) {
     { icon: Home, label: "Início", href: "/dashboard", accessLevel: "member" },
     { icon: Users, label: "Membros", href: "/dashboard/membros", accessLevel: "member" },
     { icon: Calendar, label: "Eventos", href: "/dashboard/eventos", accessLevel: "member" },
-    { icon: Heart, label: "Doações", href: "/dashboard/doacoes", accessLevel: "member" },
+    {
+      icon: Heart,
+      label: "Doações",
+      href: "/dashboard/doacoes",
+      accessLevel: "member",
+      subItems: [
+        { label: "Ofertar", href: "/dashboard/doacoes" },
+        { label: "Histórico", href: "/dashboard/doacoes/historico" },
+      ],
+    },
     {
       icon: MessageSquare,
       label: "Comunicação",

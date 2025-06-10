@@ -1,38 +1,55 @@
 // Função utilitária para fazer requisições autenticadas padronizadas
 // ✅ GARANTIA TOTAL de "Bearer " (com espaço) em TODAS as requisições
-// ✅ LOGOUT AUTOMÁTICO em caso de 401 - VERSÃO CORRIGIDA
 
 import { getToken } from "./auth-utils"
 
+interface AuthFetchOptions extends RequestInit {
+  skipAuth?: boolean
+  skipAutoLogout?: boolean
+}
+
 /**
  * Função para fazer requisições autenticadas
- * O interceptor global já cuida do logout em caso de 401
+ * GARANTINDO formato correto: "Bearer TOKEN"
  */
-export async function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
-  const token = getToken()
+export async function authFetch(url: string, options: AuthFetchOptions = {}): Promise<Response> {
+  const { skipAuth = false, ...fetchOptions } = options
 
-  if (!token) {
-    console.log("🚨 [authFetch] Token não encontrado")
-    throw new Error("Token de autenticação não encontrado")
-  }
-
-  const headers = {
+  const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`,
-    ...options.headers,
+    Accept: "*/*",
+    ...((fetchOptions.headers as Record<string, string>) || {}),
   }
 
-  console.log(`🔄 [authFetch] ${options.method || "GET"} ${url}`)
+  // Adicionar token de autenticação se não for skipAuth
+  if (!skipAuth) {
+    const token = getToken()
+    if (!token) {
+      console.log("🚨 [authFetch] Token não encontrado")
+      throw new Error("Token de autenticação não encontrado")
+    }
+
+    // ✅ GARANTIR formato correto: "Bearer TOKEN" (com espaço)
+    let authHeader = token
+    if (!authHeader.toLowerCase().startsWith("bearer ")) {
+      authHeader = `Bearer ${token}`
+    }
+
+    headers.Authorization = authHeader
+    console.log(`🔑 [authFetch] Authorization: ${authHeader.substring(0, 20)}...`)
+  }
+
+  console.log(`🔄 [authFetch] ${fetchOptions.method || "GET"} ${url}`)
 
   try {
     const response = await fetch(url, {
-      ...options,
+      ...fetchOptions,
       headers,
     })
 
-    console.log(`✅ [authFetch] ${response.status} ${url}`)
+    console.log(`📊 [authFetch] Status: ${response.status} para ${url}`)
 
-    // O interceptor global já cuida do 401, então só retornamos a response
+    // O interceptor global já cuida do 401
     return response
   } catch (error) {
     console.error("🚨 [authFetch] Erro na requisição:", error)
@@ -41,22 +58,20 @@ export async function authFetch(url: string, options: RequestInit = {}): Promise
 }
 
 /**
- * ✅ Fazer requisição JSON autenticada com LOGOUT AUTOMÁTICO
+ * ✅ Fazer requisição JSON autenticada
  */
 export async function authFetchJson(url: string, options: AuthFetchOptions = {}): Promise<any> {
   try {
-    console.log(`📋 AuthFetchJson iniciado para: ${url}`)
+    console.log(`📋 [authFetchJson] Iniciando: ${url}`)
     const response = await authFetch(url, options)
 
-    console.log(`📊 Status final no authFetchJson: ${response.status}`)
+    console.log(`📊 [authFetchJson] Status: ${response.status}`)
 
-    // Se for 401, o authFetch já tratou o logout, mas vamos garantir
     if (response.status === 401) {
       console.error("🚨 401 confirmado no authFetchJson")
       throw new Error("Sessão expirada. Redirecionando para login...")
     }
 
-    // Se não for bem-sucedido, tentar obter mais detalhes do erro
     if (!response.ok) {
       let errorText = ""
       try {
@@ -119,8 +134,3 @@ export async function authFetchJson(url: string, options: AuthFetchOptions = {})
 
 // Exportação padrão para compatibilidade
 export default authFetch
-
-interface AuthFetchOptions extends RequestInit {
-  skipAuth?: boolean
-  skipAutoLogout?: boolean // Para casos específicos onde não queremos logout automático
-}
