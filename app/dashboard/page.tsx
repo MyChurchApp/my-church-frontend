@@ -142,9 +142,8 @@ export default function DashboardPage() {
   const [postToDelete, setPostToDelete] = useState<ApiFeedItem | null>(null)
   const [isDeletingPost, setIsDeletingPost] = useState(false)
   const [verseOfDay, setVerseOfDay] = useState<VerseOfDay>({
-    verseText:
-      "Porque eu bem sei os pensamentos que tenho a vosso respeito, diz o Senhor; pensamentos de paz e não de mal, para vos dar o fim que esperais.",
-    reference: "Jeremias 29:11",
+    verseText: "",
+    reference: "",
   })
   const [isLoadingVerse, setIsLoadingVerse] = useState(false)
 
@@ -638,29 +637,26 @@ export default function DashboardPage() {
   const loadVerseOfDay = async () => {
     setIsLoadingVerse(true)
     try {
-      if (isAuthenticated()) {
-        console.log("Tentando carregar versículo do dia da API...")
+      console.log("Tentando carregar versículo do dia da API...")
 
-        const isConnected = await VerseOfDayService.testConnection()
+      const verse = await VerseOfDayService.getVerseOfDay()
 
-        if (!isConnected) {
-          console.warn("API de versículos não disponível. Usando versículo padrão.")
-          return
-        }
-
-        const verse = await VerseOfDayService.getVerseOfDay()
-
-        if (VerseOfDayService.isValidVerse(verse)) {
-          console.log("✅ Versículo do dia carregado da API")
-          setVerseOfDay(verse)
-        } else {
-          console.warn("Versículo inválido recebido da API. Usando padrão.")
-        }
+      if (VerseOfDayService.isValidVerse(verse)) {
+        console.log("✅ Versículo do dia carregado da API")
+        setVerseOfDay(verse)
       } else {
-        console.log("Usuário não autenticado. Usando versículo padrão.")
+        console.warn("Versículo inválido recebido da API.")
+        setVerseOfDay({
+          verseText: "Erro ao carregar versículo do dia",
+          reference: "Tente novamente mais tarde",
+        })
       }
     } catch (error) {
       console.error("Erro ao carregar versículo do dia:", error)
+      setVerseOfDay({
+        verseText: "Erro ao carregar versículo do dia",
+        reference: "Verifique sua conexão",
+      })
     } finally {
       setIsLoadingVerse(false)
     }
@@ -1130,7 +1126,7 @@ export default function DashboardPage() {
                   {/* Versículo do Dia */}
                   <Card className="bg-gradient-to-br from-blue-50 to-indigo-100 border-blue-200">
                     <CardContent className="p-4">
-                      {isLoadingVerse ? (
+                      {isLoadingVerse || (!verseOfDay.verseText && !verseOfDay.reference) ? (
                         <div className="text-center py-4">
                           <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto mb-2"></div>
                           <p className="text-blue-600 text-sm">Carregando versículo...</p>

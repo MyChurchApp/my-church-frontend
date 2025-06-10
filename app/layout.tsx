@@ -3,9 +3,9 @@ import type { Metadata } from "next"
 import "./globals.css"
 
 export const metadata: Metadata = {
-  title: "v0 App",
-  description: "Created with v0",
-  generator: "v0.dev",
+  title: "MyChurch - Sistema de Gestão Eclesiástica",
+  description: "Sistema completo para gestão de igrejas e comunidades religiosas",
+  generator: "MyChurch",
 }
 
 export default function RootLayout({
