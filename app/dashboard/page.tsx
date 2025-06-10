@@ -60,6 +60,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import Link from "next/link"
 import { MembersService, type BirthdayMember } from "@/services/members.service"
+import { VerseOfDayService, type VerseOfDay } from "@/services/verse-of-day.service"
 
 // Função helper para gerar iniciais de forma segura
 const getInitials = (name: string | undefined | null): string => {
@@ -140,6 +141,12 @@ export default function DashboardPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [postToDelete, setPostToDelete] = useState<ApiFeedItem | null>(null)
   const [isDeletingPost, setIsDeletingPost] = useState(false)
+  const [verseOfDay, setVerseOfDay] = useState<VerseOfDay>({
+    verseText:
+      "Porque eu bem sei os pensamentos que tenho a vosso respeito, diz o Senhor; pensamentos de paz e não de mal, para vos dar o fim que esperais.",
+    reference: "Jeremias 29:11",
+  })
+  const [isLoadingVerse, setIsLoadingVerse] = useState(false)
 
   // Banners de eventos
   const banners = [
@@ -240,28 +247,47 @@ export default function DashboardPage() {
   }
 
   useEffect(() => {
-    // Verificar se é usuário real ou fake
-    let userData: User | null = null
+    let isMounted = true
 
-    if (isRealUser()) {
-      userData = getRealUser()
-    } else {
-      userData = getUser()
+    const initializeDashboard = async () => {
+      // Verificar se é usuário real ou fake
+      let userData: User | null = null
+
+      if (isRealUser()) {
+        userData = getRealUser()
+      } else {
+        userData = getUser()
+      }
+
+      if (!userData) {
+        router.push("/login")
+        return
+      }
+
+      if (!isMounted) return
+
+      setUser(userData)
+      setChurchData(getChurchData())
+
+      // Carregar dados apenas se o componente ainda estiver montado
+      if (isMounted) {
+        // Carregar feed
+        await loadFeed()
+
+        // Carregar aniversários
+        await loadBirthdays()
+
+        // Carregar versículo do dia
+        await loadVerseOfDay()
+      }
     }
 
-    if (!userData) {
-      router.push("/login")
-      return
+    initializeDashboard()
+
+    // Cleanup function
+    return () => {
+      isMounted = false
     }
-
-    setUser(userData)
-    setChurchData(getChurchData())
-
-    // Carregar feed
-    loadFeed()
-
-    // Carregar aniversários
-    loadBirthdays()
   }, [router])
 
   useEffect(() => {
@@ -609,6 +635,37 @@ export default function DashboardPage() {
     }
   }
 
+  const loadVerseOfDay = async () => {
+    setIsLoadingVerse(true)
+    try {
+      if (isAuthenticated()) {
+        console.log("Tentando carregar versículo do dia da API...")
+
+        const isConnected = await VerseOfDayService.testConnection()
+
+        if (!isConnected) {
+          console.warn("API de versículos não disponível. Usando versículo padrão.")
+          return
+        }
+
+        const verse = await VerseOfDayService.getVerseOfDay()
+
+        if (VerseOfDayService.isValidVerse(verse)) {
+          console.log("✅ Versículo do dia carregado da API")
+          setVerseOfDay(verse)
+        } else {
+          console.warn("Versículo inválido recebido da API. Usando padrão.")
+        }
+      } else {
+        console.log("Usuário não autenticado. Usando versículo padrão.")
+      }
+    } catch (error) {
+      console.error("Erro ao carregar versículo do dia:", error)
+    } finally {
+      setIsLoadingVerse(false)
+    }
+  }
+
   if (!user || !churchData) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -823,57 +880,63 @@ export default function DashboardPage() {
                       </Button>
                     </Link>
                     {isAuthenticated() && (
-                      <Dialog open={isNewPostModalOpen} onOpenChange={setIsNewPostModalOpen}>
-                        <DialogTrigger asChild>
-                          <Button
-                            size="sm"
-                            style={{ backgroundColor: "#89f0e6", color: "#000" }}
-                            className="hover:opacity-90"
-                          >
-                            <Plus className="h-4 w-4 mr-2" />
-                            Nova Publicação
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="sm:max-w-md">
-                          <DialogHeader>
-                            <DialogTitle>Nova Publicação</DialogTitle>
-                          </DialogHeader>
-                          <div className="space-y-4 py-4">
-                            <div className="space-y-2">
-                              <Label htmlFor="content">Conteúdo</Label>
-                              <Textarea
-                                id="content"
-                                placeholder="O que você gostaria de compartilhar?"
-                                value={newPostContent}
-                                onChange={(e) => setNewPostContent(e.target.value)}
-                                rows={4}
-                              />
+                      <>
+                        <Button
+                          size="sm"
+                          style={{ backgroundColor: "#89f0e6", color: "#000" }}
+                          className="hover:opacity-90"
+                          onClick={() => setIsNewPostModalOpen(true)}
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Nova Publicação
+                        </Button>
+
+                        <Dialog open={isNewPostModalOpen} onOpenChange={setIsNewPostModalOpen}>
+                          <DialogContent className="sm:max-w-md">
+                            <DialogHeader>
+                              <DialogTitle>Nova Publicação</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4 py-4">
+                              <div className="space-y-2">
+                                <Label htmlFor="content">Conteúdo</Label>
+                                <Textarea
+                                  id="content"
+                                  placeholder="O que você gostaria de compartilhar?"
+                                  value={newPostContent}
+                                  onChange={(e) => setNewPostContent(e.target.value)}
+                                  rows={4}
+                                />
+                              </div>
+                              <div className="flex gap-2 pt-4">
+                                <Button
+                                  onClick={handleCreatePost}
+                                  disabled={!newPostContent.trim() || isCreatingPost}
+                                  className="flex-1"
+                                >
+                                  {isCreatingPost ? (
+                                    <>
+                                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                      Publicando...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Send className="h-4 w-4 mr-2" />
+                                      Publicar
+                                    </>
+                                  )}
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  onClick={() => setIsNewPostModalOpen(false)}
+                                  className="flex-1"
+                                >
+                                  Cancelar
+                                </Button>
+                              </div>
                             </div>
-                            <div className="flex gap-2 pt-4">
-                              <Button
-                                onClick={handleCreatePost}
-                                disabled={!newPostContent.trim() || isCreatingPost}
-                                className="flex-1"
-                              >
-                                {isCreatingPost ? (
-                                  <>
-                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                                    Publicando...
-                                  </>
-                                ) : (
-                                  <>
-                                    <Send className="h-4 w-4 mr-2" />
-                                    Publicar
-                                  </>
-                                )}
-                              </Button>
-                              <Button variant="outline" onClick={() => setIsNewPostModalOpen(false)} className="flex-1">
-                                Cancelar
-                              </Button>
-                            </div>
-                          </div>
-                        </DialogContent>
-                      </Dialog>
+                          </DialogContent>
+                        </Dialog>
+                      </>
                     )}
                   </div>
                 </div>
@@ -1067,13 +1130,19 @@ export default function DashboardPage() {
                   {/* Versículo do Dia */}
                   <Card className="bg-gradient-to-br from-blue-50 to-indigo-100 border-blue-200">
                     <CardContent className="p-4">
-                      <div className="text-center space-y-3">
-                        <div className="text-sm font-medium text-blue-800 italic leading-relaxed">
-                          "Porque eu bem sei os pensamentos que tenho a vosso respeito, diz o Senhor; pensamentos de paz
-                          e não de mal, para vos dar o fim que esperais."
+                      {isLoadingVerse ? (
+                        <div className="text-center py-4">
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                          <p className="text-blue-600 text-sm">Carregando versículo...</p>
                         </div>
-                        <div className="text-xs text-blue-600 font-semibold">Jeremias 29:11</div>
-                      </div>
+                      ) : (
+                        <div className="text-center space-y-3">
+                          <div className="text-sm font-medium text-blue-800 italic leading-relaxed">
+                            "{verseOfDay.verseText}"
+                          </div>
+                          <div className="text-xs text-blue-600 font-semibold">{verseOfDay.reference}</div>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
 
