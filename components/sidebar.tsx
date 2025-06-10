@@ -106,7 +106,28 @@ export function Sidebar({ className = "" }: SidebarProps) {
         { label: "WhatsApp", href: "/dashboard/comunicacao/whatsapp" },
       ],
     },
-    { icon: DollarSign, label: "Financeiro", href: "/dashboard/financeiro", accessLevel: "admin" },
+    // Financeiro com submenu apenas para admins
+    ...(user?.accessLevel === "admin"
+      ? [
+          {
+            icon: DollarSign,
+            label: "Financeiro",
+            href: "/dashboard/financeiro",
+            accessLevel: "admin" as const,
+            subItems: [
+              { label: "Fluxo de Caixa", href: "/dashboard/financeiro" },
+              { label: "Ofertas realizadas", href: "/dashboard/financeiro/ofertas-realizadas" },
+            ],
+          },
+        ]
+      : [
+          {
+            icon: DollarSign,
+            label: "Financeiro",
+            href: "/dashboard/financeiro",
+            accessLevel: "admin" as const,
+          },
+        ]),
     { icon: Package, label: "Ativos", href: "/dashboard/ativos", accessLevel: "admin" },
     { icon: Settings, label: "Configurações", href: "/dashboard/configuracoes", accessLevel: "admin" },
   ]
