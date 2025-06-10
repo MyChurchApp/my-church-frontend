@@ -46,11 +46,10 @@ import {
   convertApiMemberToLocal,
   convertLocalMemberToApi,
 } from "@/lib/api"
-import { useToastContext } from "@/contexts/toast-context"
+import { toast } from "@/hooks/use-toast"
 
 export default function MembrosPage() {
   const router = useRouter()
-  const { toast } = useToastContext()
   const [user, setUser] = useState<User | null>(null)
   const [members, setMembers] = useState<any[]>([])
   const [filteredMembers, setFilteredMembers] = useState<any[]>([])
@@ -98,22 +97,6 @@ export default function MembrosPage() {
   })
 
   // Listener para erros 500
-  useEffect(() => {
-    const handleApiError500 = (event: CustomEvent) => {
-      toast({
-        title: "Erro no servidor",
-        description: event.detail.message,
-        variant: "destructive",
-        duration: 6000,
-      })
-    }
-
-    window.addEventListener("api-error-500", handleApiError500 as EventListener)
-
-    return () => {
-      window.removeEventListener("api-error-500", handleApiError500 as EventListener)
-    }
-  }, [toast])
 
   // Função para converter imagem para base64
   const convertImageToBase64 = (file: File): Promise<string> => {
@@ -298,8 +281,6 @@ export default function MembrosPage() {
       title: "Relatório gerado!",
       description:
         "Para converter para PDF: abra o arquivo HTML baixado e use Ctrl+P (ou Cmd+P no Mac), depois selecione 'Salvar como PDF'",
-      variant: "success",
-      duration: 8000,
     })
   }
 
@@ -370,7 +351,6 @@ export default function MembrosPage() {
       toast({
         title: "Membro cadastrado!",
         description: `${newMember.name} foi cadastrado com sucesso.`,
-        variant: "success",
       })
 
       // Recarregar a lista para garantir sincronização
@@ -471,7 +451,6 @@ export default function MembrosPage() {
       toast({
         title: "Membro atualizado!",
         description: `${updatedMember.name} foi atualizado com sucesso.`,
-        variant: "success",
       })
 
       // Recarregar a lista para garantir sincronização
@@ -514,7 +493,6 @@ export default function MembrosPage() {
       toast({
         title: "Membro excluído!",
         description: `${member.name} foi excluído com sucesso.`,
-        variant: "success",
       })
 
       await loadMembers()
@@ -593,7 +571,6 @@ export default function MembrosPage() {
     toast({
       title: "Email enviado!",
       description: `Email de recuperação de senha enviado para ${member.email}`,
-      variant: "success",
     })
   }
 
@@ -602,7 +579,6 @@ export default function MembrosPage() {
     toast({
       title: "Nova senha gerada!",
       description: `Nova senha para ${member.name}: ${newPassword}`,
-      variant: "success",
       duration: 10000,
     })
   }
@@ -1035,6 +1011,7 @@ export default function MembrosPage() {
                   <Label htmlFor="edit-member-phone">Telefone *</Label>
                   <Input
                     id="edit-member-phone"
+                    type="tel"
                     value={memberForm.phone}
                     onChange={(e) => setMemberForm({ ...memberForm, phone: e.target.value })}
                     placeholder="(11) 99999-9999"
