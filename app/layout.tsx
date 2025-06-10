@@ -7,6 +7,7 @@ import { LanguageProvider } from "@/contexts/language-context"
 import { ErrorBoundary } from "@/components/error-boundary"
 import { ToastProvider } from "@/contexts/toast-context"
 import { GlobalAuthInterceptor } from "@/components/global-auth-interceptor"
+import { AuthMonitor } from "@/components/auth-monitor"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -43,6 +44,7 @@ export default function RootLayout({
             <LanguageProvider>
               <ToastProvider>
                 <GlobalAuthInterceptor />
+                <AuthMonitor />
                 {children}
               </ToastProvider>
             </LanguageProvider>
