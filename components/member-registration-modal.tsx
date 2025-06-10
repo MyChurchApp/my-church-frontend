@@ -17,6 +17,11 @@ interface MemberData {
   name: string
   email: string
   document: string
+  rg: string // ✅ NOVO
+  tituloEleitor: string // ✅ NOVO
+  cnh: string // ✅ NOVO
+  certidaoNascimento: string // ✅ NOVO
+  outrosDocumentos: string // ✅ NOVO
   photo: string
   phone: string
   birthDate: string
@@ -45,6 +50,11 @@ export default function MemberRegistrationModal({ onMemberCreated }: MemberRegis
     name: "",
     email: "",
     document: "",
+    rg: "", // ✅ NOVO
+    tituloEleitor: "", // ✅ NOVO
+    cnh: "", // ✅ NOVO
+    certidaoNascimento: "", // ✅ NOVO
+    outrosDocumentos: "", // ✅ NOVO
     photo: "base64",
     phone: "",
     birthDate: "",
@@ -298,6 +308,11 @@ export default function MemberRegistrationModal({ onMemberCreated }: MemberRegis
         name: "",
         email: "",
         document: "",
+        rg: "", // ✅ NOVO
+        tituloEleitor: "", // ✅ NOVO
+        cnh: "", // ✅ NOVO
+        certidaoNascimento: "", // ✅ NOVO
+        outrosDocumentos: "", // ✅ NOVO
         photo: "base64",
         phone: "",
         birthDate: "",
@@ -383,6 +398,78 @@ export default function MemberRegistrationModal({ onMemberCreated }: MemberRegis
                 placeholder="000.000.000-00"
                 required
               />
+            </div>
+          </div>
+
+          {/* Documentos */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium">Documentos</h3>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="document">CPF *</Label>
+                <Input
+                  id="document"
+                  value={formData.document}
+                  onChange={(e) => handleInputChange("document", e.target.value)}
+                  placeholder="000.000.000-00"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="rg">RG</Label>
+                <Input
+                  id="rg"
+                  value={formData.rg}
+                  onChange={(e) => handleInputChange("rg", e.target.value)}
+                  placeholder="00.000.000-0"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="tituloEleitor">Título de Eleitor</Label>
+                <Input
+                  id="tituloEleitor"
+                  value={formData.tituloEleitor}
+                  onChange={(e) => handleInputChange("tituloEleitor", e.target.value)}
+                  placeholder="0000 0000 0000"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="cnh">CNH</Label>
+                <Input
+                  id="cnh"
+                  value={formData.cnh}
+                  onChange={(e) => handleInputChange("cnh", e.target.value)}
+                  placeholder="00000000000"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="certidaoNascimento">Certidão de Nascimento</Label>
+                <Input
+                  id="certidaoNascimento"
+                  value={formData.certidaoNascimento}
+                  onChange={(e) => handleInputChange("certidaoNascimento", e.target.value)}
+                  placeholder="Número da certidão"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="outrosDocumentos">Outros Documentos</Label>
+                <Input
+                  id="outrosDocumentos"
+                  value={formData.outrosDocumentos}
+                  onChange={(e) => handleInputChange("outrosDocumentos", e.target.value)}
+                  placeholder="Outros documentos"
+                />
+              </div>
             </div>
           </div>
 

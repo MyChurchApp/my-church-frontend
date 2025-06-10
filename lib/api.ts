@@ -5,7 +5,10 @@ import { authFetch, authFetchJson } from "@/lib/auth-fetch"
 export interface ApiMember {
   id: number
   name: string
-  document: string
+  document: Array<{
+    type: number
+    number: string
+  }> // ✅ CORRIGIDO: Estrutura simplificada
   email: string
   phone: string
   photo: string | null
@@ -70,6 +73,16 @@ export interface ApiFeedResponse {
   totalPages: number
 }
 
+// Enum para tipos de documento
+export enum DocumentType {
+  CPF = 1,
+  RG = 2,
+  TituloEleitor = 3,
+  CNH = 4,
+  CertidaoNascimento = 5,
+  Outros = 99,
+}
+
 // Função para obter o token do localStorage
 const getAuthToken = (): string | null => {
   if (typeof window === "undefined") return null
@@ -126,6 +139,94 @@ const handleApiError = (status: number, errorText: string) => {
   }
 }
 
+// Função para converter estado civil para enum
+const getMaritalStatusEnum = (maritalStatus: string): number => {
+  const statusMap: { [key: string]: number } = {
+    Solteiro: 0,
+    Casado: 1,
+    Divorciado: 2,
+    Viúvo: 3,
+    "União Estável": 4,
+    None: 0,
+    "": 0,
+  }
+  return statusMap[maritalStatus] ?? 0
+}
+
+// Função para converter ministério para enum
+const getMinistryEnum = (ministry: string): number => {
+  const ministryMap: { [key: string]: number } = {
+    Louvor: 0,
+    Ensino: 1,
+    Evangelismo: 2,
+    Intercessão: 3,
+    Diaconia: 4,
+    Jovens: 5,
+    Crianças: 6,
+    Mulheres: 7,
+    Homens: 8,
+    Outros: 9,
+    None: 0,
+    "": 0,
+  }
+  return ministryMap[ministry] ?? 0
+}
+
+// Função para preparar documentos no formato da API
+const prepareDocuments = (memberData: any) => {
+  const documents = []
+
+  // CPF (obrigatório)
+  if (memberData.cpf && memberData.cpf.trim()) {
+    documents.push({
+      type: DocumentType.CPF,
+      number: memberData.cpf.trim().replace(/\D/g, ""), // Remove formatação
+    })
+  }
+
+  // RG (opcional)
+  if (memberData.rg && memberData.rg.trim()) {
+    documents.push({
+      type: DocumentType.RG,
+      number: memberData.rg.trim(),
+    })
+  }
+
+  // Título de Eleitor (opcional)
+  if (memberData.tituloEleitor && memberData.tituloEleitor.trim()) {
+    documents.push({
+      type: DocumentType.TituloEleitor,
+      number: memberData.tituloEleitor.trim(),
+    })
+  }
+
+  // CNH (opcional)
+  if (memberData.cnh && memberData.cnh.trim()) {
+    documents.push({
+      type: DocumentType.CNH,
+      number: memberData.cnh.trim(),
+    })
+  }
+
+  // Certidão de Nascimento (opcional)
+  if (memberData.certidaoNascimento && memberData.certidaoNascimento.trim()) {
+    documents.push({
+      type: DocumentType.CertidaoNascimento,
+      number: memberData.certidaoNascimento.trim(),
+    })
+  }
+
+  // Outros documentos (opcional)
+  if (memberData.outrosDocumentos && memberData.outrosDocumentos.trim()) {
+    documents.push({
+      type: DocumentType.Outros,
+      number: memberData.outrosDocumentos.trim(),
+    })
+  }
+
+  return documents
+}
+
 // Função para buscar o feed com paginação
 export const getFeedFromAPI = async (page = 1, pageSize = 10): Promise<ApiFeedResponse> => {
   try {
@@ -172,7 +273,29 @@ export const createMemberAPI = async (memberData: any): Promise<ApiMember> => {
       throw new Error("Token de autenticação não encontrado. Faça login novamente.")
     }
 
+    // Validar CPF obrigatório
+    if (!memberData.document || !memberData.document.trim()) {
+      throw new Error("CPF é obrigatório")
+    }
+
     console.log("Dados enviados para API:", JSON.stringify(memberData, null, 2))
+
+    // Preparar documentos no formato correto
+    const documents = prepareDocuments({
+      cpf: memberData.document, // Campo principal do formulário
+      rg: memberData.rg,
+      tituloEleitor: memberData.tituloEleitor,
+      cnh: memberData.cnh,
+      certidaoNascimento: memberData.certidaoNascimento,
+      outrosDocumentos: memberData.outrosDocumentos,
+    })
+
+    const apiData = {
+      ...memberData,
+      document: documents, // ✅ CORRIGIDO: Array de objetos
+    }
+
+    console.log("Documentos preparados:", JSON.stringify(documents, null, 2))
 
     const response = await fetch("https://demoapp.top1soft.com.br/api/Member", {
       method: "POST",
@@ -181,7 +304,7 @@ export const createMemberAPI = async (memberData: any): Promise<ApiMember> => {
         accept: "text/plain",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify(memberData),
+      body: JSON.stringify(apiData),
     })
 
     console.log("Status da resposta:", response.status)
@@ -216,6 +339,44 @@ export const updateMemberAPI = async (memberId: number, memberData: any): Promis
       throw new Error("Token de autenticação não encontrado. Faça login novamente.")
     }
 
+    // Validar CPF obrigatório
+    if (!memberData.document || !memberData.document.trim()) {
+      throw new Error("CPF é obrigatório")
+    }
+
+    // Preparar documentos no formato correto
+    const documents = prepareDocuments({
+      cpf: memberData.document, // Campo principal do formulário
+      rg: memberData.rg,
+      tituloEleitor: memberData.tituloEleitor,
+      cnh: memberData.cnh,
+      certidaoNascimento: memberData.certidaoNascimento,
+      outrosDocumentos: memberData.outrosDocumentos,
+    })
+
+    // Preparar dados com command obrigatório e conversões corretas
+    const updateData = {
+      command: "UpdateMember", // Campo obrigatório
+      name: memberData.name || "",
+      email: memberData.email || "",
+      document: documents, // ✅ CORRIGIDO: Array de objetos
+      phone: memberData.phone || "",
+      birthDate: memberData.birthDate || "1990-01-01T00:00:00",
+      isBaptized: Boolean(memberData.isBaptized),
+      baptizedDate: memberData.baptizedDate || "2023-10-14T00:00:00",
+      isTither: Boolean(memberData.isTither),
+      maritalStatus: getMaritalStatusEnum(memberData.maritalStatus || ""), // Converter para número
+      memberSince: memberData.memberSince || "2020-01-01T00:00:00",
+      ministry: getMinistryEnum(memberData.ministry || ""), // Converter para número
+      isActive: Boolean(memberData.isActive),
+      notes: memberData.notes || "",
+      photo: memberData.photo || "",
+    }
+
+    console.log("Dados originais recebidos:", JSON.stringify(memberData, null, 2))
+    console.log("Documentos preparados:", JSON.stringify(documents, null, 2))
+    console.log("Dados convertidos para API:", JSON.stringify(updateData, null, 2))
+
     const response = await fetch(`https://demoapp.top1soft.com.br/api/Member/${memberId}`, {
       method: "PUT",
       headers: {
@@ -223,12 +384,24 @@ export const updateMemberAPI = async (memberId: number, memberData: any): Promis
         accept: "text/plain",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ id: memberId, ...memberData }),
+      body: JSON.stringify(updateData),
     })
 
     if (!response.ok) {
       const errorText = await response.text()
       console.error("Erro da API:", response.status, errorText)
+
+      // Tentar parsear erro JSON para mostrar detalhes
+      try {
+        const errorJson = JSON.parse(errorText)
+        if (errorJson.errors) {
+          const errorMessages = Object.values(errorJson.errors).flat().join(", ")
+          throw new Error(`Erro de validação: ${errorMessages}`)
+        }
+      } catch (parseError) {
+        // Se não conseguir parsear, usar erro padrão
+      }
+
       handleApiError(response.status, errorText)
     }
 
@@ -304,7 +477,7 @@ export const createFeedPost = async (content: string): Promise<ApiFeedItem> => {
             member: {
               id: Number.parseInt(currentUser?.id || "0"),
               name: currentUser?.name || "Usuário",
-              document: "",
+              document: [],
               email: currentUser?.email || "",
               phone: "",
               photo: null,
@@ -448,12 +621,26 @@ export const convertApiMemberToLocal = (apiMember: ApiMember) => {
     throw new Error("Dados do membro inválidos")
   }
 
+  // Extrair documentos do array
+  const documents = apiMember?.document || []
+  const cpfDocument = documents.find((doc: any) => doc.type === DocumentType.CPF)
+  const rgDocument = documents.find((doc: any) => doc.type === DocumentType.RG)
+  const tituloDocument = documents.find((doc: any) => doc.type === DocumentType.TituloEleitor)
+  const cnhDocument = documents.find((doc: any) => doc.type === DocumentType.CNH)
+  const certidaoDocument = documents.find((doc: any) => doc.type === DocumentType.CertidaoNascimento)
+  const outrosDocument = documents.find((doc: any) => doc.type === DocumentType.Outros)
+
   return {
     id: apiMember?.id?.toString() || Math.random().toString(36).substr(2, 9),
     name: apiMember?.name || "",
     email: apiMember?.email || "",
     phone: apiMember?.phone || "",
-    cpf: apiMember?.document || "",
+    cpf: cpfDocument?.number || "", // ✅ CPF extraído
+    rg: rgDocument?.number || "", // ✅ RG extraído
+    tituloEleitor: tituloDocument?.number || "", // ✅ Título extraído
+    cnh: cnhDocument?.number || "", // ✅ CNH extraído
+    certidaoNascimento: certidaoDocument?.number || "", // ✅ Certidão extraído
+    outrosDocumentos: outrosDocument?.number || "", // ✅ Outros extraído
     birthDate: apiMember?.birthDate ? apiMember.birthDate.split("T")[0] : "",
     address: apiMember?.church?.address?.street || "",
     city: apiMember?.church?.address?.city || "",
@@ -502,6 +689,7 @@ export const logout = () => {
   if (typeof window !== "undefined") {
     localStorage.removeItem("authToken")
     localStorage.removeItem("userRole")
+    localStorage.removeItem("user")
     localStorage.removeItem("user")
     window.location.href = "/login"
   }

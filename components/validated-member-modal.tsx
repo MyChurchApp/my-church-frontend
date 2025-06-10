@@ -27,6 +27,11 @@ export default function ValidatedMemberModal({ onMemberCreated }: ValidatedMembe
     name: "",
     email: "",
     document: "",
+    rg: "", // ✅ NOVO
+    tituloEleitor: "", // ✅ NOVO
+    cnh: "", // ✅ NOVO
+    certidaoNascimento: "", // ✅ NOVO
+    outrosDocumentos: "", // ✅ NOVO
     phone: "",
     birthDate: "",
     isBaptized: false,
@@ -242,6 +247,11 @@ export default function ValidatedMemberModal({ onMemberCreated }: ValidatedMembe
         name: "",
         email: "",
         document: "",
+        rg: "", // ✅ NOVO
+        tituloEleitor: "", // ✅ NOVO
+        cnh: "", // ✅ NOVO
+        certidaoNascimento: "", // ✅ NOVO
+        outrosDocumentos: "", // ✅ NOVO
         phone: "",
         birthDate: "",
         isBaptized: false,
@@ -336,21 +346,82 @@ export default function ValidatedMemberModal({ onMemberCreated }: ValidatedMembe
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="document">CPF *</Label>
-              <Input
-                id="document"
-                value={formatCPF(formData.document)}
-                onChange={(e) => handleInputChange("document", e.target.value)}
-                placeholder="000.000.000-00"
-                className={fieldErrors.document ? "border-red-500" : ""}
-                maxLength={14}
-                required
-              />
-              {fieldErrors.document && <p className="text-sm text-red-500">{fieldErrors.document}</p>}
+          {/* Documentos */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium">Documentos</h3>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="document">CPF *</Label>
+                <Input
+                  id="document"
+                  value={formatCPF(formData.document)}
+                  onChange={(e) => handleInputChange("document", e.target.value)}
+                  placeholder="000.000.000-00"
+                  className={fieldErrors.document ? "border-red-500" : ""}
+                  maxLength={14}
+                  required
+                />
+                {fieldErrors.document && <p className="text-sm text-red-500">{fieldErrors.document}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="rg">RG</Label>
+                <Input
+                  id="rg"
+                  value={formData.rg}
+                  onChange={(e) => handleInputChange("rg", e.target.value)}
+                  placeholder="00.000.000-0"
+                />
+              </div>
             </div>
 
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="tituloEleitor">Título de Eleitor</Label>
+                <Input
+                  id="tituloEleitor"
+                  value={formData.tituloEleitor}
+                  onChange={(e) => handleInputChange("tituloEleitor", e.target.value)}
+                  placeholder="0000 0000 0000"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="cnh">CNH</Label>
+                <Input
+                  id="cnh"
+                  value={formData.cnh}
+                  onChange={(e) => handleInputChange("cnh", e.target.value)}
+                  placeholder="00000000000"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="certidaoNascimento">Certidão de Nascimento</Label>
+                <Input
+                  id="certidaoNascimento"
+                  value={formData.certidaoNascimento}
+                  onChange={(e) => handleInputChange("certidaoNascimento", e.target.value)}
+                  placeholder="Número da certidão"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="outrosDocumentos">Outros Documentos</Label>
+                <Input
+                  id="outrosDocumentos"
+                  value={formData.outrosDocumentos}
+                  onChange={(e) => handleInputChange("outrosDocumentos", e.target.value)}
+                  placeholder="Outros documentos"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="phone">Telefone *</Label>
               <Input
@@ -364,9 +435,7 @@ export default function ValidatedMemberModal({ onMemberCreated }: ValidatedMembe
               />
               {fieldErrors.phone && <p className="text-sm text-red-500">{fieldErrors.phone}</p>}
             </div>
-          </div>
 
-          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="birthDate">Data de Nascimento *</Label>
               <Input
@@ -380,7 +449,9 @@ export default function ValidatedMemberModal({ onMemberCreated }: ValidatedMembe
               />
               {fieldErrors.birthDate && <p className="text-sm text-red-500">{fieldErrors.birthDate}</p>}
             </div>
+          </div>
 
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="maritalStatus">Estado Civil</Label>
               <Select

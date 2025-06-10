@@ -203,27 +203,38 @@ export class MembersService {
   private static convertApiBirthdayToLocal(apiMember: ApiBirthdayMember): BirthdayMember {
     const birthDate = new Date(apiMember.birthDate)
     const today = new Date()
+
+    // Normalizar as datas para evitar problemas com horário
+    today.setHours(0, 0, 0, 0)
+
     const currentYear = today.getFullYear()
+    const birthMonth = birthDate.getMonth()
+    const birthDay = birthDate.getDate()
 
     // Calcular aniversário deste ano
-    const birthdayThisYear = new Date(currentYear, birthDate.getMonth(), birthDate.getDate())
+    const birthdayThisYear = new Date(currentYear, birthMonth, birthDay)
+    birthdayThisYear.setHours(0, 0, 0, 0)
+
+    // Verificar se o aniversário já passou este ano
+    let targetBirthdayDate = birthdayThisYear
+    let ageWillTurn = currentYear - birthDate.getFullYear()
 
     // Se o aniversário já passou este ano, considerar o próximo ano
     if (birthdayThisYear < today) {
-      birthdayThisYear.setFullYear(currentYear + 1)
+      targetBirthdayDate = new Date(currentYear + 1, birthMonth, birthDay)
+      targetBirthdayDate.setHours(0, 0, 0, 0)
+      ageWillTurn = currentYear + 1 - birthDate.getFullYear()
     }
 
-    // Calcular idade que fará no aniversário
-    const ageWillTurn = this.calculateAgeWillTurn(apiMember.birthDate, birthdayThisYear)
-
     // Calcular dias até o aniversário
-    const daysUntilBirthday = Math.ceil((birthdayThisYear.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+    const timeDiff = targetBirthdayDate.getTime() - today.getTime()
+    const daysUntilBirthday = Math.ceil(timeDiff / (1000 * 60 * 60 * 24))
 
     // Verificar se é hoje
     const isToday = daysUntilBirthday === 0
 
     // Gerar mensagem de aniversário
-    const birthdayMessage = this.generateBirthdayMessage(ageWillTurn, daysUntilBirthday)
+    const birthdayMessage = this.generateBirthdayMessage(ageWillTurn, daysUntilBirthday, isToday)
 
     return {
       id: apiMember.id.toString(),
@@ -233,7 +244,7 @@ export class MembersService {
       photo: apiMember.photo,
       birthDate: apiMember.birthDate,
       ageWillTurn: ageWillTurn,
-      birthdayThisYear: birthdayThisYear,
+      birthdayThisYear: targetBirthdayDate,
       daysUntilBirthday: daysUntilBirthday,
       isToday: isToday,
       birthdayMessage: birthdayMessage,
@@ -247,13 +258,21 @@ export class MembersService {
   }
 
   // Função para gerar mensagem de aniversário
-  private static generateBirthdayMessage(ageWillTurn: number, daysUntilBirthday: number): string {
-    if (daysUntilBirthday === 0) {
-      return `faz ${ageWillTurn} anos hoje! 🎉`
+  private static generateBirthdayMessage(ageWillTurn: number, daysUntilBirthday: number, isToday: boolean): string {
+    if (isToday) {
+      return `está fazendo ${ageWillTurn} anos hoje! 🎉🎂`
     } else if (daysUntilBirthday === 1) {
-      return `fará ${ageWillTurn} anos amanhã`
-    } else {
+      return `fará ${ageWillTurn} anos amanhã 🎈`
+    } else if (daysUntilBirthday <= 7) {
+      return `fará ${ageWillTurn} anos daqui ${daysUntilBirthday} dias 🎁`
+    } else if (daysUntilBirthday <= 30) {
       return `fará ${ageWillTurn} anos daqui ${daysUntilBirthday} dias`
+    } else {
+      // Para aniversários muito distantes, mostrar o mês
+      const targetDate = new Date()
+      targetDate.setDate(targetDate.getDate() + daysUntilBirthday)
+      const monthName = targetDate.toLocaleDateString("pt-BR", { month: "long" })
+      return `fará ${ageWillTurn} anos em ${monthName}`
     }
   }
 
