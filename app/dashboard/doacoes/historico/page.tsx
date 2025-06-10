@@ -26,12 +26,12 @@ export default function DonationsHistoryPage() {
     setError(null)
 
     try {
-      console.log("🔄 Carregando doações com filtros:", newFilters)
+      console.log("🔄 Carregando ofertas com filtros:", newFilters)
       const data = await donationsService.getPaidDonations(newFilters)
       setDonationsData(data)
       setFilters(newFilters)
     } catch (err) {
-      console.error("❌ Erro ao carregar doações:", err)
+      console.error("❌ Erro ao carregar ofertas:", err)
       setError("Ops, tente mais tarde")
       setDonationsData(null)
     } finally {
@@ -77,9 +77,9 @@ export default function DonationsHistoryPage() {
             <div>
               <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
                 <DollarSign className="h-8 w-8 text-green-600" />
-                Histórico de Doações
+                Histórico de Ofertas
               </h1>
-              <p className="text-gray-600 mt-2">Visualize todas as suas doações pagas e confirmadas</p>
+              <p className="text-gray-600 mt-2">Visualize todas as suas ofertas pagas e confirmadas</p>
             </div>
 
             <div className="flex gap-2">
@@ -100,7 +100,7 @@ export default function DonationsHistoryPage() {
 
           <Button onClick={handleGoToDonations} className="flex items-center gap-2 bg-green-600 hover:bg-green-700">
             <Heart className="h-4 w-4" />
-            Fazer Doação
+            Fazer Oferta
           </Button>
         </div>
 
@@ -129,7 +129,7 @@ export default function DonationsHistoryPage() {
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
                       <DollarSign className="h-4 w-4" />
-                      Total de Doações
+                      Total de Ofertas
                     </CardTitle>
                   </CardHeader>
                   <CardContent>

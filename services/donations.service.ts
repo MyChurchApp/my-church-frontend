@@ -49,11 +49,11 @@ class DonationsService {
       }
 
       const data = await response.json()
-      console.log(`✅ [DonationsService] ${data.items?.length || 0} doações encontradas`)
+      console.log(`✅ [DonationsService] ${data.items?.length || 0} ofertas encontradas`)
 
       return data
     } catch (error) {
-      console.error("❌ [DonationsService] Erro ao buscar doações:", error)
+      console.error("❌ [DonationsService] Erro ao buscar ofertas:", error)
       throw error
     }
   }
@@ -83,9 +83,8 @@ class DonationsService {
   getStatusBadgeColor(status: string): string {
     switch (status?.toLowerCase()) {
       case "completed":
-        return "bg-green-100 text-green-800"
       case "received":
-        return "bg-blue-100 text-blue-800"
+        return "bg-green-100 text-green-800"
       case "pending":
       case "pendente":
         return "bg-yellow-100 text-yellow-800"
@@ -100,9 +99,8 @@ class DonationsService {
   getStatusLabel(status: string): string {
     switch (status?.toLowerCase()) {
       case "completed":
-        return "Concluída"
       case "received":
-        return "Recebida"
+        return "Pago"
       case "pending":
         return "Pendente"
       case "cancelled":

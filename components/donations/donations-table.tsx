@@ -18,7 +18,7 @@ export function DonationsTable({ donations, isLoading }: DonationsTableProps) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <DollarSign className="h-5 w-5" />
-            Doações Pagas
+            Ofertas Pagas
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -40,14 +40,14 @@ export function DonationsTable({ donations, isLoading }: DonationsTableProps) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <DollarSign className="h-5 w-5" />
-            Doações Pagas
+            Ofertas Pagas
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center py-8">
             <DollarSign className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhuma doação encontrada</h3>
-            <p className="text-gray-500">Não há doações pagas que correspondam aos filtros aplicados.</p>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhuma oferta encontrada</h3>
+            <p className="text-gray-500">Não há ofertas pagas que correspondam aos filtros aplicados.</p>
           </div>
         </CardContent>
       </Card>
@@ -59,7 +59,7 @@ export function DonationsTable({ donations, isLoading }: DonationsTableProps) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <DollarSign className="h-5 w-5" />
-          Doações Pagas ({donations.length})
+          Ofertas Pagas ({donations.length})
         </CardTitle>
       </CardHeader>
       <CardContent>
