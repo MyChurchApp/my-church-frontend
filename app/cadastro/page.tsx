@@ -13,10 +13,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Eye, EyeOff, ArrowLeft, CheckCircle } from "lucide-react"
 import { Logo } from "@/components/logo"
-import { useLanguage } from "@/contexts/language-context"
 
 export default function CadastroPage() {
-  const { t } = useLanguage()
   const searchParams = useSearchParams()
   const planoParam = searchParams.get("plano")
 
