@@ -4,9 +4,9 @@ import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Book, Clock, Bug, BookOpen, AlertCircle, RefreshCw, Database } from "lucide-react"
+import { Book, Clock, Bug, BookOpen, AlertCircle, RefreshCw, Database, Hash } from "lucide-react"
 import { useSignalR } from "../useSignalR"
-import { getSpecificVerse, getVersesFromChapter } from "@/lib/bible-api"
+import { getBibleReading } from "@/lib/bible-api"
 
 interface BibleReading {
   id: string
@@ -17,12 +17,15 @@ interface BibleReading {
   text: string
   book: string
   chapter: number
+  chapterNumber?: number // Número real do capítulo
   verse?: number
+  verseNumber?: number // Número real do versículo
   version: string
   timestamp: Date
   isFullChapter: boolean
   error?: boolean
   originalData?: any
+  chapterInfo?: any // Informações completas do capítulo
 }
 
 export default function LeituraBiblicaPage() {
@@ -64,75 +67,58 @@ export default function LeituraBiblicaPage() {
     addDebugInfo(debugMessage)
 
     try {
-      let data
-      let text
-      let bookName = `Livro ${bookId}`
-      let versionName = `Versão ${versionId}`
+      // Usar a função completa que agora inclui informações do capítulo
+      const bibleData = await getBibleReading(versionId, bookId, chapterId, verseId)
+      console.log("📖 Resultado completo da busca bíblica:", bibleData)
 
-      if (isFullChapter) {
-        console.log("📚 Buscando capítulo completo...")
-        // Buscar capítulo completo
-        data = await getVersesFromChapter(chapterId)
-        console.log("📚 Dados do capítulo recebidos:", data)
+      if (bibleData.success) {
+        // Extrair texto do conteúdo
+        let text = "Texto não disponível"
+        let verseNumber = verseId
 
-        // Concatenar todos os versículos ou pegar o primeiro parágrafo
-        if (Array.isArray(data)) {
+        if (isFullChapter && Array.isArray(bibleData.content)) {
+          // Capítulo completo - pegar primeiros versículos
           text =
-            data
+            bibleData.content
               .slice(0, 3)
               .map((v: any) => v.text)
-              .join(" ") + "..." // Primeiros 3 versículos
-          console.log("📚 Texto do capítulo processado:", text.substring(0, 100) + "...")
-        } else {
-          text = "Texto do capítulo não disponível"
-          console.log("📚 Texto do capítulo não disponível")
+              .join(" ") + "..."
+        } else if (bibleData.content?.text) {
+          // Versículo específico
+          text = bibleData.content.text
+          verseNumber = bibleData.content.verseNumber || verseId
         }
+
+        const newReading: BibleReading = {
+          id: `${versionId}-${bookId}-${chapterId}-${verseId || "full"}-${Date.now()}`,
+          versionId,
+          bookId,
+          chapterId,
+          verseId,
+          text,
+          book: bibleData.bookName,
+          chapter: bibleData.chapterNumber || chapterId, // Usar número real do capítulo
+          chapterNumber: bibleData.chapterNumber,
+          verse: verseId,
+          verseNumber,
+          version: bibleData.versionName,
+          timestamp: new Date(),
+          isFullChapter,
+          originalData,
+          chapterInfo: bibleData.chapterInfo,
+        }
+
+        console.log("✅ Nova leitura criada:", newReading)
+        setReadings((prev) => [newReading, ...prev])
+
+        const successMessage = isFullChapter
+          ? `✅ Capítulo carregado: ${bibleData.versionName} - ${bibleData.bookName} ${bibleData.chapterNumber || chapterId}`
+          : `✅ Versículo carregado: ${bibleData.versionName} - ${bibleData.bookName} ${bibleData.chapterNumber || chapterId}:${verseNumber}`
+
+        addDebugInfo(successMessage)
       } else {
-        console.log("📖 Buscando versículo específico...")
-        // Buscar versículo específico
-        data = await getSpecificVerse(chapterId, verseId!)
-        console.log("📖 Dados do versículo recebidos:", data)
-
-        text = data?.text || `Versículo ${chapterId}:${verseId} não encontrado`
-        console.log("📖 Texto do versículo:", text)
+        throw new Error(bibleData.error || "Erro desconhecido na API")
       }
-
-      // Tentar obter nomes dos dados da API
-      if (data?.book) {
-        bookName = data.book
-        console.log("📚 Nome do livro da API:", bookName)
-      }
-      if (data?.version) {
-        versionName = data.version
-        console.log("📚 Nome da versão da API:", versionName)
-      }
-
-      const newReading: BibleReading = {
-        id: `${versionId}-${bookId}-${chapterId}-${verseId || "full"}-${Date.now()}`,
-        versionId,
-        bookId,
-        chapterId,
-        verseId,
-        text,
-        book: bookName,
-        chapter: chapterId,
-        verse: verseId,
-        version: versionName,
-        timestamp: new Date(),
-        isFullChapter,
-        originalData,
-      }
-
-      console.log("✅ Nova leitura criada:", newReading)
-
-      // Adicionar nova leitura no topo da lista
-      setReadings((prev) => [newReading, ...prev])
-
-      const successMessage = isFullChapter
-        ? `✅ Capítulo carregado: ${versionName} - ${bookName} ${chapterId}`
-        : `✅ Versículo carregado: ${versionName} - ${bookName} ${chapterId}:${verseId}`
-
-      addDebugInfo(successMessage)
     } catch (error) {
       console.error("❌ Erro ao buscar leitura bíblica:", error)
       console.error("❌ Stack trace:", (error as Error).stack)
@@ -168,12 +154,12 @@ export default function LeituraBiblicaPage() {
   const testReadings = [
     { versionId: 1, bookId: 1, chapterId: 1, verseId: 1, name: "V1 - Gn 1:1" },
     { versionId: 1, bookId: 43, chapterId: 3, verseId: 16, name: "V1 - Jo 3:16" },
-    { versionId: 2, bookId: 19, chapterId: 23, verseId: 1, name: "V2 - Sl 23:1" },
+    { versionId: 2, bookId: 67, chapterId: 1190, verseId: 31120, name: "V2 - Gn 1:15" },
   ]
 
   const testChapters = [
     { versionId: 1, bookId: 1, chapterId: 1, name: "V1 - Gn 1" },
-    { versionId: 1, bookId: 19, chapterId: 23, name: "V1 - Sl 23" },
+    { versionId: 2, bookId: 67, chapterId: 1190, name: "V2 - Gn 1" },
   ]
 
   // Escutar eventos do SignalR globalmente
@@ -195,14 +181,32 @@ export default function LeituraBiblicaPage() {
         console.log("📊 API Data:", apiData)
 
         // Extrair dados corretos da API
-        const text = apiData.content?.text || "Texto não disponível"
+        let text = "Texto não disponível"
+        let verseNumber = verseId
+
+        if (isFullChapter && Array.isArray(apiData.content)) {
+          // Capítulo completo
+          text =
+            apiData.content
+              .slice(0, 3)
+              .map((v: any) => v.text)
+              .join(" ") + "..."
+        } else if (apiData.content?.text) {
+          // Versículo específico
+          text = apiData.content.text
+          verseNumber = apiData.content.verseNumber || verseId
+        }
+
         const bookName = apiData.bookName || `Livro ${bookId}`
         const versionName = apiData.versionName || `Versão ${versionId}`
+        const chapterNumber = apiData.chapterNumber || chapterId
 
         console.log("📖 Dados extraídos:")
         console.log("   text:", text)
         console.log("   bookName:", bookName)
         console.log("   versionName:", versionName)
+        console.log("   chapterNumber:", chapterNumber)
+        console.log("   verseNumber:", verseNumber)
 
         const newReading: BibleReading = {
           id: `${versionId}-${bookId}-${chapterId}-${verseId || "full"}-${Date.now()}`,
@@ -211,23 +215,25 @@ export default function LeituraBiblicaPage() {
           chapterId,
           verseId,
           text,
-          book: bookName, // Usar nome real do livro
-          chapter: chapterId,
+          book: bookName,
+          chapter: chapterNumber,
+          chapterNumber,
           verse: verseId,
-          version: versionName, // Usar nome real da versão
+          verseNumber,
+          version: versionName,
           timestamp: new Date(),
           isFullChapter,
           error: false,
           originalData,
+          chapterInfo: apiData.chapterInfo,
         }
 
         console.log("✅ Nova leitura criada diretamente:", newReading)
         setReadings((prev) => [newReading, ...prev])
-        addDebugInfo(`✅ Leitura adicionada: ${versionName} - ${bookName}`)
+        addDebugInfo(`✅ Leitura adicionada: ${versionName} - ${bookName} ${chapterNumber}`)
       } else if (error) {
         console.log("❌ Evento tem erro, criando leitura de erro...")
 
-        // Se houve erro, criar leitura de erro
         const errorReading: BibleReading = {
           id: `error-${versionId}-${bookId}-${chapterId}-${verseId || "full"}-${Date.now()}`,
           versionId,
@@ -250,7 +256,6 @@ export default function LeituraBiblicaPage() {
         addDebugInfo(`❌ Erro no evento SignalR`)
       } else {
         console.log("🔍 Evento não tem dados nem erro, buscando na API...")
-        // Buscar dados da API
         fetchBibleReading(versionId, bookId, chapterId, verseId, originalData)
       }
 
@@ -372,7 +377,7 @@ export default function LeituraBiblicaPage() {
                     )}
                     <span className={`font-medium ${reading.error ? "text-red-600" : ""}`}>
                       {reading.version} - {reading.book} {reading.chapter}
-                      {reading.isFullChapter ? " (capítulo completo)" : `:${reading.verse}`}
+                      {reading.isFullChapter ? " (capítulo completo)" : `:${reading.verseNumber || reading.verse}`}
                     </span>
                     {index === 0 && (
                       <Badge variant="secondary" className="text-xs">
@@ -392,6 +397,12 @@ export default function LeituraBiblicaPage() {
                     <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700">
                       <Database className="h-3 w-3 mr-1" />V{reading.versionId}
                     </Badge>
+                    {reading.verseNumber && (
+                      <Badge variant="outline" className="text-xs bg-green-50 text-green-700">
+                        <Hash className="h-3 w-3 mr-1" />
+                        {reading.verseNumber}
+                      </Badge>
+                    )}
                   </div>
                   <Badge variant="outline" className="flex items-center gap-1">
                     <Clock className="h-3 w-3" />
@@ -414,6 +425,14 @@ export default function LeituraBiblicaPage() {
                     <summary className="text-xs text-gray-500 cursor-pointer">Dados originais do SignalR</summary>
                     <pre className="text-xs text-gray-600 mt-1 bg-gray-100 p-2 rounded overflow-auto">
                       {JSON.stringify(reading.originalData, null, 2)}
+                    </pre>
+                  </details>
+                )}
+                {reading.chapterInfo && (
+                  <details className="mt-2">
+                    <summary className="text-xs text-gray-500 cursor-pointer">Informações do capítulo</summary>
+                    <pre className="text-xs text-gray-600 mt-1 bg-gray-100 p-2 rounded overflow-auto">
+                      {JSON.stringify(reading.chapterInfo, null, 2)}
                     </pre>
                   </details>
                 )}
