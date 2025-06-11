@@ -108,7 +108,11 @@ export default function DashboardPage() {
   }, [router]);
 
   // Inicia SignalR passando ID do culto (troque "1" se precisar)
-  useSignalR(1);
+  useEffect(() => {
+    if (user) {
+      useSignalR(1);
+    }
+  }, [user]);
 
   if (!user || !churchData) {
     return (

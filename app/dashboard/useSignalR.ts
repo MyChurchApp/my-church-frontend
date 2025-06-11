@@ -3,11 +3,24 @@
 import { useEffect } from "react";
 import * as signalR from "@microsoft/signalr";
 
+const API_URL = "https://demoapp.top1soft.com.br";
+const HUB_PATH = "/ws/worship";
+
 export function useSignalR(worshipServiceId: number) {
   useEffect(() => {
+    const token =
+      typeof window !== "undefined" ? localStorage.getItem("authToken") : null;
+    if (!token) {
+      console.warn("⚠️ Nenhum token JWT encontrado no localStorage.");
+      return;
+    }
+
     const connection = new signalR.HubConnectionBuilder()
-      .withUrl("ws://demoapp.top1soft.com.br/ws/worship")
+      .withUrl(`${API_URL}${HUB_PATH}`, {
+        accessTokenFactory: () => token,
+      })
       .withAutomaticReconnect()
+      .configureLogging(signalR.LogLevel.Information)
       .build();
 
     const startConnection = async () => {
