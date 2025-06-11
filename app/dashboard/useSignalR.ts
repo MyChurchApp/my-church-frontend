@@ -2,6 +2,7 @@
 
 import { useEffect } from "react"
 import * as signalR from "@microsoft/signalr"
+import { getSpecificVerse, getVersesFromChapter } from "@/lib/bible-api"
 
 const API_URL = "https://demoapp.top1soft.com.br"
 const HUB_PATH = "/ws/worship"
@@ -28,57 +29,75 @@ export function useSignalR(worshipServiceId: number) {
         await connection.invoke("JoinWorship", worshipServiceId)
         console.log("✅ Conectado ao SignalR")
 
-        // Evento de leitura bíblica destacada - corrigindo a estrutura dos dados
-        connection.on("BibleReadingHighlighted", (data) => {
+        // Evento de leitura bíblica destacada
+        connection.on("BibleReadingHighlighted", async (data) => {
           console.log("📖 Dados recebidos do SignalR:", data)
 
-          // Tentar diferentes estruturas de dados possíveis
-          let chapterId, verseId
+          // Extrair dados com diferentes estruturas possíveis
+          let bookId, chapterId, verseId
 
           if (data && typeof data === "object") {
-            // Caso 1: { ChapterId: 1, VerseId: 2 }
-            chapterId = data.ChapterId || data.chapterId
-            verseId = data.VerseId || data.verseId
+            // Estrutura esperada: { bookId: 1, chapterId: 1, verseId?: 1 }
+            bookId = data.bookId || data.BookId || data.book_id
+            chapterId = data.chapterId || data.ChapterId || data.chapter_id
+            verseId = data.verseId || data.VerseId || data.verse_id
 
-            // Caso 2: { chapter: 1, verse: 2 }
-            if (!chapterId) chapterId = data.chapter
+            // Fallbacks para estruturas antigas
+            if (!bookId) bookId = data.id || data.book || 1
+            if (!chapterId) chapterId = data.chapter || 1
             if (!verseId) verseId = data.verse
-
-            // Caso 3: { id: 1, verse_id: 2 }
-            if (!chapterId) chapterId = data.id || data.chapter_id
-            if (!verseId) verseId = data.verse_id
           }
 
-          // Valores padrão se ainda estiverem undefined
+          // Valores padrão
+          bookId = bookId || 1
           chapterId = chapterId || 1
-          verseId = verseId || 1
+          // verseId pode ser undefined para capítulo completo
 
-          console.log(`📖 Processando: Capítulo ${chapterId}, Versículo ${verseId}`)
+          console.log(
+            `📖 Processando: Livro ${bookId}, Capítulo ${chapterId}${verseId ? `, Versículo ${verseId}` : " (capítulo completo)"}`,
+          )
 
-          // Disparar evento customizado para a página capturar
-          const event = new CustomEvent("bibleReadingHighlighted", {
-            detail: { ChapterId: chapterId, VerseId: verseId },
-          })
-          window.dispatchEvent(event)
+          try {
+            // Buscar dados da API bíblica
+            let bibleData
 
-          // Mostrar alerta com dados corretos
-          alert(`Leitura bíblica destacada: Capítulo ${chapterId}, Versículo ${verseId}`)
+            if (verseId) {
+              // Buscar versículo específico
+              bibleData = await getSpecificVerse(chapterId, verseId)
+            } else {
+              // Buscar capítulo completo
+              bibleData = await getVersesFromChapter(chapterId)
+            }
+
+            // Disparar evento customizado com os dados da API
+            const event = new CustomEvent("bibleReadingHighlighted", {
+              detail: {
+                bookId,
+                chapterId,
+                verseId,
+                isFullChapter: !verseId,
+                apiData: bibleData,
+              },
+            })
+            window.dispatchEvent(event)
+          } catch (error) {
+            console.error("❌ Erro ao buscar dados bíblicos:", error)
+
+            // Disparar evento mesmo com erro
+            const event = new CustomEvent("bibleReadingHighlighted", {
+              detail: {
+                bookId,
+                chapterId,
+                verseId,
+                isFullChapter: !verseId,
+                error: true,
+              },
+            })
+            window.dispatchEvent(event)
+          }
         })
 
-        // Adicionar outros eventos possíveis
-        connection.on("BibleReading", (data) => {
-          console.log("📖 BibleReading recebido:", data)
-          // Mesmo tratamento
-          const chapterId = data?.ChapterId || data?.chapterId || data?.chapter || 1
-          const verseId = data?.VerseId || data?.verseId || data?.verse || 1
-
-          const event = new CustomEvent("bibleReadingHighlighted", {
-            detail: { ChapterId: chapterId, VerseId: verseId },
-          })
-          window.dispatchEvent(event)
-        })
-
-        // Log de todos os eventos recebidos para debug
+        // Log de todos os eventos para debug
         connection.onreceive = (data) => {
           console.log("🔄 Evento SignalR recebido:", data)
         }
