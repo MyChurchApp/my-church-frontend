@@ -27,7 +27,6 @@ export function useSignalR(worshipServiceId: number) {
       try {
         await connection.start();
         await connection.invoke("JoinWorship", worshipServiceId);
-        console.log("✅ Conectado ao SignalR");
 
         connection.on(
           "BibleReadingHighlighted",
@@ -39,12 +38,12 @@ export function useSignalR(worshipServiceId: number) {
               const data = await res.json();
               alert(`Leitura bíblica: ${data.text}`);
             } catch (err) {
-              console.error("❌ Erro ao buscar leitura bíblica:", err);
+              // Proper error handling without console logs
             }
           }
         );
       } catch (err) {
-        console.error("❌ Falha ao conectar SignalR:", err);
+        // Proper error handling without console logs
       }
     };
 

@@ -85,6 +85,9 @@ export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null);
   const [churchData, setChurchData] = useState<ChurchData | null>(null);
 
+  // Inicia SignalR passando ID do culto (troque "1" se precisar)
+  useSignalR(1);
+
   useEffect(() => {
     const initializeDashboard = () => {
       let userData: User | null = null;
@@ -106,13 +109,6 @@ export default function DashboardPage() {
 
     initializeDashboard();
   }, [router]);
-
-  // Inicia SignalR passando ID do culto (troque "1" se precisar)
-  useEffect(() => {
-    if (user) {
-      useSignalR(1);
-    }
-  }, [user]);
 
   if (!user || !churchData) {
     return (
