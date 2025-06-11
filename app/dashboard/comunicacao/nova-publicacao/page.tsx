@@ -169,11 +169,9 @@ export default function ComunicacaoPage() {
 
     try {
       if (isApiAvailable) {
-        console.log("Enviando post para API:", content)
-
         // Enviar para API real
         const newPost = await createPost(content)
-        console.log("Post criado com sucesso:", newPost)
+       
 
         // Atualizar a lista de posts imediatamente
         setFeedItems((prevItems) => [newPost, ...prevItems])

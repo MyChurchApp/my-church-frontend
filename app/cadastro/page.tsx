@@ -77,9 +77,6 @@ export default function CadastroPage() {
 
   const handleAdminSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    // Aqui você implementaria a lógica de envio do formulário
-    console.log("Dados da Igreja:", dadosIgreja)
-    console.log("Dados do Administrador:", dadosAdmin)
     setCurrentStep("confirmacao")
   }
 
