@@ -523,8 +523,7 @@ export const updateFeedPost = async (postId: number, content: string): Promise<A
     const response = await authFetchJson(`https://demoapp.top1soft.com.br/api/Feed/${postId}`, {
       method: "PUT",
       body: JSON.stringify({
-        postId: 0,
-        content,
+        content, // ✅ CORRIGIDO: Enviar apenas content conforme Swagger
       }),
     })
 
@@ -729,4 +728,20 @@ export const canEditOrDeletePost = (createdDate: string): boolean => {
   const twoHoursInMs = 2 * 60 * 60 * 1000
 
   return timeDiff < twoHoursInMs
+}
+
+// Função para obter o ID do usuário atual do token
+export const getCurrentUserId = (): string | null => {
+  if (typeof window === "undefined") return null
+
+  const token = localStorage.getItem("authToken")
+  if (!token) return null
+
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]))
+    return payload.nameid || payload.sub || payload.id || null
+  } catch (error) {
+    console.error("Erro ao decodificar token para obter ID:", error)
+    return null
+  }
 }
