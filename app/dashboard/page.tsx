@@ -356,22 +356,26 @@ export default function DashboardPage() {
         const birthDate = new Date(member.birthDate)
         const thisYearBirthday = new Date(today.getFullYear(), birthDate.getMonth(), birthDate.getDate())
 
-        // Se o aniversário já passou este ano, considerar o próximo ano
-        if (thisYearBirthday < today) {
-          thisYearBirthday.setFullYear(today.getFullYear() + 1)
-        }
-
-        const ageWillTurn = thisYearBirthday.getFullYear() - birthDate.getFullYear()
+        // Calcular diferença em dias (pode ser negativo se já passou)
         const daysUntilBirthday = Math.ceil((thisYearBirthday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
         const isToday = daysUntilBirthday === 0
+        const hasPassed = daysUntilBirthday < 0
+
+        // Calcular idade atual
+        const currentAge = today.getFullYear() - birthDate.getFullYear()
+        const hasHadBirthdayThisYear = today >= thisYearBirthday
+        const actualAge = hasHadBirthdayThisYear ? currentAge : currentAge - 1
 
         let birthdayMessage = ""
-        if (daysUntilBirthday === 0) {
-          birthdayMessage = `faz ${ageWillTurn} anos hoje! 🎉`
+        if (hasPassed) {
+          const daysPassed = Math.abs(daysUntilBirthday)
+          birthdayMessage = `fez ${actualAge} anos há ${daysPassed} ${daysPassed === 1 ? "dia" : "dias"}`
+        } else if (isToday) {
+          birthdayMessage = `faz ${actualAge + 1} anos hoje! 🎉`
         } else if (daysUntilBirthday === 1) {
-          birthdayMessage = `fará ${ageWillTurn} anos amanhã`
+          birthdayMessage = `fará ${actualAge + 1} anos amanhã`
         } else {
-          birthdayMessage = `fará ${ageWillTurn} anos daqui ${daysUntilBirthday} dias`
+          birthdayMessage = `fará ${actualAge + 1} anos daqui ${daysUntilBirthday} dias`
         }
 
         return {
@@ -382,7 +386,7 @@ export default function DashboardPage() {
           birthDate: member.birthDate,
           photo: member.photo,
           birthdayThisYear: thisYearBirthday,
-          ageWillTurn: ageWillTurn,
+          ageWillTurn: actualAge + 1,
           daysUntilBirthday: daysUntilBirthday,
           isToday: isToday,
           birthdayMessage: birthdayMessage,
@@ -1173,7 +1177,37 @@ export default function DashboardPage() {
                                 <p className="text-xs text-gray-600">
                                   {MembersService.formatBirthdayDate(member.birthdayThisYear)}
                                 </p>
-                                <p className="text-xs text-purple-600 font-medium">{member.birthdayMessage}</p>
+                                <p className="text-xs text-purple-600 font-medium">
+                                  {(() => {
+                                    const today = new Date()
+                                    const birthDate = new Date(member.birthDate)
+                                    const thisYearBirthday = new Date(
+                                      today.getFullYear(),
+                                      birthDate.getMonth(),
+                                      birthDate.getDate(),
+                                    )
+                                    const daysUntilBirthday = Math.ceil(
+                                      (thisYearBirthday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
+                                    )
+                                    const hasPassed = daysUntilBirthday < 0
+                                    const isToday = daysUntilBirthday === 0
+
+                                    const currentAge = today.getFullYear() - birthDate.getFullYear()
+                                    const hasHadBirthdayThisYear = today >= thisYearBirthday
+                                    const actualAge = hasHadBirthdayThisYear ? currentAge : currentAge - 1
+
+                                    if (hasPassed) {
+                                      const daysPassed = Math.abs(daysUntilBirthday)
+                                      return `fez ${actualAge} anos há ${daysPassed} ${daysPassed === 1 ? "dia" : "dias"}`
+                                    } else if (isToday) {
+                                      return `faz ${actualAge + 1} anos hoje! 🎉`
+                                    } else if (daysUntilBirthday === 1) {
+                                      return `fará ${actualAge + 1} anos amanhã`
+                                    } else {
+                                      return `fará ${actualAge + 1} anos daqui ${daysUntilBirthday} dias`
+                                    }
+                                  })()}
+                                </p>
                               </div>
                             </div>
                           ))}
