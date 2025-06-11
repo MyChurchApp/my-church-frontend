@@ -116,7 +116,7 @@ export function Sidebar({ className = "" }: SidebarProps) {
             accessLevel: "admin" as const,
             subItems: [
               { label: "Fluxo de Caixa", href: "/dashboard/financeiro" },
-              { label: "Ofertas realizadas", href: "/dashboard/financeiro/ofertas-realizadas" },
+              { label: "Transferir Doações", href: "/dashboard/financeiro/ofertas-realizadas" },
             ],
           },
         ]
