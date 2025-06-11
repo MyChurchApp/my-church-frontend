@@ -18,6 +18,7 @@ import {
   X,
   Package,
   Heart,
+  Book,
 } from "lucide-react"
 import { getUser, getChurchData } from "@/lib/fake-api"
 
@@ -86,6 +87,7 @@ export function Sidebar({ className = "" }: SidebarProps) {
     { icon: Home, label: "Início", href: "/dashboard", accessLevel: "member" },
     { icon: Users, label: "Membros", href: "/dashboard/membros", accessLevel: "member" },
     { icon: Calendar, label: "Eventos", href: "/dashboard/eventos", accessLevel: "member" },
+    { icon: Book, label: "Leitura Bíblica", href: "/dashboard/leitura-biblica", accessLevel: "member" },
     {
       icon: Heart,
       label: "Doações",
