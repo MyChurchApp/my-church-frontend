@@ -43,6 +43,7 @@ import {
   updateFeedPost,
   deleteFeedPost,
   canEditOrDeletePost,
+  updateMemberAPI,
 } from "@/lib/api"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
@@ -89,10 +90,34 @@ const getRealUser = (): User | null => {
 
   const token = localStorage.getItem("authToken")
   const role = localStorage.getItem("userRole")
+  const memberData = localStorage.getItem("user") // Dados do member do login
 
   if (!token) return null
 
-  // Decodificar o JWT para obter informações do usuário
+  // Se temos dados do member armazenados, usar eles
+  if (memberData) {
+    try {
+      const member = JSON.parse(memberData)
+      return {
+        id: member.id?.toString() || "1",
+        name: member.name || "Usuário",
+        email: member.email || "",
+        role: role || "Membro",
+        accessLevel: role === "Admin" ? "admin" : "member",
+        phone: member.phone || "",
+        birthDate: member.birthDate ? member.birthDate.split("T")[0] : "",
+        isBaptized: member.isBaptized || false,
+        isTither: member.isTither || false,
+        photo: member.photo || "",
+        notes: member.notes || "",
+        documents: member.document || [], // Adicionar documentos
+      }
+    } catch (error) {
+      console.error("Erro ao parsear dados do member:", error)
+    }
+  }
+
+  // Fallback para decodificar o JWT
   try {
     const payload = JSON.parse(atob(token.split(".")[1]))
     return {
@@ -102,6 +127,7 @@ const getRealUser = (): User | null => {
       role: role || "Membro",
       accessLevel: role === "Admin" ? "admin" : "member",
       phone: "",
+      documents: [], // Adicionar documentos vazios no fallback
     }
   } catch (error) {
     console.error("Erro ao decodificar token:", error)
@@ -132,6 +158,11 @@ export default function DashboardPage() {
     email: "",
     phone: "",
     role: "",
+    birthDate: "",
+    isBaptized: false,
+    isTither: false,
+    notes: "",
+    cpf: "", // Adicionar campo CPF
   })
   const [userPhoto, setUserPhoto] = useState<string>("")
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
@@ -417,20 +448,85 @@ export default function DashboardPage() {
 
   const openProfileModal = () => {
     if (user) {
+      // Procurar CPF nos documentos do usuário (tipo 1 é CPF)
+      const cpfDoc = user.documents?.find((doc) => doc.type === 1)
+
       setEditingUser({
         name: user.name || "",
         email: user.email || "",
         phone: user.phone || "",
         role: user.role || "",
+        birthDate: user.birthDate || "",
+        isBaptized: user.isBaptized || false,
+        isTither: user.isTither || false,
+        notes: user.notes || "",
+        cpf: cpfDoc?.number || "", // Definir CPF se existir
       })
+      setUserPhoto(user.photo || "")
       setIsProfileModalOpen(true)
     }
   }
 
-  const saveProfile = () => {
-    // Aqui você implementaria a lógica para salvar os dados
-    console.log("Salvando perfil:", editingUser)
-    setIsProfileModalOpen(false)
+  const saveProfile = async () => {
+    if (!user?.id) {
+      alert("Erro: ID do usuário não encontrado")
+      return
+    }
+
+    try {
+      // Preparar dados para a API
+      const updateData = {
+        name: editingUser.name,
+        email: editingUser.email,
+        phone: editingUser.phone,
+        birthDate: editingUser.birthDate
+          ? `${editingUser.birthDate}T00:00:00`
+          : user.birthDate || "1990-01-01T00:00:00",
+        isBaptized: editingUser.isBaptized,
+        baptizedDate: "2010-05-20T00:00:00", // Manter data existente ou padrão
+        isTither: editingUser.isTither,
+        maritalStatus: 0, // Manter valor padrão
+        memberSince: "2020-01-01T00:00:00", // Manter valor padrão
+        ministry: 0, // Manter valor padrão
+        isActive: true,
+        notes: editingUser.notes,
+        photo: userPhoto || "",
+        documents: [
+          {
+            type: 1, // Tipo 1 = CPF
+            number: editingUser.cpf,
+          },
+        ],
+      }
+
+      // Usar a API existente para atualizar o membro
+      const updatedMember = await updateMemberAPI(Number.parseInt(user.id), updateData)
+
+      // Atualizar dados locais
+      const updatedUser = {
+        ...user,
+        name: updatedMember.name,
+        email: updatedMember.email,
+        phone: updatedMember.phone,
+        photo: updatedMember.photo,
+        birthDate: updatedMember.birthDate ? updatedMember.birthDate.split("T")[0] : "",
+        isBaptized: updatedMember.isBaptized,
+        isTither: updatedMember.isTither,
+        notes: updatedMember.notes,
+        documents: updatedMember.document || [],
+      }
+
+      setUser(updatedUser)
+
+      // Atualizar localStorage
+      localStorage.setItem("user", JSON.stringify(updatedMember))
+
+      setIsProfileModalOpen(false)
+      alert("Perfil atualizado com sucesso!")
+    } catch (error) {
+      console.error("Erro ao salvar perfil:", error)
+      alert("Erro ao salvar perfil. Tente novamente.")
+    }
   }
 
   const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -719,7 +815,7 @@ export default function DashboardPage() {
                   </Avatar>
                 </div>
 
-                <DialogContent className="sm:max-w-md">
+                <DialogContent className="sm:max-w-md max-h-[80vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>Editar Perfil</DialogTitle>
                   </DialogHeader>
@@ -759,6 +855,7 @@ export default function DashboardPage() {
                         onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })}
                       />
                     </div>
+
                     <div className="space-y-2">
                       <Label htmlFor="email">Email</Label>
                       <Input
@@ -768,6 +865,7 @@ export default function DashboardPage() {
                         onChange={(e) => setEditingUser({ ...editingUser, email: e.target.value })}
                       />
                     </div>
+
                     <div className="space-y-2">
                       <Label htmlFor="phone">Telefone</Label>
                       <Input
@@ -776,10 +874,66 @@ export default function DashboardPage() {
                         onChange={(e) => setEditingUser({ ...editingUser, phone: e.target.value })}
                       />
                     </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="birthDate">Data de Nascimento</Label>
+                      <Input
+                        id="birthDate"
+                        type="date"
+                        value={editingUser.birthDate}
+                        onChange={(e) => setEditingUser({ ...editingUser, birthDate: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="cpf">CPF</Label>
+                      <Input
+                        id="cpf"
+                        value={editingUser.cpf}
+                        onChange={(e) => setEditingUser({ ...editingUser, cpf: e.target.value })}
+                        placeholder="000.000.000-00"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="notes">Observações</Label>
+                      <Textarea
+                        id="notes"
+                        value={editingUser.notes}
+                        onChange={(e) => setEditingUser({ ...editingUser, notes: e.target.value })}
+                        rows={3}
+                      />
+                    </div>
+
+                    <div className="flex items-center space-x-4">
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id="isBaptized"
+                          checked={editingUser.isBaptized}
+                          onChange={(e) => setEditingUser({ ...editingUser, isBaptized: e.target.checked })}
+                          className="rounded"
+                        />
+                        <Label htmlFor="isBaptized">Batizado</Label>
+                      </div>
+
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id="isTither"
+                          checked={editingUser.isTither}
+                          onChange={(e) => setEditingUser({ ...editingUser, isTither: e.target.checked })}
+                          className="rounded"
+                        />
+                        <Label htmlFor="isTither">Dizimista</Label>
+                      </div>
+                    </div>
+
                     <div className="space-y-2">
                       <Label htmlFor="role">Cargo</Label>
                       <Input id="role" value={editingUser.role} disabled className="bg-gray-100" />
                     </div>
+
                     <div className="flex gap-2 pt-4">
                       <Button
                         onClick={saveProfile}
