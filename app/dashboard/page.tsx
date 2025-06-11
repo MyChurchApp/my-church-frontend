@@ -44,7 +44,7 @@ import {
   deleteFeedPost,
   canEditOrDeletePost,
 } from "@/lib/api"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -691,27 +691,34 @@ export default function DashboardPage() {
             </div>
             <div className="flex flex-col md:flex-row items-center gap-2 md:gap-4">
               <Dialog open={isProfileModalOpen} onOpenChange={setIsProfileModalOpen}>
-                <DialogTrigger asChild>
-                  <div className="flex flex-col md:flex-row items-center gap-2 md:gap-4 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors">
-                    {/* Mobile: foto em cima, nome embaixo */}
-                    <div className="flex flex-col items-center md:hidden">
-                      <Avatar className="h-8 w-8 hover:opacity-80 transition-opacity">
-                        <AvatarImage src={userPhoto || "/placeholder.svg?height=40&width=40&query=pastor+profile"} />
-                        <AvatarFallback className="text-xs">{getInitials(user.name)}</AvatarFallback>
-                      </Avatar>
-                      <p className="font-medium text-gray-900 text-sm mt-1">{user.name || "Usuário"}</p>
-                    </div>
+                {/* Mobile: foto em cima, nome embaixo */}
+                <div
+                  className="flex flex-col items-center md:hidden cursor-pointer hover:bg-gray-100 p-2 rounded-lg transition-colors"
+                  onClick={openProfileModal}
+                >
+                  <Avatar className="h-8 w-8 hover:opacity-80 transition-opacity border-2 border-transparent hover:border-blue-200">
+                    <AvatarImage src={userPhoto || "/placeholder.svg?height=40&width=40&query=pastor+profile"} />
+                    <AvatarFallback className="text-xs">{getInitials(user.name)}</AvatarFallback>
+                  </Avatar>
+                  <p className="font-medium text-gray-900 text-sm mt-1">{user.name || "Usuário"}</p>
+                  <p className="text-xs text-gray-500">{user.email || "email@exemplo.com"}</p>
+                </div>
 
-                    {/* Desktop: nome e foto lado a lado */}
-                    <div className="hidden md:flex items-center gap-3">
-                      <p className="font-medium text-gray-900">{user.name || "Usuário"}</p>
-                      <Avatar className="h-10 w-10 hover:opacity-80 transition-opacity">
-                        <AvatarImage src={userPhoto || "/placeholder.svg?height=40&width=40&query=pastor+profile"} />
-                        <AvatarFallback className="text-sm">{getInitials(user.name)}</AvatarFallback>
-                      </Avatar>
-                    </div>
+                {/* Desktop: nome e foto lado a lado */}
+                <div
+                  className="hidden md:flex items-center gap-3 cursor-pointer hover:bg-gray-100 p-2 rounded-lg transition-colors"
+                  onClick={openProfileModal}
+                >
+                  <div className="text-right">
+                    <p className="font-medium text-gray-900">{user.name || "Usuário"}</p>
+                    <p className="text-sm text-gray-500">{user.email || "email@exemplo.com"}</p>
                   </div>
-                </DialogTrigger>
+                  <Avatar className="h-10 w-10 hover:opacity-80 transition-opacity border-2 border-transparent hover:border-blue-200">
+                    <AvatarImage src={userPhoto || "/placeholder.svg?height=40&width=40&query=pastor+profile"} />
+                    <AvatarFallback className="text-sm">{getInitials(user.name)}</AvatarFallback>
+                  </Avatar>
+                </div>
+
                 <DialogContent className="sm:max-w-md">
                   <DialogHeader>
                     <DialogTitle>Editar Perfil</DialogTitle>
