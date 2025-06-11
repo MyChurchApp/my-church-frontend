@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Book, Clock, RefreshCw } from "lucide-react"
+import { Book, Clock, RefreshCw, AlertCircle } from "lucide-react"
 import { useSignalR } from "../useSignalR"
 
 interface BibleReading {
@@ -16,6 +16,7 @@ interface BibleReading {
   chapter: number
   verse: number
   timestamp: Date
+  error?: boolean
 }
 
 export default function LeituraBiblicaPage() {
@@ -42,12 +43,12 @@ export default function LeituraBiblicaPage() {
         chapter: data.chapter || chapterId,
         verse: data.verse || verseId,
         timestamp: new Date(),
+        error: !res.ok,
       }
 
       setCurrentReading(newReading)
       setReadings((prev) => [newReading, ...prev.slice(0, 9)]) // Manter apenas 10 leituras
     } catch (error) {
-      console.error("Erro ao buscar leitura bíblica:", error)
       const errorReading: BibleReading = {
         id: `error-${Date.now()}`,
         chapterId,
@@ -57,6 +58,7 @@ export default function LeituraBiblicaPage() {
         chapter: chapterId,
         verse: verseId,
         timestamp: new Date(),
+        error: true,
       }
       setCurrentReading(errorReading)
     } finally {
@@ -64,10 +66,14 @@ export default function LeituraBiblicaPage() {
     }
   }
 
-  // Simular uma leitura para teste
-  const handleTestReading = () => {
-    fetchBibleReading(1, 1) // João 3:16 como exemplo
-  }
+  // Exemplos de teste
+  const testReadings = [
+    { chapterId: 1, verseId: 1, name: "Gênesis 1:1" },
+    { chapterId: 2, verseId: 1, name: "João 3:16" },
+    { chapterId: 3, verseId: 1, name: "Salmos 23:1" },
+    { chapterId: 4, verseId: 1, name: "Filipenses 4:13" },
+    { chapterId: 5, verseId: 1, name: "Romanos 8:28" },
+  ]
 
   // Escutar eventos do SignalR globalmente
   useEffect(() => {
@@ -91,20 +97,45 @@ export default function LeituraBiblicaPage() {
           <h1 className="text-3xl font-bold text-gray-900">Leitura Bíblica</h1>
           <p className="text-gray-600 mt-2">Acompanhe as leituras bíblicas destacadas durante o culto</p>
         </div>
-        <Button onClick={handleTestReading} variant="outline" className="flex items-center gap-2">
-          <RefreshCw className="h-4 w-4" />
-          Teste de Leitura
-        </Button>
+        <div className="flex gap-2">
+          {testReadings.map((test) => (
+            <Button
+              key={`${test.chapterId}-${test.verseId}`}
+              onClick={() => fetchBibleReading(test.chapterId, test.verseId)}
+              variant="outline"
+              size="sm"
+              disabled={isLoading}
+            >
+              {test.name}
+            </Button>
+          ))}
+        </div>
       </div>
+
+      {/* Loading State */}
+      {isLoading && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-center gap-2">
+              <RefreshCw className="h-4 w-4 animate-spin" />
+              <span>Carregando versículo...</span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Leitura Atual */}
       {currentReading && (
-        <Card className="border-l-4 border-l-teal-500">
+        <Card className={`border-l-4 ${currentReading.error ? "border-l-red-500" : "border-l-teal-500"}`}>
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2">
-                <Book className="h-5 w-5 text-teal-600" />
-                Leitura Atual
+                {currentReading.error ? (
+                  <AlertCircle className="h-5 w-5 text-red-600" />
+                ) : (
+                  <Book className="h-5 w-5 text-teal-600" />
+                )}
+                {currentReading.error ? "Erro na Leitura" : "Leitura Atual"}
               </CardTitle>
               <Badge variant="secondary" className="flex items-center gap-1">
                 <Clock className="h-3 w-3" />
@@ -120,7 +151,11 @@ export default function LeituraBiblicaPage() {
                   {currentReading.chapter}:{currentReading.verse}
                 </span>
               </div>
-              <blockquote className="text-lg leading-relaxed border-l-4 border-teal-200 pl-4 italic">
+              <blockquote
+                className={`text-lg leading-relaxed border-l-4 pl-4 italic ${
+                  currentReading.error ? "border-red-200 text-red-700" : "border-teal-200"
+                }`}
+              >
                 "{currentReading.text}"
               </blockquote>
             </div>
@@ -149,13 +184,19 @@ export default function LeituraBiblicaPage() {
                   <div className="flex items-start justify-between">
                     <div className="space-y-2 flex-1">
                       <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <Book className="h-4 w-4" />
+                        {reading.error ? (
+                          <AlertCircle className="h-4 w-4 text-red-500" />
+                        ) : (
+                          <Book className="h-4 w-4" />
+                        )}
                         <span className="font-medium">{reading.book}</span>
                         <span>
                           {reading.chapter}:{reading.verse}
                         </span>
                       </div>
-                      <p className="text-gray-800 leading-relaxed">"{reading.text}"</p>
+                      <p className={`leading-relaxed ${reading.error ? "text-red-700" : "text-gray-800"}`}>
+                        "{reading.text}"
+                      </p>
                     </div>
                     <Badge variant="outline" className="ml-4 flex-shrink-0">
                       {reading.timestamp.toLocaleTimeString()}
@@ -169,16 +210,25 @@ export default function LeituraBiblicaPage() {
       )}
 
       {/* Estado Vazio */}
-      {readings.length === 0 && !currentReading && (
+      {readings.length === 0 && !currentReading && !isLoading && (
         <Card>
           <CardContent className="pt-6">
             <div className="text-center py-12">
               <Book className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">Aguardando Leituras Bíblicas</h3>
               <p className="text-gray-600 mb-4">As leituras aparecerão aqui quando forem destacadas durante o culto</p>
-              <Button onClick={handleTestReading} variant="outline">
-                Testar Leitura
-              </Button>
+              <div className="flex flex-wrap gap-2 justify-center">
+                {testReadings.slice(0, 3).map((test) => (
+                  <Button
+                    key={`${test.chapterId}-${test.verseId}`}
+                    onClick={() => fetchBibleReading(test.chapterId, test.verseId)}
+                    variant="outline"
+                    size="sm"
+                  >
+                    Testar {test.name}
+                  </Button>
+                ))}
+              </div>
             </div>
           </CardContent>
         </Card>
