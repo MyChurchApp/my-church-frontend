@@ -34,27 +34,30 @@ export function useSignalR(worshipServiceId: number) {
           console.log("📖 Dados recebidos do SignalR:", data)
 
           // Extrair dados com diferentes estruturas possíveis
-          let bookId, chapterId, verseId
+          let versionId, bookId, chapterId, verseId
 
           if (data && typeof data === "object") {
-            // Estrutura esperada: { bookId: 1, chapterId: 1, verseId?: 1 }
-            bookId = data.bookId || data.BookId || data.book_id
+            // Estrutura completa esperada: { versionId: 1, bookId: 1, chapterId: 1, verseId?: 1 }
+            versionId = data.versionId || data.VersionId || data.version_id || data.versions
+            bookId = data.bookId || data.BookId || data.book_id || data.book
             chapterId = data.chapterId || data.ChapterId || data.chapter_id
             verseId = data.verseId || data.VerseId || data.verse_id
 
             // Fallbacks para estruturas antigas
-            if (!bookId) bookId = data.id || data.book || 1
+            if (!versionId) versionId = data.version || 1
+            if (!bookId) bookId = data.id || 1
             if (!chapterId) chapterId = data.chapter || 1
             if (!verseId) verseId = data.verse
           }
 
           // Valores padrão
+          versionId = versionId || 1
           bookId = bookId || 1
           chapterId = chapterId || 1
           // verseId pode ser undefined para capítulo completo
 
           console.log(
-            `📖 Processando: Livro ${bookId}, Capítulo ${chapterId}${verseId ? `, Versículo ${verseId}` : " (capítulo completo)"}`,
+            `📖 Processando: Versão ${versionId}, Livro ${bookId}, Capítulo ${chapterId}${verseId ? `, Versículo ${verseId}` : " (capítulo completo)"}`,
           )
 
           try {
@@ -72,11 +75,13 @@ export function useSignalR(worshipServiceId: number) {
             // Disparar evento customizado com os dados da API
             const event = new CustomEvent("bibleReadingHighlighted", {
               detail: {
+                versionId,
                 bookId,
                 chapterId,
                 verseId,
                 isFullChapter: !verseId,
                 apiData: bibleData,
+                originalData: data, // Manter dados originais para debug
               },
             })
             window.dispatchEvent(event)
@@ -86,11 +91,14 @@ export function useSignalR(worshipServiceId: number) {
             // Disparar evento mesmo com erro
             const event = new CustomEvent("bibleReadingHighlighted", {
               detail: {
+                versionId,
                 bookId,
                 chapterId,
                 verseId,
                 isFullChapter: !verseId,
                 error: true,
+                errorMessage: (error as Error).message,
+                originalData: data,
               },
             })
             window.dispatchEvent(event)
