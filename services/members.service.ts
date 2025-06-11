@@ -355,4 +355,40 @@ export class MembersService {
       }
     }
   }
+
+  // Função para atualizar um membro
+  static async updateMember(memberId: number, memberData: any): Promise<ApiBirthdayMember> {
+    try {
+      const token = this.getAuthToken()
+      if (!token) {
+        throw new Error("Token de autenticação não encontrado")
+      }
+
+      console.log("Atualizando membro ID:", memberId)
+      console.log("Dados enviados:", memberData)
+
+      const response = await fetch(`${this.BASE_URL}/Member/${memberId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          accept: "text/plain",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(memberData),
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error("Erro da API:", response.status, errorText)
+        throw new Error(`Erro na API: ${response.status}`)
+      }
+
+      const data: ApiBirthdayMember = await response.json()
+      console.log("Membro atualizado com sucesso:", data)
+      return data
+    } catch (error) {
+      console.error("Erro ao atualizar membro:", error)
+      throw error
+    }
+  }
 }

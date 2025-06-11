@@ -43,7 +43,6 @@ import {
   updateFeedPost,
   deleteFeedPost,
   canEditOrDeletePost,
-  updateMemberAPI,
 } from "@/lib/api"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
@@ -92,13 +91,20 @@ const getRealUser = (): User | null => {
   const role = localStorage.getItem("userRole")
   const memberData = localStorage.getItem("user") // Dados do member do login
 
+  console.log("🔍 Debug getRealUser:")
+  console.log("Token:", !!token)
+  console.log("Role:", role)
+  console.log("MemberData raw:", memberData)
+
   if (!token) return null
 
   // Se temos dados do member armazenados, usar eles
   if (memberData) {
     try {
       const member = JSON.parse(memberData)
-      return {
+      console.log("📋 Member parsed:", member)
+
+      const userData = {
         id: member.id?.toString() || "1",
         name: member.name || "Usuário",
         email: member.email || "",
@@ -107,19 +113,28 @@ const getRealUser = (): User | null => {
         phone: member.phone || "",
         birthDate: member.birthDate ? member.birthDate.split("T")[0] : "",
         isBaptized: member.isBaptized || false,
+        baptizedDate: member.baptizedDate ? member.baptizedDate.split("T")[0] : "",
         isTither: member.isTither || false,
         photo: member.photo || "",
         notes: member.notes || "",
-        documents: member.document || [], // Adicionar documentos
+        documents: member.document || [], // Usar 'document' como vem da API
+        memberSince: member.memberSince ? member.memberSince.split("T")[0] : "",
+        maritalStatus: member.maritalStatus || "",
+        ministry: member.ministry || "",
+        isActive: member.isActive !== undefined ? member.isActive : true,
       }
+
+      console.log("✅ UserData final:", userData)
+      return userData
     } catch (error) {
-      console.error("Erro ao parsear dados do member:", error)
+      console.error("❌ Erro ao parsear dados do member:", error)
     }
   }
 
   // Fallback para decodificar o JWT
   try {
     const payload = JSON.parse(atob(token.split(".")[1]))
+    console.log("🔄 Fallback para JWT payload:", payload)
     return {
       id: payload.nameid || "1",
       name: payload.name || payload.email || "Usuário",
@@ -127,10 +142,10 @@ const getRealUser = (): User | null => {
       role: role || "Membro",
       accessLevel: role === "Admin" ? "admin" : "member",
       phone: "",
-      documents: [], // Adicionar documentos vazios no fallback
+      documents: [],
     }
   } catch (error) {
-    console.error("Erro ao decodificar token:", error)
+    console.error("❌ Erro ao decodificar token:", error)
     return null
   }
 }
@@ -159,10 +174,15 @@ export default function DashboardPage() {
     phone: "",
     role: "",
     birthDate: "",
+    baptizedDate: "",
     isBaptized: false,
     isTither: false,
     notes: "",
     cpf: "", // Adicionar campo CPF
+    memberSince: "",
+    maritalStatus: "",
+    ministry: "",
+    isActive: true,
   })
   const [userPhoto, setUserPhoto] = useState<string>("")
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
@@ -177,6 +197,77 @@ export default function DashboardPage() {
     reference: "",
   })
   const [isLoadingVerse, setIsLoadingVerse] = useState(false)
+  const [isSavingProfile, setIsSavingProfile] = useState(false)
+  const [validationErrors, setValidationErrors] = useState<{ [key: string]: string }>({})
+
+  const openProfileModal = () => {
+    if (user) {
+      console.log("🔍 Debug openProfileModal - user:", user)
+
+      // Buscar dados mais recentes do localStorage se disponível
+      let memberData = null
+      try {
+        const storedData = localStorage.getItem("user")
+        if (storedData) {
+          // Tentar parsear os dados do localStorage
+          const parsedData = JSON.parse(storedData)
+          console.log("📋 Dados brutos do localStorage:", parsedData)
+
+          // Verificar se os dados estão na estrutura token.member
+          if (parsedData.token && parsedData.token.member) {
+            memberData = parsedData.token.member
+            console.log("📋 Dados do member encontrados em token.member:", memberData)
+          } else {
+            // Se não estiver na estrutura token.member, usar o objeto diretamente
+            memberData = parsedData
+            console.log("📋 Usando dados diretos do localStorage:", memberData)
+          }
+        }
+      } catch (error) {
+        console.error("❌ Erro ao parsear dados do localStorage:", error)
+      }
+
+      // Usar dados do localStorage se disponível, senão usar dados do user state
+      const sourceData = memberData || user
+
+      // Procurar CPF nos documentos (tipo 1 é CPF)
+      let cpfValue = ""
+      if (sourceData.document && Array.isArray(sourceData.document)) {
+        const cpfDoc = sourceData.document.find((doc: any) => doc.type === 1)
+        cpfValue = cpfDoc?.number || ""
+      } else if (sourceData.documents && Array.isArray(sourceData.documents)) {
+        const cpfDoc = sourceData.documents.find((doc: any) => doc.type === 1)
+        cpfValue = cpfDoc?.number || ""
+      }
+
+      console.log("📄 CPF encontrado:", cpfValue)
+
+      const editingData = {
+        name: sourceData.name || "",
+        email: sourceData.email || "",
+        phone: sourceData.phone || "",
+        role: user.role || "",
+        birthDate: sourceData.birthDate ? sourceData.birthDate.split("T")[0] : "",
+        baptizedDate: sourceData.baptizedDate ? sourceData.baptizedDate.split("T")[0] : "",
+        isBaptized: sourceData.isBaptized || false,
+        isTither: sourceData.isTither || false,
+        notes: sourceData.notes || "",
+        cpf: cpfValue,
+        memberSince: sourceData.memberSince ? sourceData.memberSince.split("T")[0] : "",
+        maritalStatus: sourceData.maritalStatus || "",
+        ministry: sourceData.ministry || "",
+        isActive: sourceData.isActive !== undefined ? sourceData.isActive : true,
+      }
+
+      console.log("📝 Dados mapeados para edição:", editingData)
+      setEditingUser(editingData)
+      setUserPhoto(sourceData.photo || "")
+      setValidationErrors({}) // Limpar erros de validação
+      setIsProfileModalOpen(true)
+    } else {
+      console.log("❌ User não encontrado para abrir modal")
+    }
+  }
 
   // Banners de eventos
   const banners = [
@@ -297,6 +388,8 @@ export default function DashboardPage() {
       if (!isMounted) return
 
       setUser(userData)
+      // No useEffect, após setUser(userData), adicionar:
+      console.log("👤 User definido no estado:", userData)
       setChurchData(getChurchData())
 
       // Carregar dados apenas se o componente ainda estiver montado
@@ -446,61 +539,87 @@ export default function DashboardPage() {
     setVisibleNotifications((prev) => prev + 5)
   }
 
-  const openProfileModal = () => {
-    if (user) {
-      // Procurar CPF nos documentos do usuário (tipo 1 é CPF)
-      const cpfDoc = user.documents?.find((doc) => doc.type === 1)
+  // Função para validar campos
+  const validateFields = () => {
+    const errors: { [key: string]: string } = {}
 
-      setEditingUser({
-        name: user.name || "",
-        email: user.email || "",
-        phone: user.phone || "",
-        role: user.role || "",
-        birthDate: user.birthDate || "",
-        isBaptized: user.isBaptized || false,
-        isTither: user.isTither || false,
-        notes: user.notes || "",
-        cpf: cpfDoc?.number || "", // Definir CPF se existir
-      })
-      setUserPhoto(user.photo || "")
-      setIsProfileModalOpen(true)
+    if (!editingUser.name.trim()) {
+      errors.name = "Nome é obrigatório"
     }
+
+    if (!editingUser.email.trim()) {
+      errors.email = "Email é obrigatório"
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editingUser.email.trim())) {
+      errors.email = "Email deve ter um formato válido"
+    }
+
+    if (!editingUser.cpf.trim()) {
+      errors.cpf = "CPF é obrigatório"
+    } else if (editingUser.cpf.replace(/\D/g, "").length !== 11) {
+      errors.cpf = "CPF deve ter 11 dígitos"
+    }
+
+    if (!editingUser.phone.trim()) {
+      errors.phone = "Telefone é obrigatório"
+    } else if (editingUser.phone.replace(/\D/g, "").length < 10) {
+      errors.phone = "Telefone deve ter pelo menos 10 dígitos"
+    }
+
+    if (!editingUser.birthDate) {
+      errors.birthDate = "Data de nascimento é obrigatória"
+    }
+
+    setValidationErrors(errors)
+    return Object.keys(errors).length === 0
   }
 
   const saveProfile = async () => {
     if (!user?.id) {
-      alert("Erro: ID do usuário não encontrado")
+      console.error("ID do usuário não encontrado")
       return
     }
 
+    // Validar campos
+    if (!validateFields()) {
+      console.log("Validação falhou:", validationErrors)
+      return
+    }
+
+    setIsSavingProfile(true)
+
     try {
-      // Preparar dados para a API
+      console.log("Salvando perfil para o membro ID:", user.id)
+
+      // Preparar dados para a API usando o formato correto do MembersService
       const updateData = {
-        name: editingUser.name,
-        email: editingUser.email,
-        phone: editingUser.phone,
-        birthDate: editingUser.birthDate
-          ? `${editingUser.birthDate}T00:00:00`
-          : user.birthDate || "1990-01-01T00:00:00",
-        isBaptized: editingUser.isBaptized,
-        baptizedDate: "2010-05-20T00:00:00", // Manter data existente ou padrão
-        isTither: editingUser.isTither,
-        maritalStatus: 0, // Manter valor padrão
-        memberSince: "2020-01-01T00:00:00", // Manter valor padrão
-        ministry: 0, // Manter valor padrão
-        isActive: true,
-        notes: editingUser.notes,
+        command: "UpdateMember", // Campo obrigatório
+        name: editingUser.name.trim(),
+        email: editingUser.email.trim(),
+        phone: editingUser.phone.trim(),
+        birthDate: editingUser.birthDate ? `${editingUser.birthDate}T00:00:00` : "1990-01-01T00:00:00",
+        isBaptized: Boolean(editingUser.isBaptized),
+        baptizedDate: editingUser.baptizedDate ? `${editingUser.baptizedDate}T00:00:00` : "2010-05-20T00:00:00",
+        isTither: Boolean(editingUser.isTither),
+        maritalStatus: 0, // Converter para enum depois
+        memberSince: editingUser.memberSince ? `${editingUser.memberSince}T00:00:00` : "2020-01-01T00:00:00",
+        ministry: 0, // Converter para enum depois
+        isActive: Boolean(editingUser.isActive),
+        notes: editingUser.notes || "",
         photo: userPhoto || "",
-        documents: [
+        document: [
           {
             type: 1, // Tipo 1 = CPF
-            number: editingUser.cpf,
+            number: editingUser.cpf.replace(/\D/g, ""), // Remove formatação do CPF
           },
         ],
       }
 
-      // Usar a API existente para atualizar o membro
-      const updatedMember = await updateMemberAPI(Number.parseInt(user.id), updateData)
+      console.log("Dados enviados para API:", updateData)
+
+      // Usar o MembersService ao invés da API direta
+      const updatedMember = await MembersService.updateMember(Number.parseInt(user.id), updateData)
+
+      console.log("Membro atualizado com sucesso:", updatedMember)
 
       // Atualizar dados locais
       const updatedUser = {
@@ -510,22 +629,30 @@ export default function DashboardPage() {
         phone: updatedMember.phone,
         photo: updatedMember.photo,
         birthDate: updatedMember.birthDate ? updatedMember.birthDate.split("T")[0] : "",
+        baptizedDate: updatedMember.baptizedDate ? updatedMember.baptizedDate.split("T")[0] : "",
         isBaptized: updatedMember.isBaptized,
         isTither: updatedMember.isTither,
         notes: updatedMember.notes,
         documents: updatedMember.document || [],
+        memberSince: updatedMember.memberSince ? updatedMember.memberSince.split("T")[0] : "",
+        maritalStatus: updatedMember.maritalStatus || "",
+        ministry: updatedMember.ministry || "",
+        isActive: updatedMember.isActive,
       }
 
       setUser(updatedUser)
 
-      // Atualizar localStorage
+      // Atualizar localStorage com os dados atualizados
       localStorage.setItem("user", JSON.stringify(updatedMember))
 
       setIsProfileModalOpen(false)
-      alert("Perfil atualizado com sucesso!")
+      console.log("✅ Perfil atualizado com sucesso!")
     } catch (error) {
-      console.error("Erro ao salvar perfil:", error)
-      alert("Erro ao salvar perfil. Tente novamente.")
+      console.error("❌ Erro ao salvar perfil:", error)
+      const errorMessage = error instanceof Error ? error.message : "Erro desconhecido"
+      console.error(`Erro ao salvar perfil: ${errorMessage}`)
+    } finally {
+      setIsSavingProfile(false)
     }
   }
 
@@ -848,50 +975,82 @@ export default function DashboardPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="name">Nome</Label>
+                      <Label htmlFor="name">Nome *</Label>
                       <Input
                         id="name"
                         value={editingUser.name}
                         onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })}
+                        className={validationErrors.name ? "border-red-500 focus:border-red-500" : ""}
                       />
+                      {validationErrors.name && <p className="text-red-500 text-xs">{validationErrors.name}</p>}
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="email">Email</Label>
+                      <Label htmlFor="email">Email *</Label>
                       <Input
                         id="email"
                         type="email"
                         value={editingUser.email}
                         onChange={(e) => setEditingUser({ ...editingUser, email: e.target.value })}
+                        className={validationErrors.email ? "border-red-500 focus:border-red-500" : ""}
                       />
+                      {validationErrors.email && <p className="text-red-500 text-xs">{validationErrors.email}</p>}
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="phone">Telefone</Label>
+                      <Label htmlFor="phone">Telefone *</Label>
                       <Input
                         id="phone"
                         value={editingUser.phone}
                         onChange={(e) => setEditingUser({ ...editingUser, phone: e.target.value })}
+                        className={validationErrors.phone ? "border-red-500 focus:border-red-500" : ""}
                       />
+                      {validationErrors.phone && <p className="text-red-500 text-xs">{validationErrors.phone}</p>}
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="birthDate">Data de Nascimento</Label>
+                      <Label htmlFor="birthDate">Data de Nascimento *</Label>
                       <Input
                         id="birthDate"
                         type="date"
                         value={editingUser.birthDate}
                         onChange={(e) => setEditingUser({ ...editingUser, birthDate: e.target.value })}
+                        className={validationErrors.birthDate ? "border-red-500 focus:border-red-500" : ""}
                       />
+                      {validationErrors.birthDate && (
+                        <p className="text-red-500 text-xs">{validationErrors.birthDate}</p>
+                      )}
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="cpf">CPF</Label>
+                      <Label htmlFor="cpf">CPF *</Label>
                       <Input
                         id="cpf"
                         value={editingUser.cpf}
                         onChange={(e) => setEditingUser({ ...editingUser, cpf: e.target.value })}
                         placeholder="000.000.000-00"
+                        className={validationErrors.cpf ? "border-red-500 focus:border-red-500" : ""}
+                      />
+                      {validationErrors.cpf && <p className="text-red-500 text-xs">{validationErrors.cpf}</p>}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="baptizedDate">Data de Batismo</Label>
+                      <Input
+                        id="baptizedDate"
+                        type="date"
+                        value={editingUser.baptizedDate}
+                        onChange={(e) => setEditingUser({ ...editingUser, baptizedDate: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="memberSince">Membro desde</Label>
+                      <Input
+                        id="memberSince"
+                        type="date"
+                        value={editingUser.memberSince}
+                        onChange={(e) => setEditingUser({ ...editingUser, memberSince: e.target.value })}
                       />
                     </div>
 
@@ -937,10 +1096,18 @@ export default function DashboardPage() {
                     <div className="flex gap-2 pt-4">
                       <Button
                         onClick={saveProfile}
+                        disabled={isSavingProfile}
                         className="flex-1"
                         style={{ backgroundColor: "#89f0e6", color: "#000" }}
                       >
-                        Salvar
+                        {isSavingProfile ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
+                            Salvando...
+                          </>
+                        ) : (
+                          "Salvar"
+                        )}
                       </Button>
                       <Button variant="outline" onClick={() => setIsProfileModalOpen(false)} className="flex-1">
                         Cancelar
