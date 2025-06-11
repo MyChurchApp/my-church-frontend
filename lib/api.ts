@@ -289,10 +289,6 @@ export const createMemberAPI = async (memberData: any): Promise<ApiMember> => {
       throw new Error("CPF é obrigatório");
     }
 
-      "Dados enviados para API:",
-      JSON.stringify(memberData, null, 2)
-    );
-
     // Preparar documentos no formato correto
     const documents = prepareDocuments({
       cpf: memberData.document, // Campo principal do formulário
@@ -308,7 +304,6 @@ export const createMemberAPI = async (memberData: any): Promise<ApiMember> => {
       document: documents, // ✅ CORRIGIDO: Array de objetos
     };
 
-
     const response = await fetch("https://demoapp.top1soft.com.br/api/Member", {
       method: "POST",
       headers: {
@@ -318,7 +313,6 @@ export const createMemberAPI = async (memberData: any): Promise<ApiMember> => {
       },
       body: JSON.stringify(apiData),
     });
-
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -387,13 +381,6 @@ export const updateMemberAPI = async (
       notes: memberData.notes || "",
       photo: memberData.photo || "",
     };
-
-      "Dados originais recebidos:",
-      JSON.stringify(memberData, null, 2)
-    );
-      "Dados convertidos para API:",
-      JSON.stringify(updateData, null, 2)
-    );
 
     const response = await fetch(
       `https://demoapp.top1soft.com.br/api/Member/${memberId}`,
@@ -480,7 +467,6 @@ export const createFeedPost = async (content: string): Promise<ApiFeedItem> => {
         body: JSON.stringify({ content }),
       }
     );
-
 
     // A API retorna apenas o ID do post criado
     if (typeof response === "number") {
