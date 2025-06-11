@@ -2,7 +2,7 @@
 
 import { useEffect } from "react"
 import * as signalR from "@microsoft/signalr"
-import { getSpecificVerse, getVersesFromChapter } from "@/lib/bible-api"
+import { getBibleReading } from "@/lib/bible-api"
 
 const API_URL = "https://demoapp.top1soft.com.br"
 const HUB_PATH = "/ws/worship"
@@ -103,44 +103,38 @@ export function useSignalR(worshipServiceId: number) {
           console.log(logMessage)
 
           try {
-            console.log("🌐 Iniciando busca na API bíblica...")
+            console.log("🌐 Iniciando busca na API bíblica usando nova função...")
 
-            // Buscar dados da API bíblica
-            let bibleData
+            // Usar a nova função que faz as chamadas corretas
+            const bibleData = await getBibleReading(versionId, bookId, chapterId, verseId)
 
-            if (verseId) {
-              console.log(`🔍 Buscando versículo específico: capítulo ${chapterId}, versículo ${verseId}`)
-              console.log(`🌐 URL que será chamada: /api/Bible/chapters/${chapterId}/verses/${verseId}`)
-              bibleData = await getSpecificVerse(chapterId, verseId)
-              console.log("📖 Dados do versículo recebidos:", bibleData)
+            console.log("📖 Resultado da busca bíblica:", bibleData)
+
+            if (bibleData.success) {
+              console.log("✅ Dados da API bíblica obtidos com sucesso!")
+
+              // Disparar evento customizado com os dados da API
+              const eventDetail = {
+                versionId,
+                bookId,
+                chapterId,
+                verseId,
+                isFullChapter: !verseId,
+                apiData: bibleData,
+                originalData: data,
+              }
+
+              console.log("🎯 Disparando evento customizado com dados:", eventDetail)
+
+              const event = new CustomEvent("bibleReadingHighlighted", {
+                detail: eventDetail,
+              })
+              window.dispatchEvent(event)
+
+              console.log("✅ Evento customizado disparado com sucesso!")
             } else {
-              console.log(`🔍 Buscando capítulo completo: ${chapterId}`)
-              console.log(`🌐 URL que será chamada: /api/Bible/chapters/${chapterId}/verses`)
-              bibleData = await getVersesFromChapter(chapterId)
-              console.log("📖 Dados do capítulo recebidos:", bibleData)
+              throw new Error(bibleData.error || "Erro desconhecido na API")
             }
-
-            console.log("✅ Dados da API bíblica obtidos com sucesso!")
-
-            // Disparar evento customizado com os dados da API
-            const eventDetail = {
-              versionId,
-              bookId,
-              chapterId,
-              verseId,
-              isFullChapter: !verseId,
-              apiData: bibleData,
-              originalData: data, // Manter dados originais para debug
-            }
-
-            console.log("🎯 Disparando evento customizado com dados:", eventDetail)
-
-            const event = new CustomEvent("bibleReadingHighlighted", {
-              detail: eventDetail,
-            })
-            window.dispatchEvent(event)
-
-            console.log("✅ Evento customizado disparado com sucesso!")
           } catch (error) {
             console.error("❌ Erro ao buscar dados bíblicos:", error)
             console.error("❌ Stack trace:", (error as Error).stack)
