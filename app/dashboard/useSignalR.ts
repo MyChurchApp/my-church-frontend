@@ -6,7 +6,7 @@ import * as signalR from "@microsoft/signalr";
 export function useSignalR(worshipServiceId: number) {
   useEffect(() => {
     const connection = new signalR.HubConnectionBuilder()
-      .withUrl("https://demoapp.top1soft.com.br/ws/worship")
+      .withUrl("ws://demoapp.top1soft.com.br/ws/worship")
       .withAutomaticReconnect()
       .build();
 

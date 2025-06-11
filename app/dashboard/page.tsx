@@ -1,34 +1,39 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
-import { Sidebar } from "@/components/sidebar"
-import { DashboardHeaderContainer } from "./containers/header/dashboard-header.container"
-import { StatsCardsContainer } from "./containers/stats/stats-cards.container"
-import { FeedSectionContainer } from "./containers/feed/feed-section.container"
-import { SidebarContentContainer } from "./containers/sidebar/sidebar-content.container"
-import { getUser, getChurchData, type User, type ChurchData } from "@/lib/fake-api"
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Sidebar } from "@/components/sidebar";
+import { DashboardHeaderContainer } from "./containers/header/dashboard-header.container";
+import { StatsCardsContainer } from "./containers/stats/stats-cards.container";
+import { FeedSectionContainer } from "./containers/feed/feed-section.container";
+import { SidebarContentContainer } from "./containers/sidebar/sidebar-content.container";
+import {
+  getUser,
+  getChurchData,
+  type User,
+  type ChurchData,
+} from "@/lib/fake-api";
+import { useSignalR } from "./useSignalR";
 
 // Função helper para verificar se o usuário está logado via API real
 const isRealUser = (): boolean => {
-  if (typeof window === "undefined") return false
-  return !!localStorage.getItem("authToken")
-}
+  if (typeof window === "undefined") return false;
+  return !!localStorage.getItem("authToken");
+};
 
 // Função para obter dados do usuário real
 const getRealUser = (): User | null => {
-  if (typeof window === "undefined") return null
+  if (typeof window === "undefined") return null;
 
-  const token = localStorage.getItem("authToken")
-  const role = localStorage.getItem("userRole")
-  const memberData = localStorage.getItem("user")
+  const token = localStorage.getItem("authToken");
+  const role = localStorage.getItem("userRole");
+  const memberData = localStorage.getItem("user");
 
-  if (!token) return null
+  if (!token) return null;
 
-  // Se temos dados do member armazenados, usar eles
   if (memberData) {
     try {
-      const member = JSON.parse(memberData)
+      const member = JSON.parse(memberData);
 
       const userData: User = {
         id: member.id?.toString() || "1",
@@ -39,7 +44,9 @@ const getRealUser = (): User | null => {
         phone: member.phone || "",
         birthDate: member.birthDate ? member.birthDate.split("T")[0] : "",
         isBaptized: member.isBaptized || false,
-        baptizedDate: member.baptizedDate ? member.baptizedDate.split("T")[0] : "",
+        baptizedDate: member.baptizedDate
+          ? member.baptizedDate.split("T")[0]
+          : "",
         isTither: member.isTither || false,
         photo: member.photo || "",
         notes: member.notes || "",
@@ -48,17 +55,16 @@ const getRealUser = (): User | null => {
         maritalStatus: member.maritalStatus || "",
         ministry: member.ministry || "",
         isActive: member.isActive !== undefined ? member.isActive : true,
-      }
+      };
 
-      return userData
+      return userData;
     } catch (error) {
-      console.error("❌ Erro ao parsear dados do member:", error)
+      console.error("❌ Erro ao parsear dados do member:", error);
     }
   }
 
-  // Fallback para decodificar o JWT
   try {
-    const payload = JSON.parse(atob(token.split(".")[1]))
+    const payload = JSON.parse(atob(token.split(".")[1]));
     return {
       id: payload.nameid || "1",
       name: payload.name || payload.email || "Usuário",
@@ -67,40 +73,42 @@ const getRealUser = (): User | null => {
       accessLevel: role === "Admin" ? "admin" : "member",
       phone: "",
       documents: [],
-    }
+    };
   } catch (error) {
-    console.error("❌ Erro ao decodificar token:", error)
-    return null
+    console.error("❌ Erro ao decodificar token:", error);
+    return null;
   }
-}
+};
 
 export default function DashboardPage() {
-  const router = useRouter()
-  const [user, setUser] = useState<User | null>(null)
-  const [churchData, setChurchData] = useState<ChurchData | null>(null)
+  const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
+  const [churchData, setChurchData] = useState<ChurchData | null>(null);
 
   useEffect(() => {
     const initializeDashboard = () => {
-      // Verificar se é usuário real ou fake
-      let userData: User | null = null
+      let userData: User | null = null;
 
       if (isRealUser()) {
-        userData = getRealUser()
+        userData = getRealUser();
       } else {
-        userData = getUser()
+        userData = getUser();
       }
 
       if (!userData) {
-        router.push("/login")
-        return
+        router.push("/login");
+        return;
       }
 
-      setUser(userData)
-      setChurchData(getChurchData())
-    }
+      setUser(userData);
+      setChurchData(getChurchData());
+    };
 
-    initializeDashboard()
-  }, [router])
+    initializeDashboard();
+  }, [router]);
+
+  // Inicia SignalR passando ID do culto (troque "1" se precisar)
+  useSignalR(1);
 
   if (!user || !churchData) {
     return (
@@ -110,7 +118,7 @@ export default function DashboardPage() {
           <p className="text-gray-600">Carregando...</p>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -118,26 +126,25 @@ export default function DashboardPage() {
       <Sidebar />
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <DashboardHeaderContainer user={user} churchData={churchData} onUserUpdate={setUser} />
+        <DashboardHeaderContainer
+          user={user}
+          churchData={churchData}
+          onUserUpdate={setUser}
+        />
 
-        {/* Main Content - Scrollable */}
         <div className="flex-1 overflow-y-auto">
           <div className="p-4 md:p-6">
-            {/* Stats Cards - Apenas para Admin */}
-            {user.accessLevel === "admin" && <StatsCardsContainer churchData={churchData} />}
+            {user.accessLevel === "admin" && (
+              <StatsCardsContainer churchData={churchData} />
+            )}
 
-            {/* Conteúdo Principal */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pb-8">
-              {/* Feed de Notificações */}
               <FeedSectionContainer user={user} />
-
-              {/* Sidebar - Aniversários e Banners */}
               <SidebarContentContainer />
             </div>
           </div>
         </div>
       </div>
     </div>
-  )
+  );
 }

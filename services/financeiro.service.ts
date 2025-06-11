@@ -75,15 +75,12 @@ export interface CashFlowFilters {
 
 // Função para fazer requisições com autenticação
 async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  console.log(`🔗 API Request para: ${API_BASE_URL}${endpoint}`)
-  console.log(`📋 Método: ${options.method || "GET"}`)
   return authFetchJson<T>(`${API_BASE_URL}${endpoint}`, options)
 }
 
 // ==================== EXPORTAÇÕES PRINCIPAIS ====================
 
 export async function createCashFlow(data: CreateCashFlowRequest): Promise<string> {
-  console.log("💰 Criando lançamento de fluxo de caixa:", data)
   return apiRequest<string>("/CashFlow", {
     method: "POST",
     body: JSON.stringify(data),
@@ -94,7 +91,6 @@ export async function getCashFlowList(filters: CashFlowFilters = {}): Promise<{
   transactions: CashFlowResponse
   balance: number
 }> {
-  console.log("📋 Buscando lista de fluxo de caixa com filtros:", filters)
 
   const params = new URLSearchParams()
 
@@ -153,7 +149,6 @@ export async function getCashFlowList(filters: CashFlowFilters = {}): Promise<{
 }
 
 export async function updateCashFlow(id: number, data: CreateCashFlowRequest): Promise<CashFlowItem> {
-  console.log(`✏️ Atualizando fluxo de caixa ID ${id}:`, data)
   return apiRequest<CashFlowItem>(`/CashFlow/${id}`, {
     method: "PUT",
     body: JSON.stringify(data),
@@ -161,7 +156,6 @@ export async function updateCashFlow(id: number, data: CreateCashFlowRequest): P
 }
 
 export async function deleteCashFlow(id: number): Promise<void> {
-  console.log(`🗑️ Excluindo fluxo de caixa ID: ${id}`)
   return apiRequest<void>(`/CashFlow/${id}`, {
     method: "DELETE",
   })
@@ -171,7 +165,6 @@ export async function createCashFlowCategory(data: {
   name: string
   description: string
 }): Promise<string> {
-  console.log("🏷️ Criando categoria:", data)
 
   const apiData: CreateCategoryRequest = {
     name: data.name,
@@ -191,7 +184,6 @@ export async function createCashFlowCategory(data: {
 }
 
 export async function getCashFlowCategories(): Promise<CashFlowCategory[]> {
-  console.log("🏷️ Buscando categorias de fluxo de caixa...")
 
   try {
     const result = await apiRequest<CashFlowCategoriesResponse>("/CashFlow/categories")
@@ -208,7 +200,6 @@ export async function getCashFlowCategories(): Promise<CashFlowCategory[]> {
 }
 
 export async function updateCashFlowCategory(id: number, data: CreateCategoryRequest): Promise<CashFlowCategory> {
-  console.log(`✏️ Atualizando categoria ID ${id}:`, data)
   return apiRequest<CashFlowCategory>(`/CashFlow/categories/${id}`, {
     method: "PUT",
     body: JSON.stringify(data),
@@ -216,7 +207,6 @@ export async function updateCashFlowCategory(id: number, data: CreateCategoryReq
 }
 
 export async function deleteCashFlowCategory(id: number): Promise<void> {
-  console.log(`🗑️ Excluindo categoria ID: ${id}`)
 
   try {
     const response = await apiRequest<void>(`/CashFlow/categories/${id}`, {

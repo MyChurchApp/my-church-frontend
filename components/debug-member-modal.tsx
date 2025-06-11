@@ -1,56 +1,64 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Loader2, AlertCircle, Bug } from "lucide-react"
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Loader2, AlertCircle, Bug } from "lucide-react";
 
 export default function DebugMemberModal() {
-  const [isOpen, setIsOpen] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [results, setResults] = useState<string[]>([])
+  const [isOpen, setIsOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [results, setResults] = useState<string[]>([]);
 
   const getAuthToken = () => {
-    if (typeof window === "undefined") return null
-    return localStorage.getItem("authToken")
-  }
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem("authToken");
+  };
 
   const testPayload = async (description: string, payload: any) => {
-    const token = getAuthToken()
+    const token = getAuthToken();
 
     if (!token) {
-      return `❌ ${description}: Token não encontrado`
+      return `❌ ${description}: Token não encontrado`;
     }
 
     try {
-      console.log(`=== TESTE: ${description} ===`)
-      console.log(JSON.stringify(payload, null, 2))
-
-      const response = await fetch("https://demoapp.top1soft.com.br/api/Member", {
-        method: "POST",
-        headers: {
-          accept: "text/plain",
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      })
+      const response = await fetch(
+        "https://demoapp.top1soft.com.br/api/Member",
+        {
+          method: "POST",
+          headers: {
+            accept: "text/plain",
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(payload),
+        }
+      );
 
       if (response.ok) {
-        return `✅ ${description}: Status ${response.status} - SUCESSO!`
+        return `✅ ${description}: Status ${response.status} - SUCESSO!`;
       } else {
-        const errorText = await response.text()
-        return `❌ ${description}: Status ${response.status} - ${errorText.substring(0, 100)}...`
+        const errorText = await response.text();
+        return `❌ ${description}: Status ${
+          response.status
+        } - ${errorText.substring(0, 100)}...`;
       }
     } catch (error: any) {
-      return `❌ ${description}: Erro - ${error.message}`
+      return `❌ ${description}: Erro - ${error.message}`;
     }
-  }
+  };
 
   const runTests = async () => {
-    setLoading(true)
-    setResults([])
+    setLoading(true);
+    setResults([]);
 
     const tests = [
       {
@@ -153,19 +161,19 @@ export default function DebugMemberModal() {
           notes: "aa",
         },
       },
-    ]
+    ];
 
-    const testResults = []
+    const testResults = [];
 
     for (const test of tests) {
-      const result = await testPayload(test.description, test.payload)
-      testResults.push(result)
-      setResults([...testResults])
-      await new Promise((resolve) => setTimeout(resolve, 1000)) // Delay entre testes
+      const result = await testPayload(test.description, test.payload);
+      testResults.push(result);
+      setResults([...testResults]);
+      await new Promise((resolve) => setTimeout(resolve, 1000)); // Delay entre testes
     }
 
-    setLoading(false)
-  }
+    setLoading(false);
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -197,9 +205,14 @@ export default function DebugMemberModal() {
             <div className="space-y-2">
               <h3 className="font-medium">Resultados dos Testes:</h3>
               {results.map((result, index) => (
-                <Alert key={index} variant={result.includes("✅") ? "default" : "destructive"}>
+                <Alert
+                  key={index}
+                  variant={result.includes("✅") ? "default" : "destructive"}
+                >
                   <AlertCircle className="h-4 w-4" />
-                  <AlertDescription className="font-mono text-sm">{result}</AlertDescription>
+                  <AlertDescription className="font-mono text-sm">
+                    {result}
+                  </AlertDescription>
                 </Alert>
               ))}
             </div>
@@ -208,7 +221,9 @@ export default function DebugMemberModal() {
           <div className="mt-6 p-4 bg-gray-50 rounded-lg">
             <h4 className="font-medium mb-2">Objetivo dos Testes:</h4>
             <ul className="text-sm space-y-1">
-              <li>• Teste 1: Verifica se os dados exatos do Swagger funcionam</li>
+              <li>
+                • Teste 1: Verifica se os dados exatos do Swagger funcionam
+              </li>
               <li>• Teste 2: Verifica se o problema é email duplicado</li>
               <li>• Teste 3: Verifica se o problema é CPF inválido</li>
               <li>• Teste 4: Verifica se o problema é no nome</li>
@@ -218,5 +233,5 @@ export default function DebugMemberModal() {
         </div>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

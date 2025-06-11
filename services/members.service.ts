@@ -80,12 +80,9 @@ export class MembersService {
     try {
       const token = this.getAuthToken()
       if (!token) {
-        console.log("Token não encontrado para teste de conexão")
         return false
       }
 
-      console.log("Testando conexão com endpoint de aniversários...")
-      console.log("URL:", `${this.BASE_URL}/Member/birthdays`)
 
       const response = await fetch(`${this.BASE_URL}/Member/birthdays?filterType=${BirthdayFilterType.Week}`, {
         method: "GET",
@@ -95,7 +92,6 @@ export class MembersService {
         },
       })
 
-      console.log("Status da resposta:", response.status)
 
       if (response.status === 404) {
         console.warn("Endpoint de aniversários não encontrado (404)")
@@ -112,7 +108,6 @@ export class MembersService {
         return false
       }
 
-      console.log("Conexão com endpoint de aniversários bem-sucedida")
       return true
     } catch (error) {
       console.error("Erro ao testar conexão:", error)
@@ -128,8 +123,6 @@ export class MembersService {
         throw new Error("Token de autenticação não encontrado")
       }
 
-      console.log(`Buscando aniversários com filtro: ${filterType} (${BirthdayFilterType[filterType]})`)
-      console.log("URL:", `${this.BASE_URL}/Member/birthdays`)
 
       const response = await fetch(`${this.BASE_URL}/Member/birthdays?filterType=${filterType}`, {
         method: "GET",
@@ -139,7 +132,6 @@ export class MembersService {
         },
       })
 
-      console.log("Status da resposta:", response.status)
 
       if (response.status === 404) {
         console.warn("Endpoint de aniversários não encontrado")
@@ -157,7 +149,6 @@ export class MembersService {
       }
 
       const data: ApiBirthdayMember[] = await response.json()
-      console.log(`${data.length} aniversariantes encontrados`)
 
       return data
     } catch (error) {
@@ -364,8 +355,6 @@ export class MembersService {
         throw new Error("Token de autenticação não encontrado")
       }
 
-      console.log("Atualizando membro ID:", memberId)
-      console.log("Dados enviados:", memberData)
 
       const response = await fetch(`${this.BASE_URL}/Member/${memberId}`, {
         method: "PUT",
@@ -384,7 +373,6 @@ export class MembersService {
       }
 
       const data: ApiBirthdayMember = await response.json()
-      console.log("Membro atualizado com sucesso:", data)
       return data
     } catch (error) {
       console.error("Erro ao atualizar membro:", error)

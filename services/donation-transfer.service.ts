@@ -21,12 +21,10 @@ export class DonationTransferService {
    * A API retorna o valor direto (ex: 564.33)
    */
   static async getTransferBalance(): Promise<number> {
-    console.log("[DonationTransferService] Consultando saldo disponível...")
 
     const cleanUrl = this.cleanBaseUrl(BASE_URL)
     const url = `${cleanUrl}/api/Donation/transfer-balance`
 
-    console.log("[DonationTransferService] URL final:", url)
 
     try {
       const response = await authFetch(url, {
@@ -42,7 +40,6 @@ export class DonationTransferService {
 
       // A API retorna o valor direto (ex: 564.33)
       const balance = await response.json()
-      console.log("[DonationTransferService] Saldo obtido:", balance)
 
       // Garantir que é um número
       const numericBalance = typeof balance === "number" ? balance : Number.parseFloat(balance) || 0
@@ -58,12 +55,10 @@ export class DonationTransferService {
    * Efetuar transferência
    */
   static async transfer(request: TransferRequest): Promise<TransferResponse> {
-    console.log("[DonationTransferService] Efetuando transferência...", request)
 
     const cleanUrl = this.cleanBaseUrl(BASE_URL)
     const url = `${cleanUrl}/api/Donation/transfer`
 
-    console.log("[DonationTransferService] URL final:", url)
 
     try {
       const response = await authFetch(url, {
@@ -80,7 +75,6 @@ export class DonationTransferService {
       }
 
       const data = await response.json()
-      console.log("[DonationTransferService] Transferência realizada:", data)
 
       return { success: true, ...data }
     } catch (error) {

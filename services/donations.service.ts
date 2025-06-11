@@ -39,7 +39,6 @@ class DonationsService {
     const endpoint = "/api/Donation/paid"
     const url = `${this.baseUrl}${endpoint}${params.toString() ? `?${params.toString()}` : ""}`
 
-    console.log(`🔄 [DonationsService] URL final: ${url}`)
 
     try {
       const response = await authFetch(url)
@@ -49,7 +48,6 @@ class DonationsService {
       }
 
       const data = await response.json()
-      console.log(`✅ [DonationsService] ${data.items?.length || 0} ofertas encontradas`)
 
       return data
     } catch (error) {

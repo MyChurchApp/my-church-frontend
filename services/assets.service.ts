@@ -73,15 +73,12 @@ export interface AssetFilters {
 
 // Função para fazer requisições com autenticação
 async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  console.log(`🔗 API Request para: ${API_BASE_URL}${endpoint}`)
-  console.log(`📋 Método: ${options.method || "GET"}`)
   return authFetchJson<T>(`${API_BASE_URL}${endpoint}`, options)
 }
 
 // ==================== EXPORTAÇÕES PRINCIPAIS ====================
 
 export async function createAsset(data: CreateAssetRequest): Promise<Asset> {
-  console.log("🏢 Criando ativo:", data)
   return apiRequest<Asset>("/Asset", {
     method: "POST",
     body: JSON.stringify(data),
@@ -89,7 +86,6 @@ export async function createAsset(data: CreateAssetRequest): Promise<Asset> {
 }
 
 export async function getAssets(filters: AssetFilters = {}): Promise<AssetsResponse> {
-  console.log("📋 Buscando lista de ativos com filtros:", filters)
 
   const params = new URLSearchParams()
 
@@ -163,12 +159,10 @@ export async function getAssets(filters: AssetFilters = {}): Promise<AssetsRespo
 }
 
 export async function getAssetById(id: number): Promise<Asset> {
-  console.log(`🔍 Buscando ativo ID: ${id}`)
   return apiRequest<Asset>(`/Asset/${id}`)
 }
 
 export async function updateAsset(id: number, data: CreateAssetRequest): Promise<Asset> {
-  console.log(`✏️ Atualizando ativo ID ${id}:`, data)
   return apiRequest<Asset>(`/Asset/${id}`, {
     method: "PUT",
     body: JSON.stringify(data),
@@ -176,7 +170,6 @@ export async function updateAsset(id: number, data: CreateAssetRequest): Promise
 }
 
 export async function deleteAsset(id: number): Promise<void> {
-  console.log(`🗑️ Excluindo ativo ID: ${id}`)
   return apiRequest<void>(`/Asset/${id}`, {
     method: "DELETE",
   })

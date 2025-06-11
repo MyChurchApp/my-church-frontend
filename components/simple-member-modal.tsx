@@ -49,8 +49,6 @@ export default function SimpleMemberModal({ onMemberCreated }: SimpleMemberModal
       throw new Error("Token de autenticação não encontrado")
     }
 
-    console.log("=== DADOS ENVIADOS ===")
-    console.log(JSON.stringify(memberData, null, 2))
 
     const response = await fetch("https://demoapp.top1soft.com.br/api/Member", {
       method: "POST",
@@ -62,12 +60,9 @@ export default function SimpleMemberModal({ onMemberCreated }: SimpleMemberModal
       body: JSON.stringify(memberData),
     })
 
-    console.log("=== RESPOSTA ===")
-    console.log("Status:", response.status)
 
     if (!response.ok) {
       const errorText = await response.text()
-      console.log("Erro:", errorText)
 
       let errorMessage = `Erro ${response.status}`
 

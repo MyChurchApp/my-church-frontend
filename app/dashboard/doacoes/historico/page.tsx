@@ -1,72 +1,89 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { donationsService, type DonationsFilters, type PaidDonationsResponse } from "@/services/donations.service"
-import { DonationsFiltersComponent } from "@/components/donations/donations-filters"
-import { DonationsTable } from "@/components/donations/donations-table"
-import { DonationsPagination } from "@/components/donations/donations-pagination"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Button } from "@/components/ui/button"
-import { RefreshCw, AlertCircle, DollarSign, TrendingUp, Calendar, CreditCard, ArrowLeft, Heart } from "lucide-react"
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import {
+  donationsService,
+  type DonationsFilters,
+  type PaidDonationsResponse,
+} from "@/services/donations.service";
+import { DonationsFiltersComponent } from "@/components/donations/donations-filters";
+import { DonationsTable } from "@/components/donations/donations-table";
+import { DonationsPagination } from "@/components/donations/donations-pagination";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import {
+  RefreshCw,
+  AlertCircle,
+  DollarSign,
+  TrendingUp,
+  Calendar,
+  CreditCard,
+  ArrowLeft,
+  Heart,
+} from "lucide-react";
 
 export default function DonationsHistoryPage() {
-  const router = useRouter()
-  const [donationsData, setDonationsData] = useState<PaidDonationsResponse | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const router = useRouter();
+  const [donationsData, setDonationsData] =
+    useState<PaidDonationsResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<DonationsFilters>({
     page: 1,
     pageSize: 10,
-  })
+  });
 
   const loadDonations = async (newFilters: DonationsFilters = filters) => {
-    setIsLoading(true)
-    setError(null)
+    setIsLoading(true);
+    setError(null);
 
     try {
-      console.log("🔄 Carregando ofertas com filtros:", newFilters)
-      const data = await donationsService.getPaidDonations(newFilters)
-      setDonationsData(data)
-      setFilters(newFilters)
+      const data = await donationsService.getPaidDonations(newFilters);
+      setDonationsData(data);
+      setFilters(newFilters);
     } catch (err) {
-      console.error("❌ Erro ao carregar ofertas:", err)
-      setError("Ops, tente mais tarde")
-      setDonationsData(null)
+      console.error("❌ Erro ao carregar ofertas:", err);
+      setError("Ops, tente mais tarde");
+      setDonationsData(null);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
-    loadDonations()
-  }, [])
+    loadDonations();
+  }, []);
 
   const handleFiltersChange = (newFilters: DonationsFilters) => {
-    loadDonations(newFilters)
-  }
+    loadDonations(newFilters);
+  };
 
   const handlePageChange = (page: number) => {
-    const newFilters = { ...filters, page }
-    loadDonations(newFilters)
-  }
+    const newFilters = { ...filters, page };
+    loadDonations(newFilters);
+  };
 
   const handleRetry = () => {
-    loadDonations()
-  }
+    loadDonations();
+  };
 
   const handleGoToDonations = () => {
-    router.push("/dashboard/doacoes")
-  }
+    router.push("/dashboard/doacoes");
+  };
 
   const handleGoBack = () => {
-    router.back()
-  }
+    router.back();
+  };
 
   // Calcular estatísticas usando os campos corretos da API
-  const totalValue = donationsData?.items.reduce((sum, donation) => sum + donation.amount, 0) || 0
-  const averageValue = donationsData?.items.length ? totalValue / donationsData.items.length : 0
+  const totalValue =
+    donationsData?.items.reduce((sum, donation) => sum + donation.amount, 0) ||
+    0;
+  const averageValue = donationsData?.items.length
+    ? totalValue / donationsData.items.length
+    : 0;
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -79,12 +96,21 @@ export default function DonationsHistoryPage() {
                 <DollarSign className="h-8 w-8 text-green-600" />
                 Histórico de Ofertas
               </h1>
-              <p className="text-gray-600 mt-2">Visualize todas as suas ofertas pagas e confirmadas</p>
+              <p className="text-gray-600 mt-2">
+                Visualize todas as suas ofertas pagas e confirmadas
+              </p>
             </div>
 
             <div className="flex gap-2">
-              <Button onClick={handleRetry} disabled={isLoading} variant="outline" className="flex items-center gap-2">
-                <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+              <Button
+                onClick={handleRetry}
+                disabled={isLoading}
+                variant="outline"
+                className="flex items-center gap-2"
+              >
+                <RefreshCw
+                  className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
+                />
                 Atualizar
               </Button>
             </div>
@@ -93,12 +119,19 @@ export default function DonationsHistoryPage() {
 
         {/* Botões de Navegação */}
         <div className="mb-6 flex flex-col sm:flex-row gap-3">
-          <Button onClick={handleGoBack} variant="outline" className="flex items-center gap-2">
+          <Button
+            onClick={handleGoBack}
+            variant="outline"
+            className="flex items-center gap-2"
+          >
             <ArrowLeft className="h-4 w-4" />
             Voltar
           </Button>
 
-          <Button onClick={handleGoToDonations} className="flex items-center gap-2 bg-green-600 hover:bg-green-700">
+          <Button
+            onClick={handleGoToDonations}
+            className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+          >
             <Heart className="h-4 w-4" />
             Fazer Oferta
           </Button>
@@ -111,7 +144,12 @@ export default function DonationsHistoryPage() {
               <AlertCircle className="h-4 w-4" />
               <AlertDescription className="flex items-center justify-between">
                 <span>{error}</span>
-                <Button onClick={handleRetry} variant="outline" size="sm" className="ml-4">
+                <Button
+                  onClick={handleRetry}
+                  variant="outline"
+                  size="sm"
+                  className="ml-4"
+                >
                   Tentar novamente
                 </Button>
               </AlertDescription>
@@ -133,7 +171,9 @@ export default function DonationsHistoryPage() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold text-green-600">{donationsData.totalCount}</div>
+                    <div className="text-2xl font-bold text-green-600">
+                      {donationsData.totalCount}
+                    </div>
                   </CardContent>
                 </Card>
 
@@ -183,12 +223,18 @@ export default function DonationsHistoryPage() {
 
             {/* Filtros */}
             <div className="mb-6">
-              <DonationsFiltersComponent onFiltersChange={handleFiltersChange} isLoading={isLoading} />
+              <DonationsFiltersComponent
+                onFiltersChange={handleFiltersChange}
+                isLoading={isLoading}
+              />
             </div>
 
             {/* Tabela */}
             <div className="mb-6">
-              <DonationsTable donations={donationsData?.items || []} isLoading={isLoading} />
+              <DonationsTable
+                donations={donationsData?.items || []}
+                isLoading={isLoading}
+              />
             </div>
 
             {/* Paginação */}
@@ -206,5 +252,5 @@ export default function DonationsHistoryPage() {
         )}
       </div>
     </div>
-  )
+  );
 }

@@ -189,11 +189,6 @@ export function FeedSectionContainer({ user }: FeedSectionContainerProps) {
 
     setIsSavingEdit(true);
     try {
-      console.log("🔄 Editando post:", {
-        postId: editingPost.id,
-        newContent: editPostContent,
-      });
-
       const updatedPost = await updateFeedPost(editingPost.id, editPostContent);
 
       // ✅ CORRIGIDO: Atualizar com dados completos do post
@@ -267,16 +262,6 @@ export function FeedSectionContainer({ user }: FeedSectionContainerProps) {
     // ✅ CORRIGIDO: Comparar IDs como string
     const isOwner = currentUserId === item.memberId.toString();
     const canEdit = canEditOrDeletePost(item.created);
-
-    console.log("🔍 Verificando permissões:", {
-      currentUserId,
-      postMemberId: item.memberId,
-      postMemberIdString: item.memberId.toString(),
-      isOwner,
-      canEdit,
-      postCreated: item.created,
-      result: isOwner && canEdit,
-    });
 
     return isOwner && canEdit;
   };

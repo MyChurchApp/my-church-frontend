@@ -289,7 +289,6 @@ export const createMemberAPI = async (memberData: any): Promise<ApiMember> => {
       throw new Error("CPF é obrigatório");
     }
 
-    console.log(
       "Dados enviados para API:",
       JSON.stringify(memberData, null, 2)
     );
@@ -309,7 +308,6 @@ export const createMemberAPI = async (memberData: any): Promise<ApiMember> => {
       document: documents, // ✅ CORRIGIDO: Array de objetos
     };
 
-    console.log("Documentos preparados:", JSON.stringify(documents, null, 2));
 
     const response = await fetch("https://demoapp.top1soft.com.br/api/Member", {
       method: "POST",
@@ -321,7 +319,6 @@ export const createMemberAPI = async (memberData: any): Promise<ApiMember> => {
       body: JSON.stringify(apiData),
     });
 
-    console.log("Status da resposta:", response.status);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -330,7 +327,6 @@ export const createMemberAPI = async (memberData: any): Promise<ApiMember> => {
     }
 
     const data = await response.json();
-    console.log("Resposta da API (sucesso):", data);
 
     // Verificar se a resposta contém os dados esperados
     if (!data || typeof data !== "object") {
@@ -392,12 +388,9 @@ export const updateMemberAPI = async (
       photo: memberData.photo || "",
     };
 
-    console.log(
       "Dados originais recebidos:",
       JSON.stringify(memberData, null, 2)
     );
-    console.log("Documentos preparados:", JSON.stringify(documents, null, 2));
-    console.log(
       "Dados convertidos para API:",
       JSON.stringify(updateData, null, 2)
     );
@@ -488,12 +481,10 @@ export const createFeedPost = async (content: string): Promise<ApiFeedItem> => {
       }
     );
 
-    console.log("Resposta da API ao criar post:", response);
 
     // A API retorna apenas o ID do post criado
     if (typeof response === "number") {
       const postId = response;
-      console.log("Post criado com ID:", postId);
 
       // Buscar o feed atualizado para encontrar o post completo
       try {
@@ -652,7 +643,6 @@ export const createFeedPostWithFallback = async (
         });
 
         if (recentPost) {
-          console.log("Post foi criado com sucesso, encontrado no feed");
           return recentPost;
         }
       }

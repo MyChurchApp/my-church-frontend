@@ -1,21 +1,32 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { Sidebar } from "@/components/sidebar"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Switch } from "@/components/ui/switch"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Sidebar } from "@/components/sidebar";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Switch } from "@/components/ui/switch";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Users,
   Plus,
@@ -36,8 +47,8 @@ import {
   Loader2,
   AlertCircle,
   Trash2,
-} from "lucide-react"
-import { getUser, type User } from "@/lib/fake-api"
+} from "lucide-react";
+import { getUser, type User } from "@/lib/fake-api";
 import {
   getMembersFromAPI,
   createMemberAPI,
@@ -45,28 +56,28 @@ import {
   deleteMemberAPI,
   convertApiMemberToLocal,
   convertLocalMemberToApi,
-} from "@/lib/api"
-import { toast } from "@/hooks/use-toast"
+} from "@/lib/api";
+import { toast } from "@/hooks/use-toast";
 
 export default function MembrosPage() {
-  const router = useRouter()
-  const [user, setUser] = useState<User | null>(null)
-  const [members, setMembers] = useState<any[]>([])
-  const [filteredMembers, setFilteredMembers] = useState<any[]>([])
-  const [searchTerm, setSearchTerm] = useState("")
-  const [statusFilter, setStatusFilter] = useState<string>("all")
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
-  const [selectedMember, setSelectedMember] = useState<any | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
+  const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
+  const [members, setMembers] = useState<any[]>([]);
+  const [filteredMembers, setFilteredMembers] = useState<any[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<any | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   // Paginação
-  const [currentPage, setCurrentPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
-  const [totalCount, setTotalCount] = useState(0)
-  const pageSize = 20
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const pageSize = 20;
 
   // Form state for new/edit member
   const [memberForm, setMemberForm] = useState({
@@ -94,91 +105,93 @@ export default function MembrosPage() {
     roleMember: 0,
     isActive: true,
     notes: "",
-  })
+  });
 
   // Listener para erros 500
 
   // Função para converter imagem para base64
   const convertImageToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.readAsDataURL(file)
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
       reader.onload = () => {
-        const base64String = reader.result as string
-        const base64 = base64String.split(",")[1]
-        resolve(base64)
-      }
-      reader.onerror = (error) => reject(error)
-    })
-  }
+        const base64String = reader.result as string;
+        const base64 = base64String.split(",")[1];
+        resolve(base64);
+      };
+      reader.onerror = (error) => reject(error);
+    });
+  };
 
   useEffect(() => {
-    const userData = getUser()
+    const userData = getUser();
     if (!userData) {
-      router.push("/login")
-      return
+      router.push("/login");
+      return;
     }
 
-    setUser(userData)
-    loadMembers()
-  }, [router, currentPage])
+    setUser(userData);
+    loadMembers();
+  }, [router, currentPage]);
 
   const loadMembers = async () => {
     try {
-      setLoading(true)
-      setError(null)
+      setLoading(true);
+      setError(null);
 
-      const response = await getMembersFromAPI(currentPage, pageSize)
-      const convertedMembers = response.items.map(convertApiMemberToLocal)
+      const response = await getMembersFromAPI(currentPage, pageSize);
+      const convertedMembers = response.items.map(convertApiMemberToLocal);
 
-      setMembers(convertedMembers)
-      setFilteredMembers(convertedMembers)
-      setTotalPages(response.totalPages)
-      setTotalCount(response.totalCount)
+      setMembers(convertedMembers);
+      setFilteredMembers(convertedMembers);
+      setTotalPages(response.totalPages);
+      setTotalCount(response.totalCount);
     } catch (error: any) {
-      console.error("Erro ao carregar membros:", error)
+      console.error("Erro ao carregar membros:", error);
 
-      let errorMessage = "Erro ao carregar membros"
+      let errorMessage = "Erro ao carregar membros";
       if (error.message) {
         if (error.message.includes("401")) {
-          errorMessage = "Não autorizado. Faça login novamente."
+          errorMessage = "Não autorizado. Faça login novamente.";
           setTimeout(() => {
-            router.push("/login")
-          }, 2000)
+            router.push("/login");
+          }, 2000);
         } else if (!error.message.includes("Erro interno do servidor")) {
-          errorMessage = error.message
+          errorMessage = error.message;
         }
       }
 
       if (!error.message.includes("Erro interno do servidor")) {
-        setError(errorMessage)
+        setError(errorMessage);
       }
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
-    let filtered = members
+    let filtered = members;
 
     if (searchTerm) {
       filtered = filtered.filter(
         (member) =>
           member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          member.email.toLowerCase().includes(searchTerm.toLowerCase()),
-      )
+          member.email.toLowerCase().includes(searchTerm.toLowerCase())
+      );
     }
 
     if (statusFilter !== "all") {
-      filtered = filtered.filter((member) => (statusFilter === "active" ? member.isActive : !member.isActive))
+      filtered = filtered.filter((member) =>
+        statusFilter === "active" ? member.isActive : !member.isActive
+      );
     }
 
-    setFilteredMembers(filtered)
-  }, [members, searchTerm, statusFilter])
+    setFilteredMembers(filtered);
+  }, [members, searchTerm, statusFilter]);
 
   const generateMembersPDFReport = () => {
-    const activeMembers = members.filter((member) => member.isActive)
-    const inactiveMembers = members.filter((member) => !member.isActive)
+    const activeMembers = members.filter((member) => member.isActive);
+    const inactiveMembers = members.filter((member) => !member.isActive);
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -203,7 +216,9 @@ export default function MembrosPage() {
         <div class="header">
           <h1>RELATÓRIO DE MEMBROS</h1>
           <p>Igreja Batista Central</p>
-          <p>Gerado em: ${new Date().toLocaleDateString("pt-BR")} às ${new Date().toLocaleTimeString("pt-BR")}</p>
+          <p>Gerado em: ${new Date().toLocaleDateString(
+            "pt-BR"
+          )} às ${new Date().toLocaleTimeString("pt-BR")}</p>
         </div>
 
         <div class="summary">
@@ -211,7 +226,11 @@ export default function MembrosPage() {
           <p><strong>Total de Membros:</strong> ${totalCount}</p>
           <p><strong>Membros Ativos:</strong> ${activeMembers.length}</p>
           <p><strong>Membros Inativos:</strong> ${inactiveMembers.length}</p>
-          <p><strong>Taxa de Atividade:</strong> ${totalCount > 0 ? ((activeMembers.length / totalCount) * 100).toFixed(1) : 0}%</p>
+          <p><strong>Taxa de Atividade:</strong> ${
+            totalCount > 0
+              ? ((activeMembers.length / totalCount) * 100).toFixed(1)
+              : 0
+          }%</p>
         </div>
 
         <div class="member-section">
@@ -220,21 +239,45 @@ export default function MembrosPage() {
             .map(
               (member) => `
             <div class="member-item">
-              <div class="member-name">${member.name} <span class="status-active">[ATIVO]</span></div>
+              <div class="member-name">${
+                member.name
+              } <span class="status-active">[ATIVO]</span></div>
               <div class="member-details">
                 <p><strong>Email:</strong> ${member.email}</p>
                 <p><strong>Telefone:</strong> ${member.phone}</p>
                 <p><strong>CPF:</strong> ${member.cpf}</p>
-                <p><strong>Data de Nascimento:</strong> ${member.birthDate ? new Date(member.birthDate).toLocaleDateString("pt-BR") : "Não informado"}</p>
-                <p><strong>Estado Civil:</strong> ${member.maritalStatus || "Não informado"}</p>
-                <p><strong>Endereço:</strong> ${member.address || "Não informado"}, ${member.city || ""} - ${member.state || ""}, ${member.zipCode || ""}</p>
-                <p><strong>Membro desde:</strong> ${member.memberSince ? new Date(member.memberSince).toLocaleDateString("pt-BR") : "Não informado"}</p>
-                <p><strong>Ministério:</strong> ${member.ministry || "Não informado"}</p>
-                <p><strong>Batizado:</strong> ${member.baptized ? "Sim" : "Não"}</p>
-                ${member.notes ? `<p><strong>Observações:</strong> ${member.notes}</p>` : ""}
+                <p><strong>Data de Nascimento:</strong> ${
+                  member.birthDate
+                    ? new Date(member.birthDate).toLocaleDateString("pt-BR")
+                    : "Não informado"
+                }</p>
+                <p><strong>Estado Civil:</strong> ${
+                  member.maritalStatus || "Não informado"
+                }</p>
+                <p><strong>Endereço:</strong> ${
+                  member.address || "Não informado"
+                }, ${member.city || ""} - ${member.state || ""}, ${
+                member.zipCode || ""
+              }</p>
+                <p><strong>Membro desde:</strong> ${
+                  member.memberSince
+                    ? new Date(member.memberSince).toLocaleDateString("pt-BR")
+                    : "Não informado"
+                }</p>
+                <p><strong>Ministério:</strong> ${
+                  member.ministry || "Não informado"
+                }</p>
+                <p><strong>Batizado:</strong> ${
+                  member.baptized ? "Sim" : "Não"
+                }</p>
+                ${
+                  member.notes
+                    ? `<p><strong>Observações:</strong> ${member.notes}</p>`
+                    : ""
+                }
               </div>
             </div>
-          `,
+          `
             )
             .join("")}
         </div>
@@ -248,15 +291,25 @@ export default function MembrosPage() {
             .map(
               (member) => `
             <div class="member-item">
-              <div class="member-name">${member.name} <span class="status-inactive">[INATIVO]</span></div>
+              <div class="member-name">${
+                member.name
+              } <span class="status-inactive">[INATIVO]</span></div>
               <div class="member-details">
                 <p><strong>Email:</strong> ${member.email}</p>
                 <p><strong>Telefone:</strong> ${member.phone}</p>
-                <p><strong>Membro desde:</strong> ${member.memberSince ? new Date(member.memberSince).toLocaleDateString("pt-BR") : "Não informado"}</p>
-                ${member.notes ? `<p><strong>Observações:</strong> ${member.notes}</p>` : ""}
+                <p><strong>Membro desde:</strong> ${
+                  member.memberSince
+                    ? new Date(member.memberSince).toLocaleDateString("pt-BR")
+                    : "Não informado"
+                }</p>
+                ${
+                  member.notes
+                    ? `<p><strong>Observações:</strong> ${member.notes}</p>`
+                    : ""
+                }
               </div>
             </div>
-          `,
+          `
             )
             .join("")}
         </div>
@@ -265,250 +318,250 @@ export default function MembrosPage() {
         }
       </body>
       </html>
-    `
+    `;
 
-    const blob = new Blob([htmlContent], { type: "text/html;charset=utf-8" })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement("a")
-    link.href = url
-    link.download = `relatorio-membros-${new Date().toISOString().split("T")[0]}.html`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
+    const blob = new Blob([htmlContent], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `relatorio-membros-${
+      new Date().toISOString().split("T")[0]
+    }.html`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
 
     toast({
       title: "Relatório gerado!",
       description:
         "Para converter para PDF: abra o arquivo HTML baixado e use Ctrl+P (ou Cmd+P no Mac), depois selecione 'Salvar como PDF'",
-    })
-  }
+    });
+  };
 
   const handleCreateMember = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     // Validação básica
     if (!memberForm.name.trim()) {
-      setError("Nome é obrigatório")
-      return
+      setError("Nome é obrigatório");
+      return;
     }
 
     if (!memberForm.email.trim()) {
-      setError("Email é obrigatório")
-      return
+      setError("Email é obrigatório");
+      return;
     }
 
     if (!memberForm.phone.trim()) {
-      setError("Telefone é obrigatório")
-      return
+      setError("Telefone é obrigatório");
+      return;
     }
 
     if (!memberForm.document.trim()) {
-      setError("Documento (CPF) é obrigatório")
-      return
+      setError("Documento (CPF) é obrigatório");
+      return;
     }
 
     if (!memberForm.birthDate.trim()) {
-      setError("Data de nascimento é obrigatória")
-      return
+      setError("Data de nascimento é obrigatória");
+      return;
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(memberForm.email.trim())) {
-      setError("Email deve ter um formato válido")
-      return
+      setError("Email deve ter um formato válido");
+      return;
     }
 
-    const cpfRegex = /^\d{11}$|^\d{3}\.\d{3}\.\d{3}-\d{2}$/
+    const cpfRegex = /^\d{11}$|^\d{3}\.\d{3}\.\d{3}-\d{2}$/;
     if (!cpfRegex.test(memberForm.document.trim())) {
-      setError("CPF deve ter 11 dígitos ou formato 000.000.000-00")
-      return
+      setError("CPF deve ter 11 dígitos ou formato 000.000.000-00");
+      return;
     }
 
     try {
-      setSubmitting(true)
-      setError(null)
+      setSubmitting(true);
+      setError(null);
 
-      console.log("Dados do formulário antes da conversão:", memberForm)
+      const apiMemberData = convertLocalMemberToApi(memberForm);
 
-      const apiMemberData = convertLocalMemberToApi(memberForm)
-      console.log("Dados convertidos para API:", apiMemberData)
-
-      const newApiMember = await createMemberAPI(apiMemberData)
-      console.log("Resposta da API:", newApiMember)
+      const newApiMember = await createMemberAPI(apiMemberData);
 
       if (!newApiMember) {
-        throw new Error("API retornou dados vazios")
+        throw new Error("API retornou dados vazios");
       }
 
-      const newMember = convertApiMemberToLocal(newApiMember)
-      console.log("Membro convertido:", newMember)
+      const newMember = convertApiMemberToLocal(newApiMember);
 
-      setMembers([newMember, ...members])
-      resetForm()
-      setIsCreateDialogOpen(false)
+      setMembers([newMember, ...members]);
+      resetForm();
+      setIsCreateDialogOpen(false);
 
       toast({
         title: "Membro cadastrado!",
         description: `${newMember.name} foi cadastrado com sucesso.`,
-      })
+      });
 
       // Recarregar a lista para garantir sincronização
-      await loadMembers()
+      await loadMembers();
     } catch (error: any) {
-      console.error("Erro detalhado ao criar membro:", error)
+      console.error("Erro detalhado ao criar membro:", error);
 
       if (!error.message.includes("Erro interno do servidor")) {
-        let errorMessage = "Erro ao criar membro"
+        let errorMessage = "Erro ao criar membro";
         if (error.message) {
           if (error.message.includes("400")) {
-            errorMessage = "Dados inválidos. Verifique os campos obrigatórios."
+            errorMessage = "Dados inválidos. Verifique os campos obrigatórios.";
           } else if (error.message.includes("401")) {
-            errorMessage = "Não autorizado. Faça login novamente."
+            errorMessage = "Não autorizado. Faça login novamente.";
           } else if (error.message.includes("Resposta da API inválida")) {
-            errorMessage = "Erro na resposta do servidor. Tente novamente."
+            errorMessage = "Erro na resposta do servidor. Tente novamente.";
           } else {
-            errorMessage = error.message
+            errorMessage = error.message;
           }
         }
-        setError(errorMessage)
+        setError(errorMessage);
       }
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
+  };
 
   const handleEditMember = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     if (!selectedMember) {
-      setError("Nenhum membro selecionado")
-      return
+      setError("Nenhum membro selecionado");
+      return;
     }
 
     // Validação básica (mesma do create)
     if (!memberForm.name.trim()) {
-      setError("Nome é obrigatório")
-      return
+      setError("Nome é obrigatório");
+      return;
     }
 
     if (!memberForm.email.trim()) {
-      setError("Email é obrigatório")
-      return
+      setError("Email é obrigatório");
+      return;
     }
 
     if (!memberForm.phone.trim()) {
-      setError("Telefone é obrigatório")
-      return
+      setError("Telefone é obrigatório");
+      return;
     }
 
     if (!memberForm.document.trim()) {
-      setError("Documento (CPF) é obrigatório")
-      return
+      setError("Documento (CPF) é obrigatório");
+      return;
     }
 
     if (!memberForm.birthDate.trim()) {
-      setError("Data de nascimento é obrigatória")
-      return
+      setError("Data de nascimento é obrigatória");
+      return;
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(memberForm.email.trim())) {
-      setError("Email deve ter um formato válido")
-      return
+      setError("Email deve ter um formato válido");
+      return;
     }
 
-    const cpfRegex = /^\d{11}$|^\d{3}\.\d{3}\.\d{3}-\d{2}$/
+    const cpfRegex = /^\d{11}$|^\d{3}\.\d{3}\.\d{3}-\d{2}$/;
     if (!cpfRegex.test(memberForm.document.trim())) {
-      setError("CPF deve ter 11 dígitos ou formato 000.000.000-00")
-      return
+      setError("CPF deve ter 11 dígitos ou formato 000.000.000-00");
+      return;
     }
 
     try {
-      setSubmitting(true)
-      setError(null)
+      setSubmitting(true);
+      setError(null);
 
-      console.log("Dados do formulário (edit):", memberForm)
+      const apiMemberData = convertLocalMemberToApi(memberForm);
 
-      const apiMemberData = convertLocalMemberToApi(memberForm)
-      console.log("Dados convertidos para API (edit):", apiMemberData)
-
-      const updatedApiMember = await updateMemberAPI(Number.parseInt(selectedMember.id), apiMemberData)
-      console.log("Resposta da API (edit):", updatedApiMember)
+      const updatedApiMember = await updateMemberAPI(
+        Number.parseInt(selectedMember.id),
+        apiMemberData
+      );
 
       if (!updatedApiMember) {
-        throw new Error("API retornou dados vazios")
+        throw new Error("API retornou dados vazios");
       }
 
-      const updatedMember = convertApiMemberToLocal(updatedApiMember)
-      console.log("Membro atualizado:", updatedMember)
+      const updatedMember = convertApiMemberToLocal(updatedApiMember);
 
-      setMembers(members.map((member) => (member.id === selectedMember.id ? updatedMember : member)))
-      resetForm()
-      setSelectedMember(null)
-      setIsEditDialogOpen(false)
+      setMembers(
+        members.map((member) =>
+          member.id === selectedMember.id ? updatedMember : member
+        )
+      );
+      resetForm();
+      setSelectedMember(null);
+      setIsEditDialogOpen(false);
 
       toast({
         title: "Membro atualizado!",
         description: `${updatedMember.name} foi atualizado com sucesso.`,
-      })
+      });
 
       // Recarregar a lista para garantir sincronização
-      await loadMembers()
+      await loadMembers();
     } catch (error: any) {
-      console.error("Erro ao editar membro:", error)
+      console.error("Erro ao editar membro:", error);
 
       if (!error.message.includes("Erro interno do servidor")) {
-        let errorMessage = "Erro ao editar membro"
+        let errorMessage = "Erro ao editar membro";
         if (error.message) {
           if (error.message.includes("400")) {
-            errorMessage = "Dados inválidos. Verifique os campos obrigatórios."
+            errorMessage = "Dados inválidos. Verifique os campos obrigatórios.";
           } else if (error.message.includes("401")) {
-            errorMessage = "Não autorizado. Faça login novamente."
+            errorMessage = "Não autorizado. Faça login novamente.";
           } else if (error.message.includes("404")) {
-            errorMessage = "Membro não encontrado."
+            errorMessage = "Membro não encontrado.";
           } else if (error.message.includes("Resposta da API inválida")) {
-            errorMessage = "Erro na resposta do servidor. Tente novamente."
+            errorMessage = "Erro na resposta do servidor. Tente novamente.";
           } else {
-            errorMessage = error.message
+            errorMessage = error.message;
           }
         }
-        setError(errorMessage)
+        setError(errorMessage);
       }
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
+  };
 
   const handleDeleteMember = async (member: any) => {
-    if (!confirm(`Tem certeza que deseja excluir o membro ${member.name}?`)) return
+    if (!confirm(`Tem certeza que deseja excluir o membro ${member.name}?`))
+      return;
 
     try {
-      setSubmitting(true)
-      setError(null)
+      setSubmitting(true);
+      setError(null);
 
-      await deleteMemberAPI(Number.parseInt(member.id))
-      setMembers(members.filter((m) => m.id !== member.id))
+      await deleteMemberAPI(Number.parseInt(member.id));
+      setMembers(members.filter((m) => m.id !== member.id));
 
       toast({
         title: "Membro excluído!",
         description: `${member.name} foi excluído com sucesso.`,
-      })
+      });
 
-      await loadMembers()
+      await loadMembers();
     } catch (error: any) {
-      console.error("Erro ao deletar membro:", error)
+      console.error("Erro ao deletar membro:", error);
 
       if (!error.message.includes("Erro interno do servidor")) {
-        setError(error.message || "Erro ao deletar membro")
+        setError(error.message || "Erro ao deletar membro");
       }
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
+  };
 
   const openEditDialog = (member: any) => {
-    setSelectedMember(member)
+    setSelectedMember(member);
     setMemberForm({
       name: member.name,
       email: member.email,
@@ -534,9 +587,9 @@ export default function MembrosPage() {
       roleMember: 0,
       isActive: member.isActive,
       notes: member.notes || "",
-    })
-    setIsEditDialogOpen(true)
-  }
+    });
+    setIsEditDialogOpen(true);
+  };
 
   const resetForm = () => {
     setMemberForm({
@@ -564,24 +617,24 @@ export default function MembrosPage() {
       roleMember: 0,
       isActive: true,
       notes: "",
-    })
-  }
+    });
+  };
 
   const handleSendPasswordReset = (member: any) => {
     toast({
       title: "Email enviado!",
       description: `Email de recuperação de senha enviado para ${member.email}`,
-    })
-  }
+    });
+  };
 
   const handleGenerateNewPassword = (member: any) => {
-    const newPassword = Math.random().toString(36).slice(-8)
+    const newPassword = Math.random().toString(36).slice(-8);
     toast({
       title: "Nova senha gerada!",
       description: `Nova senha para ${member.name}: ${newPassword}`,
       duration: 10000,
-    })
-  }
+    });
+  };
 
   const getStatusBadge = (isActive: boolean) => {
     return isActive ? (
@@ -594,15 +647,15 @@ export default function MembrosPage() {
         <UserX className="h-3 w-3 mr-1" />
         Inativo
       </Badge>
-    )
-  }
+    );
+  };
 
   const handlePageChange = (page: number) => {
-    setCurrentPage(page)
-  }
+    setCurrentPage(page);
+  };
 
   if (!user) {
-    return <div>Carregando...</div>
+    return <div>Carregando...</div>;
   }
 
   return (
@@ -620,12 +673,19 @@ export default function MembrosPage() {
             <div className="flex gap-2">
               {user.accessLevel === "admin" && (
                 <>
-                  <Button onClick={generateMembersPDFReport} variant="outline" className="flex items-center gap-2">
+                  <Button
+                    onClick={generateMembersPDFReport}
+                    variant="outline"
+                    className="flex items-center gap-2"
+                  >
                     <Download className="h-4 w-4" />
                     Relatório PDF
                   </Button>
                   {/* ✅ CORRIGIDO: Botão separado do Dialog para abrir o modal */}
-                  <Button onClick={() => setIsCreateDialogOpen(true)} className="flex items-center gap-2">
+                  <Button
+                    onClick={() => setIsCreateDialogOpen(true)}
+                    className="flex items-center gap-2"
+                  >
                     <Plus className="h-4 w-4" />
                     Novo Membro
                   </Button>
@@ -658,7 +718,9 @@ export default function MembrosPage() {
                   <Input
                     id="member-name"
                     value={memberForm.name}
-                    onChange={(e) => setMemberForm({ ...memberForm, name: e.target.value })}
+                    onChange={(e) =>
+                      setMemberForm({ ...memberForm, name: e.target.value })
+                    }
                     placeholder="Nome completo"
                     required
                   />
@@ -668,7 +730,9 @@ export default function MembrosPage() {
                   <Input
                     id="member-document"
                     value={memberForm.document}
-                    onChange={(e) => setMemberForm({ ...memberForm, document: e.target.value })}
+                    onChange={(e) =>
+                      setMemberForm({ ...memberForm, document: e.target.value })
+                    }
                     placeholder="000.000.000-00"
                     required
                   />
@@ -685,7 +749,9 @@ export default function MembrosPage() {
                     <Input
                       id="rg"
                       value={memberForm.rg}
-                      onChange={(e) => setMemberForm({ ...memberForm, rg: e.target.value })}
+                      onChange={(e) =>
+                        setMemberForm({ ...memberForm, rg: e.target.value })
+                      }
                       placeholder="00.000.000-0"
                     />
                   </div>
@@ -695,7 +761,12 @@ export default function MembrosPage() {
                     <Input
                       id="tituloEleitor"
                       value={memberForm.tituloEleitor}
-                      onChange={(e) => setMemberForm({ ...memberForm, tituloEleitor: e.target.value })}
+                      onChange={(e) =>
+                        setMemberForm({
+                          ...memberForm,
+                          tituloEleitor: e.target.value,
+                        })
+                      }
                       placeholder="0000 0000 0000"
                     />
                   </div>
@@ -707,17 +778,26 @@ export default function MembrosPage() {
                     <Input
                       id="cnh"
                       value={memberForm.cnh}
-                      onChange={(e) => setMemberForm({ ...memberForm, cnh: e.target.value })}
+                      onChange={(e) =>
+                        setMemberForm({ ...memberForm, cnh: e.target.value })
+                      }
                       placeholder="00000000000"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="certidaoNascimento">Certidão de Nascimento</Label>
+                    <Label htmlFor="certidaoNascimento">
+                      Certidão de Nascimento
+                    </Label>
                     <Input
                       id="certidaoNascimento"
                       value={memberForm.certidaoNascimento}
-                      onChange={(e) => setMemberForm({ ...memberForm, certidaoNascimento: e.target.value })}
+                      onChange={(e) =>
+                        setMemberForm({
+                          ...memberForm,
+                          certidaoNascimento: e.target.value,
+                        })
+                      }
                       placeholder="Número da certidão"
                     />
                   </div>
@@ -728,7 +808,12 @@ export default function MembrosPage() {
                   <Input
                     id="outrosDocumentos"
                     value={memberForm.outrosDocumentos}
-                    onChange={(e) => setMemberForm({ ...memberForm, outrosDocumentos: e.target.value })}
+                    onChange={(e) =>
+                      setMemberForm({
+                        ...memberForm,
+                        outrosDocumentos: e.target.value,
+                      })
+                    }
                     placeholder="Outros documentos"
                   />
                 </div>
@@ -743,16 +828,22 @@ export default function MembrosPage() {
                   onChange={async (e) => {
                     if (e.target.files && e.target.files[0]) {
                       try {
-                        const base64 = await convertImageToBase64(e.target.files[0])
-                        setMemberForm({ ...memberForm, photo: base64 })
+                        const base64 = await convertImageToBase64(
+                          e.target.files[0]
+                        );
+                        setMemberForm({ ...memberForm, photo: base64 });
                       } catch (error) {
-                        console.error("Erro ao converter imagem:", error)
-                        setError("Erro ao processar a imagem. Tente novamente.")
+                        console.error("Erro ao converter imagem:", error);
+                        setError(
+                          "Erro ao processar a imagem. Tente novamente."
+                        );
                       }
                     }
                   }}
                 />
-                <p className="text-xs text-muted-foreground">Opcional. Deixe em branco para não enviar foto.</p>
+                <p className="text-xs text-muted-foreground">
+                  Opcional. Deixe em branco para não enviar foto.
+                </p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -762,7 +853,9 @@ export default function MembrosPage() {
                     id="member-email"
                     type="email"
                     value={memberForm.email}
-                    onChange={(e) => setMemberForm({ ...memberForm, email: e.target.value })}
+                    onChange={(e) =>
+                      setMemberForm({ ...memberForm, email: e.target.value })
+                    }
                     placeholder="email@exemplo.com"
                     required
                   />
@@ -772,7 +865,9 @@ export default function MembrosPage() {
                   <Input
                     id="member-phone"
                     value={memberForm.phone}
-                    onChange={(e) => setMemberForm({ ...memberForm, phone: e.target.value })}
+                    onChange={(e) =>
+                      setMemberForm({ ...memberForm, phone: e.target.value })
+                    }
                     placeholder="(11) 99999-9999"
                     required
                   />
@@ -786,7 +881,12 @@ export default function MembrosPage() {
                     id="member-birth"
                     type="date"
                     value={memberForm.birthDate}
-                    onChange={(e) => setMemberForm({ ...memberForm, birthDate: e.target.value })}
+                    onChange={(e) =>
+                      setMemberForm({
+                        ...memberForm,
+                        birthDate: e.target.value,
+                      })
+                    }
                     required
                   />
                 </div>
@@ -794,7 +894,9 @@ export default function MembrosPage() {
                   <Label htmlFor="member-marital">Estado Civil</Label>
                   <Select
                     value={memberForm.maritalStatus}
-                    onValueChange={(value) => setMemberForm({ ...memberForm, maritalStatus: value })}
+                    onValueChange={(value) =>
+                      setMemberForm({ ...memberForm, maritalStatus: value })
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione" />
@@ -816,7 +918,12 @@ export default function MembrosPage() {
                     id="member-since"
                     type="date"
                     value={memberForm.memberSince}
-                    onChange={(e) => setMemberForm({ ...memberForm, memberSince: e.target.value })}
+                    onChange={(e) =>
+                      setMemberForm({
+                        ...memberForm,
+                        memberSince: e.target.value,
+                      })
+                    }
                   />
                 </div>
                 <div className="space-y-2">
@@ -824,7 +931,9 @@ export default function MembrosPage() {
                   <Input
                     id="member-ministry"
                     value={memberForm.ministry}
-                    onChange={(e) => setMemberForm({ ...memberForm, ministry: e.target.value })}
+                    onChange={(e) =>
+                      setMemberForm({ ...memberForm, ministry: e.target.value })
+                    }
                     placeholder="Ministério que participa"
                   />
                 </div>
@@ -834,7 +943,9 @@ export default function MembrosPage() {
                 <Switch
                   id="member-baptized"
                   checked={memberForm.isBaptized}
-                  onCheckedChange={(checked) => setMemberForm({ ...memberForm, isBaptized: checked })}
+                  onCheckedChange={(checked) =>
+                    setMemberForm({ ...memberForm, isBaptized: checked })
+                  }
                 />
                 <Label htmlFor="member-baptized">Batizado</Label>
               </div>
@@ -846,7 +957,12 @@ export default function MembrosPage() {
                     id="member-baptized-date"
                     type="date"
                     value={memberForm.baptizedDate}
-                    onChange={(e) => setMemberForm({ ...memberForm, baptizedDate: e.target.value })}
+                    onChange={(e) =>
+                      setMemberForm({
+                        ...memberForm,
+                        baptizedDate: e.target.value,
+                      })
+                    }
                   />
                 </div>
               )}
@@ -855,7 +971,9 @@ export default function MembrosPage() {
                 <Switch
                   id="member-tither"
                   checked={memberForm.isTither}
-                  onCheckedChange={(checked) => setMemberForm({ ...memberForm, isTither: checked })}
+                  onCheckedChange={(checked) =>
+                    setMemberForm({ ...memberForm, isTither: checked })
+                  }
                 />
                 <Label htmlFor="member-tither">Dizimista</Label>
               </div>
@@ -865,7 +983,9 @@ export default function MembrosPage() {
                 <Textarea
                   id="member-notes"
                   value={memberForm.notes}
-                  onChange={(e) => setMemberForm({ ...memberForm, notes: e.target.value })}
+                  onChange={(e) =>
+                    setMemberForm({ ...memberForm, notes: e.target.value })
+                  }
                   placeholder="Observações sobre o membro"
                   rows={3}
                 />
@@ -898,17 +1018,23 @@ export default function MembrosPage() {
                   <Input
                     id="edit-member-name"
                     value={memberForm.name}
-                    onChange={(e) => setMemberForm({ ...memberForm, name: e.target.value })}
+                    onChange={(e) =>
+                      setMemberForm({ ...memberForm, name: e.target.value })
+                    }
                     placeholder="Nome completo"
                     required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="edit-member-document">Documento (CPF) *</Label>
+                  <Label htmlFor="edit-member-document">
+                    Documento (CPF) *
+                  </Label>
                   <Input
                     id="edit-member-document"
                     value={memberForm.document}
-                    onChange={(e) => setMemberForm({ ...memberForm, document: e.target.value })}
+                    onChange={(e) =>
+                      setMemberForm({ ...memberForm, document: e.target.value })
+                    }
                     placeholder="000.000.000-00"
                     required
                   />
@@ -925,7 +1051,9 @@ export default function MembrosPage() {
                     <Input
                       id="rg"
                       value={memberForm.rg}
-                      onChange={(e) => setMemberForm({ ...memberForm, rg: e.target.value })}
+                      onChange={(e) =>
+                        setMemberForm({ ...memberForm, rg: e.target.value })
+                      }
                       placeholder="00.000.000-0"
                     />
                   </div>
@@ -935,7 +1063,12 @@ export default function MembrosPage() {
                     <Input
                       id="tituloEleitor"
                       value={memberForm.tituloEleitor}
-                      onChange={(e) => setMemberForm({ ...memberForm, tituloEleitor: e.target.value })}
+                      onChange={(e) =>
+                        setMemberForm({
+                          ...memberForm,
+                          tituloEleitor: e.target.value,
+                        })
+                      }
                       placeholder="0000 0000 0000"
                     />
                   </div>
@@ -947,17 +1080,26 @@ export default function MembrosPage() {
                     <Input
                       id="cnh"
                       value={memberForm.cnh}
-                      onChange={(e) => setMemberForm({ ...memberForm, cnh: e.target.value })}
+                      onChange={(e) =>
+                        setMemberForm({ ...memberForm, cnh: e.target.value })
+                      }
                       placeholder="00000000000"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="certidaoNascimento">Certidão de Nascimento</Label>
+                    <Label htmlFor="certidaoNascimento">
+                      Certidão de Nascimento
+                    </Label>
                     <Input
                       id="certidaoNascimento"
                       value={memberForm.certidaoNascimento}
-                      onChange={(e) => setMemberForm({ ...memberForm, certidaoNascimento: e.target.value })}
+                      onChange={(e) =>
+                        setMemberForm({
+                          ...memberForm,
+                          certidaoNascimento: e.target.value,
+                        })
+                      }
                       placeholder="Número da certidão"
                     />
                   </div>
@@ -968,7 +1110,12 @@ export default function MembrosPage() {
                   <Input
                     id="outrosDocumentos"
                     value={memberForm.outrosDocumentos}
-                    onChange={(e) => setMemberForm({ ...memberForm, outrosDocumentos: e.target.value })}
+                    onChange={(e) =>
+                      setMemberForm({
+                        ...memberForm,
+                        outrosDocumentos: e.target.value,
+                      })
+                    }
                     placeholder="Outros documentos"
                   />
                 </div>
@@ -983,16 +1130,22 @@ export default function MembrosPage() {
                   onChange={async (e) => {
                     if (e.target.files && e.target.files[0]) {
                       try {
-                        const base64 = await convertImageToBase64(e.target.files[0])
-                        setMemberForm({ ...memberForm, photo: base64 })
+                        const base64 = await convertImageToBase64(
+                          e.target.files[0]
+                        );
+                        setMemberForm({ ...memberForm, photo: base64 });
                       } catch (error) {
-                        console.error("Erro ao converter imagem:", error)
-                        setError("Erro ao processar a imagem. Tente novamente.")
+                        console.error("Erro ao converter imagem:", error);
+                        setError(
+                          "Erro ao processar a imagem. Tente novamente."
+                        );
                       }
                     }
                   }}
                 />
-                <p className="text-xs text-muted-foreground">Opcional. Deixe em branco para manter a foto atual.</p>
+                <p className="text-xs text-muted-foreground">
+                  Opcional. Deixe em branco para manter a foto atual.
+                </p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -1002,7 +1155,9 @@ export default function MembrosPage() {
                     id="edit-member-email"
                     type="email"
                     value={memberForm.email}
-                    onChange={(e) => setMemberForm({ ...memberForm, email: e.target.value })}
+                    onChange={(e) =>
+                      setMemberForm({ ...memberForm, email: e.target.value })
+                    }
                     placeholder="email@exemplo.com"
                     required
                   />
@@ -1013,7 +1168,9 @@ export default function MembrosPage() {
                     id="edit-member-phone"
                     type="tel"
                     value={memberForm.phone}
-                    onChange={(e) => setMemberForm({ ...memberForm, phone: e.target.value })}
+                    onChange={(e) =>
+                      setMemberForm({ ...memberForm, phone: e.target.value })
+                    }
                     placeholder="(11) 99999-9999"
                     required
                   />
@@ -1022,12 +1179,19 @@ export default function MembrosPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="edit-member-birth">Data de Nascimento *</Label>
+                  <Label htmlFor="edit-member-birth">
+                    Data de Nascimento *
+                  </Label>
                   <Input
                     id="edit-member-birth"
                     type="date"
                     value={memberForm.birthDate}
-                    onChange={(e) => setMemberForm({ ...memberForm, birthDate: e.target.value })}
+                    onChange={(e) =>
+                      setMemberForm({
+                        ...memberForm,
+                        birthDate: e.target.value,
+                      })
+                    }
                     required
                   />
                 </div>
@@ -1035,7 +1199,9 @@ export default function MembrosPage() {
                   <Label htmlFor="edit-member-marital">Estado Civil</Label>
                   <Select
                     value={memberForm.maritalStatus}
-                    onValueChange={(value) => setMemberForm({ ...memberForm, maritalStatus: value })}
+                    onValueChange={(value) =>
+                      setMemberForm({ ...memberForm, maritalStatus: value })
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione" />
@@ -1057,7 +1223,12 @@ export default function MembrosPage() {
                     id="edit-member-since"
                     type="date"
                     value={memberForm.memberSince}
-                    onChange={(e) => setMemberForm({ ...memberForm, memberSince: e.target.value })}
+                    onChange={(e) =>
+                      setMemberForm({
+                        ...memberForm,
+                        memberSince: e.target.value,
+                      })
+                    }
                   />
                 </div>
                 <div className="space-y-2">
@@ -1065,7 +1236,9 @@ export default function MembrosPage() {
                   <Input
                     id="edit-member-ministry"
                     value={memberForm.ministry}
-                    onChange={(e) => setMemberForm({ ...memberForm, ministry: e.target.value })}
+                    onChange={(e) =>
+                      setMemberForm({ ...memberForm, ministry: e.target.value })
+                    }
                     placeholder="Ministério que participa"
                   />
                 </div>
@@ -1075,19 +1248,28 @@ export default function MembrosPage() {
                 <Switch
                   id="edit-member-baptized"
                   checked={memberForm.isBaptized}
-                  onCheckedChange={(checked) => setMemberForm({ ...memberForm, isBaptized: checked })}
+                  onCheckedChange={(checked) =>
+                    setMemberForm({ ...memberForm, isBaptized: checked })
+                  }
                 />
                 <Label htmlFor="edit-member-baptized">Batizado</Label>
               </div>
 
               {memberForm.isBaptized && (
                 <div className="space-y-2">
-                  <Label htmlFor="edit-member-baptized-date">Data de Batismo</Label>
+                  <Label htmlFor="edit-member-baptized-date">
+                    Data de Batismo
+                  </Label>
                   <Input
                     id="edit-member-baptized-date"
                     type="date"
                     value={memberForm.baptizedDate}
-                    onChange={(e) => setMemberForm({ ...memberForm, baptizedDate: e.target.value })}
+                    onChange={(e) =>
+                      setMemberForm({
+                        ...memberForm,
+                        baptizedDate: e.target.value,
+                      })
+                    }
                   />
                 </div>
               )}
@@ -1096,7 +1278,9 @@ export default function MembrosPage() {
                 <Switch
                   id="edit-member-tither"
                   checked={memberForm.isTither}
-                  onCheckedChange={(checked) => setMemberForm({ ...memberForm, isTither: checked })}
+                  onCheckedChange={(checked) =>
+                    setMemberForm({ ...memberForm, isTither: checked })
+                  }
                 />
                 <Label htmlFor="edit-member-tither">Dizimista</Label>
               </div>
@@ -1105,7 +1289,9 @@ export default function MembrosPage() {
                 <Switch
                   id="edit-member-active"
                   checked={memberForm.isActive}
-                  onCheckedChange={(checked) => setMemberForm({ ...memberForm, isActive: checked })}
+                  onCheckedChange={(checked) =>
+                    setMemberForm({ ...memberForm, isActive: checked })
+                  }
                 />
                 <Label htmlFor="edit-member-active">Membro Ativo</Label>
               </div>
@@ -1115,7 +1301,9 @@ export default function MembrosPage() {
                 <Textarea
                   id="edit-member-notes"
                   value={memberForm.notes}
-                  onChange={(e) => setMemberForm({ ...memberForm, notes: e.target.value })}
+                  onChange={(e) =>
+                    setMemberForm({ ...memberForm, notes: e.target.value })
+                  }
                   placeholder="Observações sobre o membro"
                   rows={3}
                 />
@@ -1123,7 +1311,9 @@ export default function MembrosPage() {
 
               {user.accessLevel === "admin" && selectedMember && (
                 <div className="border-t pt-4 space-y-3">
-                  <h4 className="font-medium text-gray-900">Gerenciamento de Senha</h4>
+                  <h4 className="font-medium text-gray-900">
+                    Gerenciamento de Senha
+                  </h4>
                   <div className="flex gap-2">
                     <Button
                       type="button"
@@ -1175,19 +1365,27 @@ export default function MembrosPage() {
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-blue-600">{totalCount}</div>
+                    <div className="text-2xl font-bold text-blue-600">
+                      {totalCount}
+                    </div>
                     <p className="text-sm text-gray-600">Total de Membros</p>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600">{members.filter((m) => m.isActive).length}</div>
+                    <div className="text-2xl font-bold text-green-600">
+                      {members.filter((m) => m.isActive).length}
+                    </div>
                     <p className="text-sm text-gray-600">Membros Ativos</p>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-red-600">{members.filter((m) => !m.isActive).length}</div>
+                    <div className="text-2xl font-bold text-red-600">
+                      {members.filter((m) => !m.isActive).length}
+                    </div>
                     <p className="text-sm text-gray-600">Membros Inativos</p>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-purple-600">{filteredMembers.length}</div>
+                    <div className="text-2xl font-bold text-purple-600">
+                      {filteredMembers.length}
+                    </div>
                     <p className="text-sm text-gray-600">Resultados da Busca</p>
                   </div>
                 </div>
@@ -1224,7 +1422,9 @@ export default function MembrosPage() {
             {loading && (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-                <span className="ml-2 text-gray-600">Carregando membros...</span>
+                <span className="ml-2 text-gray-600">
+                  Carregando membros...
+                </span>
               </div>
             )}
 
@@ -1232,11 +1432,17 @@ export default function MembrosPage() {
             {!loading && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {filteredMembers.map((member) => (
-                  <Card key={member.id} className="hover:shadow-md transition-shadow">
+                  <Card
+                    key={member.id}
+                    className="hover:shadow-md transition-shadow"
+                  >
                     <CardContent className="p-4">
                       <div className="flex flex-col items-center text-center">
                         <Avatar className="h-20 w-20 mb-3">
-                          <AvatarImage src={member.photo || "/placeholder.svg"} alt={member.name} />
+                          <AvatarImage
+                            src={member.photo || "/placeholder.svg"}
+                            alt={member.name}
+                          />
                           <AvatarFallback className="text-lg">
                             {member.name
                               .split(" ")
@@ -1245,11 +1451,15 @@ export default function MembrosPage() {
                           </AvatarFallback>
                         </Avatar>
 
-                        <h3 className="font-semibold text-lg mb-1">{member.name}</h3>
+                        <h3 className="font-semibold text-lg mb-1">
+                          {member.name}
+                        </h3>
 
                         {user.accessLevel === "admin" ? (
                           <>
-                            <div className="mb-3">{getStatusBadge(member.isActive)}</div>
+                            <div className="mb-3">
+                              {getStatusBadge(member.isActive)}
+                            </div>
 
                             <div className="w-full space-y-2 text-sm text-gray-600">
                               <div className="flex items-center gap-2">
@@ -1271,13 +1481,18 @@ export default function MembrosPage() {
                               {member.memberSince && (
                                 <div className="flex items-center gap-2">
                                   <Calendar className="h-4 w-4" />
-                                  <span>Membro desde {new Date(member.memberSince).getFullYear()}</span>
+                                  <span>
+                                    Membro desde{" "}
+                                    {new Date(member.memberSince).getFullYear()}
+                                  </span>
                                 </div>
                               )}
                               {member.ministry && (
                                 <div className="flex items-center gap-2">
                                   <Heart className="h-4 w-4" />
-                                  <span className="truncate">{member.ministry}</span>
+                                  <span className="truncate">
+                                    {member.ministry}
+                                  </span>
                                 </div>
                               )}
                             </div>
@@ -1304,7 +1519,9 @@ export default function MembrosPage() {
                             </div>
                           </>
                         ) : (
-                          <div className="mb-3">{getStatusBadge(member.isActive)}</div>
+                          <div className="mb-3">
+                            {getStatusBadge(member.isActive)}
+                          </div>
                         )}
                       </div>
                     </CardContent>
@@ -1341,7 +1558,9 @@ export default function MembrosPage() {
             {!loading && filteredMembers.length === 0 && (
               <div className="text-center py-12">
                 <Users className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum membro encontrado</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  Nenhum membro encontrado
+                </h3>
                 <p className="text-gray-500">
                   {searchTerm || statusFilter !== "all"
                     ? "Tente ajustar os filtros de busca"
@@ -1353,5 +1572,5 @@ export default function MembrosPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

@@ -50,7 +50,6 @@ export class DonationsMockService {
   ]
 
   async getPaidDonations(filters: DonationsFilters = {}): Promise<PaidDonationsResponse> {
-    console.log("🎭 [MockService] Usando dados mock para doações")
 
     // Simular delay da API
     await new Promise((resolve) => setTimeout(resolve, 500))

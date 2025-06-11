@@ -29,7 +29,6 @@ export function useAuthMonitor() {
       const token = getAuthToken()
 
       if (!token) {
-        console.log("🚪 [AuthMonitor] Token não encontrado - redirecionando para login")
 
         // Limpa qualquer dado restante
         localStorage.removeItem("userRole")

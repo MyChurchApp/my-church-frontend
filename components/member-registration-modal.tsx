@@ -108,7 +108,6 @@ export default function MemberRegistrationModal({ onMemberCreated }: MemberRegis
       throw new Error("Token de autenticação não encontrado. Faça login novamente.")
     }
 
-    console.log("Dados enviados para API:", JSON.stringify(memberData, null, 2))
 
     try {
       const response = await fetch("https://demoapp.top1soft.com.br/api/Member", {
@@ -121,8 +120,6 @@ export default function MemberRegistrationModal({ onMemberCreated }: MemberRegis
         body: JSON.stringify(memberData),
       })
 
-      console.log("Status da resposta:", response.status)
-      console.log("Headers da resposta:", Object.fromEntries(response.headers.entries()))
 
       if (!response.ok) {
         let errorMessage = `Erro na API: ${response.status}`
@@ -292,7 +289,6 @@ export default function MemberRegistrationModal({ onMemberCreated }: MemberRegis
         memberData.churchId = churchId
       }
 
-      console.log("Enviando dados:", memberData)
 
       const result = await createMember(memberData)
 

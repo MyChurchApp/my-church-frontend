@@ -85,7 +85,6 @@ export default function CheckoutPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     // Aqui você implementaria a lógica de processamento do pagamento
-    console.log("Formulário enviado:", formData)
     // Redirecionar para página de sucesso ou mostrar mensagem
   }
 

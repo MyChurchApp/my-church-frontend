@@ -26,7 +26,6 @@ export function setupGlobalAuthInterceptor() {
 
       // Se for 401 em requisição da API e usuário estiver logado
       if (response.status === 401 && isApiRequest && isAuthenticated()) {
-        console.log("🚨 [Global Interceptor] 401 detectado:", url)
 
         // Disparar evento customizado para toast
         window.dispatchEvent(
@@ -49,7 +48,6 @@ export function setupGlobalAuthInterceptor() {
   }
 
   isInterceptorActive = true
-  console.log("✅ [Global Interceptor] Ativado")
 }
 
 /**
@@ -61,5 +59,4 @@ export function teardownGlobalAuthInterceptor() {
   // Restaurar fetch original
   window.fetch = originalFetch
   isInterceptorActive = false
-  console.log("🔄 [Global Interceptor] Desativado")
 }
