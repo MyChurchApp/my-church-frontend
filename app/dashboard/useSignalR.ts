@@ -26,28 +26,24 @@ export function useSignalR(worshipServiceId: number) {
       try {
         await connection.start()
         await connection.invoke("JoinWorship", worshipServiceId)
+        console.log("✅ Conectado ao SignalR")
 
-        // Evento de leitura bíblica destacada
-        connection.on("BibleReadingHighlighted", ({ ChapterId, VerseId }) => {
-          // Disparar evento customizado para a página de leitura bíblica
+        connection.on("BibleReadingHighlighted", async ({ ChapterId, VerseId }) => {
+          // Disparar evento customizado para a página capturar
           const event = new CustomEvent("bibleReadingHighlighted", {
             detail: { ChapterId, VerseId },
           })
           window.dispatchEvent(event)
 
-          // Buscar o texto da API REST
-          fetch(`/api/bible/chapters/${ChapterId}/verses/${VerseId}`)
-            .then((res) => res.json())
-            .then((data) => {
-              // Exibir alerta como backup
-              alert(`Leitura bíblica: ${data.text}`)
-            })
-            .catch((err) => {
-              console.error("Erro ao buscar leitura bíblica:", err)
-            })
+          // Mostrar alerta como fallback
+          try {
+            alert(`Leitura bíblica destacada: Capítulo ${ChapterId}, Versículo ${VerseId}`)
+          } catch (err) {
+            console.error("❌ Erro ao processar leitura bíblica:", err)
+          }
         })
       } catch (err) {
-        console.error("Erro ao conectar SignalR:", err)
+        console.error("❌ Falha ao conectar SignalR:", err)
       }
     }
 
