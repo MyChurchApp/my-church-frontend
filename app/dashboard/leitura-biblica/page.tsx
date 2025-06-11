@@ -194,18 +194,15 @@ export default function LeituraBiblicaPage() {
         console.log("✅ Evento já tem dados da API, processando diretamente...")
         console.log("📊 API Data:", apiData)
 
-        // Se já temos os dados da API, criar leitura diretamente
-        const text = isFullChapter
-          ? Array.isArray(apiData)
-            ? apiData
-                .slice(0, 3)
-                .map((v: any) => v.text)
-                .join(" ") + "..."
-            : "Texto não disponível"
-          : apiData.text || "Texto não disponível"
+        // Extrair dados corretos da API
+        const text = apiData.content?.text || "Texto não disponível"
+        const bookName = apiData.bookName || `Livro ${bookId}`
+        const versionName = apiData.versionName || `Versão ${versionId}`
 
-        const bookName = apiData.book || `Livro ${bookId}`
-        const versionName = apiData.version || `Versão ${versionId}`
+        console.log("📖 Dados extraídos:")
+        console.log("   text:", text)
+        console.log("   bookName:", bookName)
+        console.log("   versionName:", versionName)
 
         const newReading: BibleReading = {
           id: `${versionId}-${bookId}-${chapterId}-${verseId || "full"}-${Date.now()}`,
@@ -214,10 +211,10 @@ export default function LeituraBiblicaPage() {
           chapterId,
           verseId,
           text,
-          book: bookName,
+          book: bookName, // Usar nome real do livro
           chapter: chapterId,
           verse: verseId,
-          version: versionName,
+          version: versionName, // Usar nome real da versão
           timestamp: new Date(),
           isFullChapter,
           error: false,
@@ -226,7 +223,7 @@ export default function LeituraBiblicaPage() {
 
         console.log("✅ Nova leitura criada diretamente:", newReading)
         setReadings((prev) => [newReading, ...prev])
-        addDebugInfo(`✅ Leitura adicionada via API`)
+        addDebugInfo(`✅ Leitura adicionada: ${versionName} - ${bookName}`)
       } else if (error) {
         console.log("❌ Evento tem erro, criando leitura de erro...")
 
