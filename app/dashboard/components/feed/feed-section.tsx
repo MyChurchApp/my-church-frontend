@@ -1,54 +1,48 @@
-"use client"
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Calendar, DollarSign, Users, Bell } from "lucide-react"
 
+// Interface para os itens do feed
 interface FeedItem {
-  id: string
-  type: "donation" | "event" | "member" | "announcement"
+  id: number
+  type: "event" | "donation" | "member" | "announcement"
   title: string
   description: string
-  timestamp: string
-  user?: {
-    name: string
-    avatar?: string
-  }
-  amount?: number
+  date: string
+  icon?: string
 }
 
 interface FeedSectionProps {
-  items: FeedItem[]
+  feedItems: FeedItem[]
+  loading: boolean
 }
 
-export function FeedSection({ items }: FeedSectionProps) {
-  const getTypeColor = (type: string) => {
-    switch (type) {
-      case "donation":
-        return "bg-green-100 text-green-800"
-      case "event":
-        return "bg-blue-100 text-blue-800"
-      case "member":
-        return "bg-purple-100 text-purple-800"
-      case "announcement":
-        return "bg-orange-100 text-orange-800"
-      default:
-        return "bg-gray-100 text-gray-800"
-    }
+export function FeedSection({ feedItems, loading }: FeedSectionProps) {
+  // Função para formatar data
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    return date.toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    })
   }
 
-  const getTypeLabel = (type: string) => {
+  // Função para obter o ícone com base no tipo
+  const getIcon = (type: string) => {
     switch (type) {
-      case "donation":
-        return "Doação"
       case "event":
-        return "Evento"
+        return <Calendar className="h-4 w-4" />
+      case "donation":
+        return <DollarSign className="h-4 w-4" />
       case "member":
-        return "Membro"
+        return <Users className="h-4 w-4" />
       case "announcement":
-        return "Anúncio"
+        return <Bell className="h-4 w-4" />
       default:
-        return type
+        return <Bell className="h-4 w-4" />
     }
   }
 
@@ -58,31 +52,28 @@ export function FeedSection({ items }: FeedSectionProps) {
         <CardTitle>Atividades Recentes</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
-          {items.length === 0 ? (
-            <p className="text-muted-foreground text-center py-4">Nenhuma atividade recente</p>
-          ) : (
-            items.map((item) => (
-              <div key={item.id} className="flex items-start space-x-3">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src={item.user?.avatar || "/placeholder.svg"} />
-                  <AvatarFallback>{item.user?.name?.charAt(0) || "?"}</AvatarFallback>
-                </Avatar>
-                <div className="flex-1 space-y-1">
-                  <div className="flex items-center space-x-2">
-                    <Badge className={getTypeColor(item.type)}>{getTypeLabel(item.type)}</Badge>
-                    <span className="text-sm text-muted-foreground">{item.timestamp}</span>
-                  </div>
-                  <p className="text-sm font-medium">{item.title}</p>
-                  <p className="text-sm text-muted-foreground">{item.description}</p>
-                  {item.amount && (
-                    <p className="text-sm font-medium text-green-600">R$ {item.amount.toLocaleString()}</p>
-                  )}
+        {loading ? (
+          <div className="space-y-4">
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+          </div>
+        ) : feedItems.length > 0 ? (
+          <div className="space-y-4">
+            {feedItems.map((item) => (
+              <div key={item.id} className="flex items-start gap-4 rounded-md border p-3">
+                <div className="mt-0.5 rounded-full bg-gray-100 p-2">{getIcon(item.type)}</div>
+                <div className="flex-1">
+                  <h4 className="text-sm font-medium">{item.title}</h4>
+                  <p className="text-sm text-gray-500">{item.description}</p>
+                  <p className="text-xs text-gray-400 mt-1">{formatDate(item.date)}</p>
                 </div>
               </div>
-            ))
-          )}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-center text-gray-500 py-4">Nenhuma atividade recente encontrada.</p>
+        )}
       </CardContent>
     </Card>
   )

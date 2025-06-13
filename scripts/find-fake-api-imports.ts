@@ -1,53 +1,56 @@
 import * as fs from "fs"
 import * as path from "path"
 
-// Função para verificar se um arquivo contém importações de fake-api
-function checkFileForFakeApiImports(filePath: string): boolean {
+// Função para verificar se um arquivo contém a importação
+function checkFileForImport(filePath: string): boolean {
   try {
     const content = fs.readFileSync(filePath, "utf8")
     return content.includes("@/lib/fake-api")
   } catch (error) {
-    console.error(`Erro ao ler arquivo ${filePath}:`, error)
+    console.error(`Erro ao ler o arquivo ${filePath}:`, error)
     return false
   }
 }
 
 // Função para percorrer diretórios recursivamente
 function walkDir(dir: string, callback: (filePath: string) => void) {
-  fs.readdirSync(dir).forEach((f) => {
-    const dirPath = path.join(dir, f)
-    const isDirectory = fs.statSync(dirPath).isDirectory()
-    if (isDirectory) {
-      walkDir(dirPath, callback)
-    } else {
-      callback(path.join(dir, f))
+  const files = fs.readdirSync(dir)
+
+  files.forEach((file) => {
+    const filePath = path.join(dir, file)
+    const stat = fs.statSync(filePath)
+
+    if (stat.isDirectory()) {
+      // Ignorar node_modules e .git
+      if (file !== "node_modules" && file !== ".git") {
+        walkDir(filePath, callback)
+      }
+    } else if (stat.isFile() && (file.endsWith(".ts") || file.endsWith(".tsx"))) {
+      callback(filePath)
     }
   })
 }
 
-// Diretórios a serem verificados
-const directories = ["app", "components", "lib", "services", "contexts", "hooks"]
-const fileExtensions = [".ts", ".tsx", ".js", ".jsx"]
+// Diretório raiz do projeto
+const rootDir = process.cwd()
 
-// Encontrar arquivos com importações de fake-api
-const filesWithFakeApiImports: string[] = []
+console.log("Procurando por importações de @/lib/fake-api...")
 
-directories.forEach((dir) => {
-  if (fs.existsSync(dir)) {
-    walkDir(dir, (filePath) => {
-      if (fileExtensions.some((ext) => filePath.endsWith(ext))) {
-        if (checkFileForFakeApiImports(filePath)) {
-          filesWithFakeApiImports.push(filePath)
-        }
-      }
-    })
+const filesWithImport: string[] = []
+
+// Percorrer todos os arquivos .ts e .tsx
+walkDir(rootDir, (filePath) => {
+  if (checkFileForImport(filePath)) {
+    filesWithImport.push(filePath)
   }
 })
 
-// Exibir resultados
-console.log("Arquivos que ainda importam @/lib/fake-api:")
-filesWithFakeApiImports.forEach((file) => {
-  console.log(`- ${file}`)
-})
-
-console.log(`\nTotal: ${filesWithFakeApiImports.length} arquivo(s)`)
+if (filesWithImport.length > 0) {
+  console.log("\nArquivos que contêm importações de @/lib/fake-api:")
+  filesWithImport.forEach((file) => {
+    console.log(`- ${path.relative(rootDir, file)}`)
+  })
+  console.log(`\nTotal: ${filesWithImport.length} arquivo(s)`)
+} else {
+  console.log("Nenhuma importação de @/lib/fake-api encontrada.")
+}

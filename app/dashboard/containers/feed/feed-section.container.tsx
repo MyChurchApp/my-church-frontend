@@ -1,20 +1,16 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { FeedSection } from "@/app/dashboard/components/feed/feed-section"
-import { authFetch } from "@/lib/auth-fetch"
+import { useState, useEffect } from "react"
+import { FeedSection } from "../../components/feed/feed-section"
 
+// Interface para os itens do feed
 interface FeedItem {
-  id: string
-  type: "donation" | "event" | "member" | "announcement"
+  id: number
+  type: "event" | "donation" | "member" | "announcement"
   title: string
   description: string
-  timestamp: string
-  user?: {
-    name: string
-    avatar?: string
-  }
-  amount?: number
+  date: string
+  icon?: string
 }
 
 export function FeedSectionContainer() {
@@ -22,33 +18,57 @@ export function FeedSectionContainer() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const fetchFeedData = async () => {
+    const loadFeedItems = async () => {
       try {
-        // Substitua pela URL real da sua API
-        const response = await authFetch("/api/feed")
-        if (response.ok) {
-          const data = await response.json()
-          setFeedItems(data.items || [])
-        }
+        setLoading(true)
+
+        // Em uma implementação real, você buscaria os dados da API
+        // const response = await fetch('/api/feed');
+        // const data = await response.json();
+        // setFeedItems(data);
+
+        // Por enquanto, vamos usar dados simulados
+        const mockFeedItems: FeedItem[] = [
+          {
+            id: 1,
+            type: "event",
+            title: "Culto de Domingo",
+            description: "O culto de domingo foi agendado para às 10h",
+            date: "2025-06-13T10:00:00",
+          },
+          {
+            id: 2,
+            type: "donation",
+            title: "Nova doação recebida",
+            description: "Uma doação de R$ 100,00 foi recebida",
+            date: "2025-06-12T15:30:00",
+          },
+          {
+            id: 3,
+            type: "member",
+            title: "Novo membro",
+            description: "João Silva se juntou à igreja",
+            date: "2025-06-11T09:15:00",
+          },
+          {
+            id: 4,
+            type: "announcement",
+            title: "Reunião de líderes",
+            description: "Reunião de líderes marcada para quarta-feira às 19h",
+            date: "2025-06-10T19:00:00",
+          },
+        ]
+
+        setFeedItems(mockFeedItems)
       } catch (error) {
-        console.error("Erro ao buscar dados do feed:", error)
-        // Em caso de erro, mantém array vazio
-        setFeedItems([])
+        console.error("Erro ao carregar itens do feed:", error)
       } finally {
         setLoading(false)
       }
     }
 
-    fetchFeedData()
+    loadFeedItems()
   }, [])
 
-  if (loading) {
-    return (
-      <div className="animate-pulse">
-        <div className="h-64 bg-gray-200 rounded-lg"></div>
-      </div>
-    )
-  }
-
-  return <FeedSection items={feedItems} />
+  return <FeedSection feedItems={feedItems} loading={loading} />
 }
