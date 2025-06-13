@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { StatsCards } from "../../components/stats/stats-cards"
 import { getUser } from "@/lib/auth-utils"
 import type { User } from "@/lib/types"
+import { getChurchStats } from "@/services/church.service"
 
 export function StatsCardsContainer() {
   const [user, setUser] = useState<User | null>(null)
@@ -18,17 +19,18 @@ export function StatsCardsContainer() {
   useEffect(() => {
     const loadData = async () => {
       try {
+        setIsLoading(true)
         // Obter dados do usuário
         const userData = getUser()
         setUser(userData)
 
         // Aqui você pode fazer chamadas para a API real para obter estatísticas
-        // Por enquanto, vamos usar dados fictícios
+        const churchStats = await getChurchStats()
         setStats({
-          membersCount: 120,
-          eventsCount: 8,
-          donationsTotal: 5200,
-          attendanceRate: 78,
+          membersCount: churchStats.membersCount,
+          eventsCount: churchStats.eventsCount,
+          donationsTotal: churchStats.donationsTotal,
+          attendanceRate: churchStats.attendanceRate,
         })
       } catch (error) {
         console.error("Erro ao carregar dados:", error)

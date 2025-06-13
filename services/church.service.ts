@@ -1,4 +1,4 @@
-import { authFetch } from "@/lib/auth-fetch"
+import { authFetchJson } from "@/lib/auth-fetch"
 
 // Interface para Address
 export interface ChurchAddress {
@@ -95,7 +95,15 @@ const getChurchIdFromToken = (): number | null => {
 
   try {
     const payload = JSON.parse(atob(token.split(".")[1]))
-    return payload.churchId || null
+    const churchId = payload.churchId || payload.ChurchId || payload.church_id
+
+    if (churchId) {
+      console.log("✅ ChurchId encontrado no token:", churchId)
+      return Number.parseInt(churchId)
+    }
+
+    console.log("🚨 ChurchId não encontrado no token. Payload:", payload)
+    return null
   } catch (error) {
     console.error("Erro ao decodificar token para obter churchId:", error)
     return null
@@ -111,7 +119,15 @@ const getChurchIdFromStorage = (): number | null => {
 
   try {
     const user = JSON.parse(userData)
-    return user.churchId || null
+    const churchId = user.churchId || user.ChurchId || user.church_id
+
+    if (churchId) {
+      console.log("✅ ChurchId encontrado no localStorage:", churchId)
+      return Number.parseInt(churchId)
+    }
+
+    console.log("🚨 ChurchId não encontrado no localStorage. User:", user)
+    return null
   } catch (error) {
     console.error("Erro ao obter churchId do localStorage:", error)
     return null
@@ -153,23 +169,15 @@ export const getChurchData = async (churchId?: number): Promise<Church> => {
       throw new Error("ID da igreja não encontrado. Faça login novamente.")
     }
 
-    console.log("Buscando dados da igreja com ID:", targetChurchId)
+    console.log("🏛️ Buscando dados da igreja com ID:", targetChurchId)
 
     const url = `https://demoapp.top1soft.com.br/api/Church/${targetChurchId}`
-    const response = await authFetch(url)
+    const data = await authFetchJson(url)
 
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error("Erro da API Church:", response.status, errorText)
-      handleApiError(response.status, errorText)
-    }
-
-    const data: Church = await response.json()
-    console.log("Dados da igreja recebidos:", data)
-
-    return data
+    console.log("✅ Dados da igreja recebidos:", data.name, "- Membros:", data.members?.length || 0)
+    return data as Church
   } catch (error) {
-    console.error("Erro ao buscar dados da igreja:", error)
+    console.error("❌ Erro ao buscar dados da igreja:", error)
     throw error
   }
 }
@@ -274,6 +282,28 @@ export const checkPlanLimits = async (churchId?: number) => {
       canAddMembers: false,
       eventsLimit: 0,
       storageLimit: 0,
+    }
+  }
+}
+
+// Função para obter estatísticas da igreja
+export const getChurchStats = async (churchId?: number) => {
+  try {
+    const churchData = await getChurchData(churchId)
+
+    return {
+      membersCount: churchData.members?.length || 0,
+      eventsCount: 0, // TODO: Implementar quando houver endpoint de eventos
+      donationsTotal: 0, // TODO: Implementar quando houver endpoint de doações
+      attendanceRate: 0, // TODO: Implementar quando houver endpoint de presença
+    }
+  } catch (error) {
+    console.error("Erro ao obter estatísticas da igreja:", error)
+    return {
+      membersCount: 0,
+      eventsCount: 0,
+      donationsTotal: 0,
+      attendanceRate: 0,
     }
   }
 }
