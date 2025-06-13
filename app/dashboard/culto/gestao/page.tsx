@@ -1,708 +1,900 @@
 "use client"
 
-import type React from "react"
-
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { isAuthenticated } from "@/lib/auth-utils"
-import { authFetch } from "@/lib/auth-fetch"
-import { AlertCircle, Calendar, Clock, Plus, ChevronRight } from "lucide-react"
+import {
+  Calendar,
+  Clock,
+  Plus,
+  Edit,
+  Trash2,
+  Music,
+  Book,
+  MessageSquare,
+  Users,
+  ChevronRight,
+  AlertTriangle,
+  Loader2,
+} from "lucide-react"
+import { isAuthenticated, getUserRole } from "@/lib/auth-utils"
 
-// Interface para os dados do culto
+// Tipos para a API
 interface WorshipService {
   id: number
   title: string
   date: string
-  startTime: string
-  endTime: string
+  time: string
+  status: "scheduled" | "in-progress" | "completed"
+  preacher: string
+  theme: string
   description: string
-  status: "scheduled" | "in-progress" | "completed" | "cancelled"
-  location: string
-  attendees: number
-  items: WorshipItem[]
+  songs: Song[]
+  readings: Reading[]
+  announcements: Announcement[]
 }
 
-// Interface para os itens do culto
-interface WorshipItem {
+interface Song {
   id: number
   title: string
-  description: string
-  duration: number // em minutos
-  type: "praise" | "sermon" | "offering" | "announcement" | "prayer" | "reading" | "other"
-  responsible: string
-  order: number
-  status: "pending" | "in-progress" | "completed"
-  notes?: string
+  artist: string
+  key: string
+  bpm: number
+  duration: string
+}
+
+interface Reading {
+  id: number
+  title: string
+  reference: string
+  text: string
+}
+
+interface Announcement {
+  id: number
+  title: string
+  content: string
 }
 
 export default function GestaoCultoPage() {
   const router = useRouter()
-  const [isLoading, setIsLoading] = useState(true)
+  const [cultos, setCultos] = useState<WorshipService[]>([])
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState("todos")
-  const [worshipServices, setWorshipServices] = useState<WorshipService[]>([])
-  const [isCreatingService, setIsCreatingService] = useState(false)
-  const [isEditingService, setIsEditingService] = useState(false)
-  const [currentService, setCurrentService] = useState<WorshipService | null>(null)
-  const [debugInfo, setDebugInfo] = useState<any>(null)
-
-  // Formulário para novo culto
-  const [newServiceForm, setNewServiceForm] = useState({
-    title: "",
-    date: "",
-    startTime: "",
-    endTime: "",
-    description: "",
-    location: "",
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [editingCulto, setEditingCulto] = useState<WorshipService | null>(null)
+  const [activeTab, setActiveTab] = useState("informacoes")
+  const [formData, setFormData] = useState<Partial<WorshipService>>({
+    songs: [],
+    readings: [],
+    announcements: [],
   })
 
-  useEffect(() => {
-    // Verificar autenticação
-    if (!isAuthenticated()) {
+  // Estados para os formulários de itens
+  const [newSong, setNewSong] = useState<Partial<Song>>({})
+  const [newReading, setNewReading] = useState<Partial<Reading>>({})
+  const [newAnnouncement, setNewAnnouncement] = useState<Partial<Announcement>>({})
+
+  // Função para obter o token de autenticação do localStorage
+  const getAuthToken = (): string | null => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("authToken")
+    }
+    return null
+  }
+
+  // Função para fazer requisições autenticadas
+  const authenticatedFetch = async (url: string, options: RequestInit = {}) => {
+    const token = getAuthToken()
+
+    if (!token) {
+      throw new Error("Token de autenticação não encontrado")
+    }
+
+    const headers = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+      ...options.headers,
+    }
+
+    const response = await fetch(url, {
+      ...options,
+      headers,
+    })
+
+    if (response.status === 401) {
+      // Token expirado ou inválido
+      localStorage.removeItem("authToken")
       router.push("/login")
+      throw new Error("Sessão expirada. Por favor, faça login novamente.")
+    }
+
+    if (!response.ok) {
+      throw new Error(`Erro na requisição: ${response.status}`)
+    }
+
+    return response.json()
+  }
+
+  // Função para buscar os cultos da API
+  const fetchWorshipServices = async (): Promise<WorshipService[]> => {
+    try {
+      // Aqui você faria a chamada real para a API
+      // const data = await authenticatedFetch("https://demoapp.top1soft.com.br/api/Worship")
+      // return data
+
+      // Por enquanto, retornamos dados simulados
+      return [
+        {
+          id: 1,
+          title: "Culto de Domingo",
+          date: "2025-06-15",
+          time: "10:00",
+          status: "scheduled",
+          preacher: "Pastor João Silva",
+          theme: "Fé e Perseverança",
+          description: "Culto dominical sobre a importância da fé em tempos difíceis",
+          songs: [
+            { id: 1, title: "Grande é o Senhor", artist: "Adhemar de Campos", key: "G", bpm: 75, duration: "4:30" },
+            { id: 2, title: "Deus é Fiel", artist: "Diante do Trono", key: "D", bpm: 72, duration: "5:15" },
+            { id: 3, title: "Maravilhosa Graça", artist: "Ministério Ipiranga", key: "E", bpm: 68, duration: "4:45" },
+          ],
+          readings: [
+            {
+              id: 1,
+              title: "Leitura Inicial",
+              reference: "Salmos 23",
+              text: "O Senhor é meu pastor, nada me faltará...",
+            },
+            {
+              id: 2,
+              title: "Leitura Principal",
+              reference: "Hebreus 11:1-6",
+              text: "Ora, a fé é a certeza daquilo que esperamos e a prova das coisas que não vemos...",
+            },
+          ],
+          announcements: [
+            {
+              id: 1,
+              title: "Encontro de Jovens",
+              content: "No próximo sábado às 19h teremos nosso encontro de jovens",
+            },
+            {
+              id: 2,
+              title: "Campanha de Arrecadação",
+              content: "Estamos arrecadando alimentos não perecíveis para famílias carentes",
+            },
+          ],
+        },
+        {
+          id: 2,
+          title: "Culto de Quarta-feira",
+          date: "2025-06-18",
+          time: "19:30",
+          status: "scheduled",
+          preacher: "Pastor Carlos Oliveira",
+          theme: "Oração e Intercessão",
+          description: "Culto de oração e intercessão pelas famílias",
+          songs: [
+            { id: 4, title: "Teu Santo Nome", artist: "Gabriela Rocha", key: "A", bpm: 70, duration: "6:00" },
+            { id: 5, title: "Lugar Secreto", artist: "Gabriela Rocha", key: "G", bpm: 68, duration: "5:30" },
+          ],
+          readings: [
+            {
+              id: 3,
+              title: "Leitura Bíblica",
+              reference: "Filipenses 4:6-7",
+              text: "Não andeis ansiosos por coisa alguma; antes em tudo sejam os vossos pedidos conhecidos diante de Deus pela oração e súplica com ações de graças...",
+            },
+          ],
+          announcements: [
+            { id: 3, title: "Jejum Congregacional", content: "No próximo domingo teremos jejum congregacional" },
+          ],
+        },
+      ]
+    } catch (error) {
+      console.error("Erro ao buscar cultos:", error)
+      throw error
+    }
+  }
+
+  // Carregar dados iniciais
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true)
+      setError(null)
+
+      try {
+        // Verificar se o usuário está autenticado
+        if (!isAuthenticated()) {
+          router.push("/login")
+          return
+        }
+
+        // Verificar se o usuário tem permissão
+        const role = getUserRole()
+        if (role !== "Admin" && role !== "Pastor") {
+          router.push("/dashboard")
+          return
+        }
+
+        // Buscar dados dos cultos
+        const worshipData = await fetchWorshipServices()
+        setCultos(worshipData)
+      } catch (error) {
+        console.error("Erro ao carregar dados:", error)
+        setError("Não foi possível carregar os dados dos cultos. Por favor, tente novamente.")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadData()
+  }, [router])
+
+  // Função para abrir o diálogo de edição
+  const openEditDialog = (culto: WorshipService | null) => {
+    if (culto) {
+      setEditingCulto(culto)
+      setFormData({
+        ...culto,
+        songs: [...culto.songs],
+        readings: [...culto.readings],
+        announcements: [...culto.announcements],
+      })
+    } else {
+      setEditingCulto(null)
+      setFormData({
+        title: "",
+        date: new Date().toISOString().split("T")[0],
+        time: "10:00",
+        status: "scheduled",
+        preacher: "",
+        theme: "",
+        description: "",
+        songs: [],
+        readings: [],
+        announcements: [],
+      })
+    }
+    setActiveTab("informacoes")
+    setIsDialogOpen(true)
+  }
+
+  // Função para salvar o culto
+  const handleSaveCulto = async () => {
+    try {
+      // Validar dados obrigatórios
+      if (!formData.title || !formData.date || !formData.time) {
+        alert("Por favor, preencha os campos obrigatórios: título, data e horário.")
+        return
+      }
+
+      // Em uma implementação real, você enviaria os dados para a API
+      // const response = await authenticatedFetch(
+      //   editingCulto ? `https://demoapp.top1soft.com.br/api/Worship/${editingCulto.id}` : "https://demoapp.top1soft.com.br/api/Worship",
+      //   {
+      //     method: editingCulto ? "PUT" : "POST",
+      //     body: JSON.stringify(formData),
+      //   }
+      // )
+
+      // Simulação de resposta
+      const savedCulto: WorshipService = {
+        id: editingCulto ? editingCulto.id : Math.floor(Math.random() * 1000) + 3,
+        title: formData.title || "Sem título",
+        date: formData.date || new Date().toISOString().split("T")[0],
+        time: formData.time || "10:00",
+        status: (formData.status as "scheduled" | "in-progress" | "completed") || "scheduled",
+        preacher: formData.preacher || "",
+        theme: formData.theme || "",
+        description: formData.description || "",
+        songs: formData.songs || [],
+        readings: formData.readings || [],
+        announcements: formData.announcements || [],
+      }
+
+      // Atualizar a lista de cultos
+      if (editingCulto) {
+        setCultos(cultos.map((c) => (c.id === editingCulto.id ? savedCulto : c)))
+      } else {
+        setCultos([...cultos, savedCulto])
+      }
+
+      // Fechar o diálogo
+      setIsDialogOpen(false)
+      setEditingCulto(null)
+      setFormData({
+        songs: [],
+        readings: [],
+        announcements: [],
+      })
+
+      alert(editingCulto ? "Culto atualizado com sucesso!" : "Culto criado com sucesso!")
+    } catch (error) {
+      console.error("Erro ao salvar culto:", error)
+      alert("Erro ao salvar o culto. Por favor, tente novamente.")
+    }
+  }
+
+  // Função para excluir um culto
+  const handleDeleteCulto = async (id: number) => {
+    if (!confirm("Tem certeza que deseja excluir este culto?")) {
       return
     }
 
-    loadWorshipServices()
-  }, [router])
-
-  const loadWorshipServices = async () => {
-    setIsLoading(true)
-    setError(null)
-
     try {
-      // Tentar carregar dados reais da API
-      const response = await authFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/Worship`)
+      // Em uma implementação real, você enviaria uma requisição para a API
+      // await authenticatedFetch(`https://demoapp.top1soft.com.br/api/Worship/${id}`, {
+      //   method: "DELETE",
+      // })
 
-      if (response.ok) {
-        const data = await response.json()
-        setDebugInfo(data)
-
-        // Processar dados da API
-        // Implementar quando a API estiver disponível
-
-        // Por enquanto, usar dados de exemplo
-        const mockServices = getMockWorshipServices()
-        setWorshipServices(mockServices)
-      } else {
-        console.log("Erro ao carregar cultos:", response.status)
-        // Usar dados de exemplo em caso de erro
-        const mockServices = getMockWorshipServices()
-        setWorshipServices(mockServices)
-      }
+      // Atualizar a lista de cultos
+      setCultos(cultos.filter((c) => c.id !== id))
+      alert("Culto excluído com sucesso!")
     } catch (error) {
-      console.error("Erro ao carregar cultos:", error)
-      setError("Erro ao carregar dados dos cultos. Tente novamente.")
-
-      // Usar dados de exemplo em caso de erro
-      const mockServices = getMockWorshipServices()
-      setWorshipServices(mockServices)
-    } finally {
-      setIsLoading(false)
+      console.error("Erro ao excluir culto:", error)
+      alert("Erro ao excluir o culto. Por favor, tente novamente.")
     }
   }
 
-  // Função para obter dados de exemplo
-  const getMockWorshipServices = (): WorshipService[] => {
-    return [
-      {
-        id: 1,
-        title: "Culto de Domingo",
-        date: "2025-06-16",
-        startTime: "10:00",
-        endTime: "12:00",
-        description: "Culto dominical com louvor e pregação",
-        status: "in-progress",
-        location: "Templo Principal",
-        attendees: 120,
-        items: [
-          {
-            id: 101,
-            title: "Abertura e Boas-vindas",
-            description: "Saudação inicial e boas-vindas aos presentes",
-            duration: 5,
-            type: "other",
-            responsible: "Pr. João Silva",
-            order: 1,
-            status: "completed",
-          },
-          {
-            id: 102,
-            title: "Momento de Louvor",
-            description: "Louvor conduzido pelo ministério de música",
-            duration: 20,
-            type: "praise",
-            responsible: "Ministério de Louvor",
-            order: 2,
-            status: "completed",
-          },
-          {
-            id: 103,
-            title: "Leitura Bíblica",
-            description: "Salmos 23",
-            duration: 5,
-            type: "reading",
-            responsible: "Diácono Pedro",
-            order: 3,
-            status: "in-progress",
-          },
-          {
-            id: 104,
-            title: "Pregação",
-            description: "Tema: O Bom Pastor",
-            duration: 40,
-            type: "sermon",
-            responsible: "Pr. João Silva",
-            order: 4,
-            status: "pending",
-          },
-          {
-            id: 105,
-            title: "Oferta e Dízimos",
-            description: "Momento de contribuição",
-            duration: 10,
-            type: "offering",
-            responsible: "Ministério de Finanças",
-            order: 5,
-            status: "pending",
-          },
-          {
-            id: 106,
-            title: "Avisos",
-            description: "Comunicados da semana",
-            duration: 5,
-            type: "announcement",
-            responsible: "Secretária Maria",
-            order: 6,
-            status: "pending",
-          },
-          {
-            id: 107,
-            title: "Oração Final",
-            description: "Encerramento e bênção",
-            duration: 5,
-            type: "prayer",
-            responsible: "Pr. João Silva",
-            order: 7,
-            status: "pending",
-          },
-        ],
-      },
-      {
-        id: 2,
-        title: "Culto de Quarta-feira",
-        date: "2025-06-19",
-        startTime: "19:30",
-        endTime: "21:00",
-        description: "Culto de ensino bíblico",
-        status: "scheduled",
-        location: "Templo Principal",
-        attendees: 0,
-        items: [
-          {
-            id: 201,
-            title: "Abertura e Oração",
-            description: "Momento inicial de oração",
-            duration: 10,
-            type: "prayer",
-            responsible: "Pr. Carlos",
-            order: 1,
-            status: "pending",
-          },
-          {
-            id: 202,
-            title: "Louvor",
-            description: "Momento de adoração",
-            duration: 15,
-            type: "praise",
-            responsible: "Equipe de Louvor",
-            order: 2,
-            status: "pending",
-          },
-          {
-            id: 203,
-            title: "Estudo Bíblico",
-            description: "Tema: Epístola aos Romanos",
-            duration: 45,
-            type: "sermon",
-            responsible: "Pr. Carlos",
-            order: 3,
-            status: "pending",
-          },
-          {
-            id: 204,
-            title: "Encerramento",
-            description: "Oração final e despedida",
-            duration: 5,
-            type: "prayer",
-            responsible: "Pr. Carlos",
-            order: 4,
-            status: "pending",
-          },
-        ],
-      },
-    ]
+  // Funções para adicionar itens ao culto
+  const addSong = () => {
+    if (!newSong.title || !newSong.artist) {
+      alert("Por favor, preencha pelo menos o título e o artista da música.")
+      return
+    }
+
+    const song: Song = {
+      id: Math.floor(Math.random() * 1000) + 100,
+      title: newSong.title || "",
+      artist: newSong.artist || "",
+      key: newSong.key || "C",
+      bpm: newSong.bpm || 0,
+      duration: newSong.duration || "0:00",
+    }
+
+    setFormData({
+      ...formData,
+      songs: [...(formData.songs || []), song],
+    })
+
+    setNewSong({})
   }
 
-  // Função para formatar a data
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    return date.toLocaleDateString("pt-BR", {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      year: "numeric",
+  const addReading = () => {
+    if (!newReading.title || !newReading.reference) {
+      alert("Por favor, preencha pelo menos o título e a referência da leitura.")
+      return
+    }
+
+    const reading: Reading = {
+      id: Math.floor(Math.random() * 1000) + 100,
+      title: newReading.title || "",
+      reference: newReading.reference || "",
+      text: newReading.text || "",
+    }
+
+    setFormData({
+      ...formData,
+      readings: [...(formData.readings || []), reading],
+    })
+
+    setNewReading({})
+  }
+
+  const addAnnouncement = () => {
+    if (!newAnnouncement.title || !newAnnouncement.content) {
+      alert("Por favor, preencha o título e o conteúdo do anúncio.")
+      return
+    }
+
+    const announcement: Announcement = {
+      id: Math.floor(Math.random() * 1000) + 100,
+      title: newAnnouncement.title || "",
+      content: newAnnouncement.content || "",
+    }
+
+    setFormData({
+      ...formData,
+      announcements: [...(formData.announcements || []), announcement],
+    })
+
+    setNewAnnouncement({})
+  }
+
+  // Funções para remover itens do culto
+  const removeSong = (id: number) => {
+    setFormData({
+      ...formData,
+      songs: formData.songs?.filter((s) => s.id !== id) || [],
     })
   }
 
-  // Função para obter a cor do status
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "scheduled":
-        return <Badge className="bg-gray-100 text-gray-800">Programado</Badge>
-      case "in-progress":
-        return <Badge className="bg-blue-100 text-blue-800">Em Andamento</Badge>
-      case "completed":
-        return <Badge className="bg-green-100 text-green-800">Concluído</Badge>
-      case "cancelled":
-        return <Badge className="bg-red-100 text-red-800">Cancelado</Badge>
-      default:
-        return <Badge className="bg-gray-100 text-gray-800">Programado</Badge>
-    }
+  const removeReading = (id: number) => {
+    setFormData({
+      ...formData,
+      readings: formData.readings?.filter((r) => r.id !== id) || [],
+    })
   }
 
-  // Função para criar um novo culto
-  const handleCreateService = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    // Validação básica
-    if (!newServiceForm.title || !newServiceForm.date || !newServiceForm.startTime || !newServiceForm.endTime) {
-      alert("Por favor, preencha todos os campos obrigatórios.")
-      return
-    }
-
-    try {
-      // Criar novo culto (mock)
-      const newService: WorshipService = {
-        id: Math.floor(Math.random() * 1000) + 100,
-        title: newServiceForm.title,
-        date: newServiceForm.date,
-        startTime: newServiceForm.startTime,
-        endTime: newServiceForm.endTime,
-        description: newServiceForm.description,
-        location: newServiceForm.location,
-        status: "scheduled",
-        attendees: 0,
-        items: [],
-      }
-
-      // Adicionar à lista
-      setWorshipServices([...worshipServices, newService])
-
-      // Resetar formulário
-      setNewServiceForm({
-        title: "",
-        date: "",
-        startTime: "",
-        endTime: "",
-        description: "",
-        location: "",
-      })
-
-      setIsCreatingService(false)
-
-      // Aqui você faria a chamada real para a API
-      // const response = await authFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/Worship`, {
-      //   method: "POST",
-      //   body: JSON.stringify(newService)
-      // })
-    } catch (error) {
-      console.error("Erro ao criar culto:", error)
-      alert("Erro ao criar culto. Tente novamente.")
-    }
+  const removeAnnouncement = (id: number) => {
+    setFormData({
+      ...formData,
+      announcements: formData.announcements?.filter((a) => a.id !== id) || [],
+    })
   }
 
-  // Função para testar a API
-  const testApi = async () => {
-    try {
-      const response = await authFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/Worship`)
-      const data = await response.json()
-      setDebugInfo(data)
-      alert("Dados recebidos da API! Verifique o console.")
-      console.log("Dados da API:", data)
-    } catch (error) {
-      console.error("Erro ao testar API:", error)
-      alert("Erro ao testar API. Verifique o console.")
-    }
+  // Função para formatar a data
+  const formatDate = (dateString: string): string => {
+    const date = new Date(dateString)
+    return date.toLocaleDateString("pt-BR")
   }
 
-  if (isLoading) {
+  // Renderização condicional para carregamento
+  if (loading) {
     return (
-      <div className="p-6">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-          <div className="h-64 bg-gray-200 rounded"></div>
-          <div className="h-32 bg-gray-200 rounded"></div>
+      <div className="flex h-screen items-center justify-center bg-gray-50">
+        <div className="flex flex-col items-center gap-2">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-sm text-gray-500">Carregando dados dos cultos...</p>
         </div>
       </div>
     )
   }
 
-  return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-start">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Gestão de Cultos</h1>
-          <p className="text-gray-600">Crie e gerencie os cultos da sua igreja</p>
-        </div>
-        <Button onClick={() => setIsCreatingService(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Novo Culto
-        </Button>
+  // Renderização condicional para erro
+  if (error) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-50">
+        <Card className="w-full max-w-md">
+          <CardContent className="flex flex-col items-center p-6">
+            <AlertTriangle className="h-16 w-16 text-red-500 mb-4" />
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Erro ao carregar</h2>
+            <p className="text-gray-600 text-center mb-4">{error}</p>
+            <Button onClick={() => window.location.reload()}>Tentar novamente</Button>
+          </CardContent>
+        </Card>
       </div>
+    )
+  }
 
-      {/* Error Message */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-md p-4 flex items-start">
-          <AlertCircle className="h-5 w-5 text-red-500 mr-2 mt-0.5" />
-          <div>
-            <p className="text-red-800 font-medium">Erro ao carregar dados</p>
-            <p className="text-red-700">{error}</p>
-            <Button variant="outline" size="sm" onClick={loadWorshipServices} className="mt-2">
-              Tentar Novamente
+  return (
+    <div className="flex h-screen bg-gray-50">
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Header */}
+        <header className="bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Gestão de Cultos</h1>
+              <p className="text-gray-600">Gerencie os cultos e eventos da igreja</p>
+            </div>
+            <Button onClick={() => openEditDialog(null)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Culto
             </Button>
           </div>
-        </div>
-      )}
+        </header>
 
-      {/* Debug Info */}
-      {debugInfo && (
-        <Card className="bg-gray-50">
-          <CardHeader>
-            <CardTitle className="text-sm font-medium">Informações de Debug</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <pre className="text-xs overflow-auto max-h-40">{JSON.stringify(debugInfo, null, 2)}</pre>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Test API Button */}
-      <div className="flex gap-2">
-        <Button variant="outline" size="sm" onClick={testApi}>
-          Testar API
-        </Button>
-        <Button variant="outline" size="sm" onClick={loadWorshipServices}>
-          Recarregar Dados
-        </Button>
-      </div>
-
-      {/* Create Service Form */}
-      {isCreatingService && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Novo Culto</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleCreateService} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="title">Título</Label>
-                  <Input
-                    id="title"
-                    value={newServiceForm.title}
-                    onChange={(e) => setNewServiceForm({ ...newServiceForm, title: e.target.value })}
-                    placeholder="Ex: Culto de Domingo"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="location">Local</Label>
-                  <Input
-                    id="location"
-                    value={newServiceForm.location}
-                    onChange={(e) => setNewServiceForm({ ...newServiceForm, location: e.target.value })}
-                    placeholder="Ex: Templo Principal"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="date">Data</Label>
-                  <Input
-                    id="date"
-                    type="date"
-                    value={newServiceForm.date}
-                    onChange={(e) => setNewServiceForm({ ...newServiceForm, date: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="startTime">Hora de Início</Label>
-                    <Input
-                      id="startTime"
-                      type="time"
-                      value={newServiceForm.startTime}
-                      onChange={(e) => setNewServiceForm({ ...newServiceForm, startTime: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="endTime">Hora de Término</Label>
-                    <Input
-                      id="endTime"
-                      type="time"
-                      value={newServiceForm.endTime}
-                      onChange={(e) => setNewServiceForm({ ...newServiceForm, endTime: e.target.value })}
-                      required
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="description">Descrição</Label>
-                  <Textarea
-                    id="description"
-                    value={newServiceForm.description}
-                    onChange={(e) => setNewServiceForm({ ...newServiceForm, description: e.target.value })}
-                    placeholder="Descreva o culto..."
-                    rows={3}
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setIsCreatingService(false)}>
-                  Cancelar
-                </Button>
-                <Button type="submit">Criar Culto</Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Tabs */}
-      <Tabs defaultValue="todos" value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="todos">Todos</TabsTrigger>
-          <TabsTrigger value="programados">Programados</TabsTrigger>
-          <TabsTrigger value="em-andamento">Em Andamento</TabsTrigger>
-          <TabsTrigger value="concluidos">Concluídos</TabsTrigger>
-        </TabsList>
-
-        {/* Todos */}
-        <TabsContent value="todos">
-          {worshipServices.length > 0 ? (
-            <div className="space-y-4">
-              {worshipServices.map((service) => (
-                <Card key={service.id} className="hover:shadow-md transition-shadow">
-                  <CardContent className="p-4">
-                    <div className="flex justify-between items-start">
-                      <div className="flex items-start gap-3">
-                        <div className="p-2 bg-gray-100 rounded-lg">
-                          <Calendar className="h-5 w-5 text-gray-600" />
-                        </div>
-                        <div>
-                          <h3 className="font-medium text-gray-900">{service.title}</h3>
-                          <p className="text-sm text-gray-600">
-                            {formatDate(service.date)} • {service.startTime} - {service.endTime}
-                          </p>
-                          <p className="text-sm text-gray-600 mt-1">{service.location}</p>
-                        </div>
-                      </div>
-                      <div className="flex flex-col items-end gap-2">
-                        {getStatusBadge(service.status)}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-gray-600"
-                          onClick={() => router.push(`/dashboard/culto/gestao/${service.id}`)}
-                        >
-                          Gerenciar
-                          <ChevronRight className="h-4 w-4 ml-1" />
-                        </Button>
-                      </div>
-                    </div>
+        {/* Main Content */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="p-6">
+            <div className="grid gap-4">
+              {cultos.length === 0 ? (
+                <Card>
+                  <CardContent className="flex flex-col items-center justify-center p-6">
+                    <Calendar className="h-16 w-16 text-gray-300 mb-4" />
+                    <h3 className="text-xl font-medium text-gray-900 mb-2">Nenhum culto encontrado</h3>
+                    <p className="text-gray-600 text-center mb-4">
+                      Você ainda não tem nenhum culto cadastrado. Clique no botão abaixo para criar seu primeiro culto.
+                    </p>
+                    <Button onClick={() => openEditDialog(null)}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Novo Culto
+                    </Button>
                   </CardContent>
                 </Card>
-              ))}
-            </div>
-          ) : (
-            <Card>
-              <CardContent className="p-6 text-center">
-                <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-                <h3 className="text-lg font-medium text-gray-900 mb-1">Nenhum culto encontrado</h3>
-                <p className="text-gray-600 mb-4">Comece criando seu primeiro culto</p>
-                <Button onClick={() => setIsCreatingService(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Criar Culto
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
+              ) : (
+                cultos.map((culto) => (
+                  <Card key={culto.id}>
+                    <CardContent className="p-6">
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <h3 className="text-xl font-semibold text-gray-900">{culto.title}</h3>
+                            <Badge
+                              variant={
+                                culto.status === "completed"
+                                  ? "secondary"
+                                  : culto.status === "in-progress"
+                                    ? "default"
+                                    : "outline"
+                              }
+                              className={culto.status === "in-progress" ? "bg-green-500 hover:bg-green-600" : ""}
+                            >
+                              {culto.status === "completed"
+                                ? "Concluído"
+                                : culto.status === "in-progress"
+                                  ? "Em andamento"
+                                  : "Agendado"}
+                            </Badge>
+                          </div>
 
-        {/* Programados */}
-        <TabsContent value="programados">
-          {worshipServices.filter((service) => service.status === "scheduled").length > 0 ? (
-            <div className="space-y-4">
-              {worshipServices
-                .filter((service) => service.status === "scheduled")
-                .map((service) => (
-                  <Card key={service.id} className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-4">
-                      <div className="flex justify-between items-start">
-                        <div className="flex items-start gap-3">
-                          <div className="p-2 bg-gray-100 rounded-lg">
-                            <Calendar className="h-5 w-5 text-gray-600" />
+                          <div className="flex items-center gap-4 mb-3 text-gray-600">
+                            <div className="flex items-center gap-1">
+                              <Calendar className="h-4 w-4" />
+                              <span>{formatDate(culto.date)}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Clock className="h-4 w-4" />
+                              <span>{culto.time}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Users className="h-4 w-4" />
+                              <span>{culto.preacher}</span>
+                            </div>
                           </div>
-                          <div>
-                            <h3 className="font-medium text-gray-900">{service.title}</h3>
-                            <p className="text-sm text-gray-600">
-                              {formatDate(service.date)} • {service.startTime} - {service.endTime}
-                            </p>
-                            <p className="text-sm text-gray-600 mt-1">{service.location}</p>
-                          </div>
-                        </div>
-                        <div className="flex flex-col items-end gap-2">
-                          <Badge className="bg-gray-100 text-gray-800">Programado</Badge>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-gray-600"
-                            onClick={() => router.push(`/dashboard/culto/gestao/${service.id}`)}
-                          >
-                            Gerenciar
-                            <ChevronRight className="h-4 w-4 ml-1" />
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-            </div>
-          ) : (
-            <Card>
-              <CardContent className="p-6 text-center">
-                <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-                <h3 className="text-lg font-medium text-gray-900 mb-1">Nenhum culto programado</h3>
-                <p className="text-gray-600 mb-4">Não há cultos agendados para os próximos dias</p>
-                <Button onClick={() => setIsCreatingService(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Programar Culto
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
 
-        {/* Em Andamento */}
-        <TabsContent value="em-andamento">
-          {worshipServices.filter((service) => service.status === "in-progress").length > 0 ? (
-            <div className="space-y-4">
-              {worshipServices
-                .filter((service) => service.status === "in-progress")
-                .map((service) => (
-                  <Card key={service.id} className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-4">
-                      <div className="flex justify-between items-start">
-                        <div className="flex items-start gap-3">
-                          <div className="p-2 bg-blue-100 rounded-lg">
-                            <Clock className="h-5 w-5 text-blue-600" />
-                          </div>
-                          <div>
-                            <h3 className="font-medium text-gray-900">{service.title}</h3>
-                            <p className="text-sm text-gray-600">
-                              {formatDate(service.date)} • {service.startTime} - {service.endTime}
-                            </p>
-                            <p className="text-sm text-gray-600 mt-1">{service.location}</p>
+                          <p className="text-gray-600 mb-4">{culto.description}</p>
+
+                          <div className="grid grid-cols-3 gap-4">
+                            <div className="flex items-center gap-2">
+                              <Music className="h-4 w-4 text-gray-500" />
+                              <span className="text-sm">{culto.songs.length} músicas</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Book className="h-4 w-4 text-gray-500" />
+                              <span className="text-sm">{culto.readings.length} leituras</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <MessageSquare className="h-4 w-4 text-gray-500" />
+                              <span className="text-sm">{culto.announcements.length} anúncios</span>
+                            </div>
                           </div>
                         </div>
-                        <div className="flex flex-col items-end gap-2">
-                          <Badge className="bg-blue-100 text-blue-800">Em Andamento</Badge>
+
+                        <div className="flex flex-col sm:flex-row gap-2">
                           <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-gray-600"
-                            onClick={() => router.push(`/dashboard/culto/acompanhar`)}
+                            variant="outline"
+                            onClick={() => router.push(`/dashboard/culto/acompanhar?id=${culto.id}`)}
                           >
                             Acompanhar
                             <ChevronRight className="h-4 w-4 ml-1" />
                           </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-            </div>
-          ) : (
-            <Card>
-              <CardContent className="p-6 text-center">
-                <Clock className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-                <h3 className="text-lg font-medium text-gray-900 mb-1">Nenhum culto em andamento</h3>
-                <p className="text-gray-600 mb-4">No momento não há cultos acontecendo</p>
-                <Button onClick={() => setActiveTab("programados")}>Ver Cultos Programados</Button>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-
-        {/* Concluídos */}
-        <TabsContent value="concluidos">
-          {worshipServices.filter((service) => service.status === "completed").length > 0 ? (
-            <div className="space-y-4">
-              {worshipServices
-                .filter((service) => service.status === "completed")
-                .map((service) => (
-                  <Card key={service.id} className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-4">
-                      <div className="flex justify-between items-start">
-                        <div className="flex items-start gap-3">
-                          <div className="p-2 bg-green-100 rounded-lg">
-                            <Calendar className="h-5 w-5 text-green-600" />
-                          </div>
-                          <div>
-                            <h3 className="font-medium text-gray-900">{service.title}</h3>
-                            <p className="text-sm text-gray-600">
-                              {formatDate(service.date)} • {service.startTime} - {service.endTime}
-                            </p>
-                            <p className="text-sm text-gray-600 mt-1">{service.location}</p>
-                          </div>
-                        </div>
-                        <div className="flex flex-col items-end gap-2">
-                          <Badge className="bg-green-100 text-green-800">Concluído</Badge>
+                          <Button variant="outline" onClick={() => openEditDialog(culto)}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
                           <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-gray-600"
-                            onClick={() => router.push(`/dashboard/culto/gestao/${service.id}`)}
+                            variant="outline"
+                            className="text-red-600 hover:text-red-700"
+                            onClick={() => handleDeleteCulto(culto.id)}
                           >
-                            Detalhes
-                            <ChevronRight className="h-4 w-4 ml-1" />
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                       </div>
                     </CardContent>
                   </Card>
-                ))}
+                ))
+              )}
             </div>
-          ) : (
-            <Card>
-              <CardContent className="p-6 text-center">
-                <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-                <h3 className="text-lg font-medium text-gray-900 mb-1">Nenhum culto concluído</h3>
-                <p className="text-gray-600 mb-4">Não há registros de cultos concluídos</p>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-      </Tabs>
+          </div>
+        </div>
+      </div>
+
+      {/* Dialog para Criar/Editar Culto */}
+      <Dialog
+        open={isDialogOpen}
+        onOpenChange={(open) => {
+          setIsDialogOpen(open)
+          if (!open) {
+            setEditingCulto(null)
+            setFormData({
+              songs: [],
+              readings: [],
+              announcements: [],
+            })
+          }
+        }}
+      >
+        <DialogContent className="w-[95vw] max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingCulto ? "Editar Culto" : "Novo Culto"}</DialogTitle>
+          </DialogHeader>
+
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="grid grid-cols-4 mb-4">
+              <TabsTrigger value="informacoes">Informações</TabsTrigger>
+              <TabsTrigger value="musicas">Músicas</TabsTrigger>
+              <TabsTrigger value="leituras">Leituras</TabsTrigger>
+              <TabsTrigger value="anuncios">Anúncios</TabsTrigger>
+            </TabsList>
+
+            {/* Aba de Informações Gerais */}
+            <TabsContent value="informacoes" className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="title">Título do Culto *</Label>
+                  <Input
+                    id="title"
+                    value={formData.title || ""}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    placeholder="Ex: Culto de Domingo"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="status">Status</Label>
+                  <Select
+                    value={formData.status || "scheduled"}
+                    onValueChange={(value) =>
+                      setFormData({
+                        ...formData,
+                        status: value as "scheduled" | "in-progress" | "completed",
+                      })
+                    }
+                  >
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Agendado" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="scheduled">Agendado</SelectItem>
+                      <SelectItem value="in-progress">Em Andamento</SelectItem>
+                      <SelectItem value="completed">Concluído</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="date">Data *</Label>
+                  <Input
+                    type="date"
+                    id="date"
+                    value={formData.date || new Date().toISOString().split("T")[0]}
+                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="time">Horário *</Label>
+                  <Input
+                    type="time"
+                    id="time"
+                    value={formData.time || "10:00"}
+                    onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="preacher">Pregador</Label>
+                <Input
+                  id="preacher"
+                  value={formData.preacher || ""}
+                  onChange={(e) => setFormData({ ...formData, preacher: e.target.value })}
+                  placeholder="Ex: Pastor João Silva"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="theme">Tema</Label>
+                <Input
+                  id="theme"
+                  value={formData.theme || ""}
+                  onChange={(e) => setFormData({ ...formData, theme: e.target.value })}
+                  placeholder="Ex: Fé e Perseverança"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="description">Descrição</Label>
+                <Textarea
+                  id="description"
+                  value={formData.description || ""}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Culto dominical sobre a importância da fé em tempos difíceis"
+                />
+              </div>
+            </TabsContent>
+
+            {/* Aba de Músicas */}
+            <TabsContent value="musicas" className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="newSongTitle">Título da Música</Label>
+                  <Input
+                    id="newSongTitle"
+                    value={newSong.title || ""}
+                    onChange={(e) => setNewSong({ ...newSong, title: e.target.value })}
+                    placeholder="Ex: Grande é o Senhor"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="newSongArtist">Artista</Label>
+                  <Input
+                    id="newSongArtist"
+                    value={newSong.artist || ""}
+                    onChange={(e) => setNewSong({ ...newSong, artist: e.target.value })}
+                    placeholder="Ex: Adhemar de Campos"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="newSongKey">Tom</Label>
+                  <Input
+                    id="newSongKey"
+                    value={newSong.key || ""}
+                    onChange={(e) => setNewSong({ ...newSong, key: e.target.value })}
+                    placeholder="Ex: G"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="newSongBpm">BPM</Label>
+                  <Input
+                    type="number"
+                    id="newSongBpm"
+                    value={newSong.bpm || ""}
+                    onChange={(e) => setNewSong({ ...newSong, bpm: Number(e.target.value) })}
+                    placeholder="Ex: 75"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="newSongDuration">Duração</Label>
+                  <Input
+                    id="newSongDuration"
+                    value={newSong.duration || ""}
+                    onChange={(e) => setNewSong({ ...newSong, duration: e.target.value })}
+                    placeholder="Ex: 4:30"
+                  />
+                </div>
+              </div>
+
+              <Button type="button" onClick={addSong}>
+                Adicionar Música
+              </Button>
+
+              {formData.songs && formData.songs.length > 0 ? (
+                <div className="space-y-2">
+                  {formData.songs.map((song) => (
+                    <div key={song.id} className="flex items-center justify-between border rounded-md p-2">
+                      <div>
+                        {song.title} - {song.artist} ({song.key}, {song.bpm} BPM, {song.duration})
+                      </div>
+                      <Button type="button" variant="outline" onClick={() => removeSong(song.id)}>
+                        Remover
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-500">Nenhuma música adicionada.</p>
+              )}
+            </TabsContent>
+
+            {/* Aba de Leituras */}
+            <TabsContent value="leituras" className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="newReadingTitle">Título da Leitura</Label>
+                  <Input
+                    id="newReadingTitle"
+                    value={newReading.title || ""}
+                    onChange={(e) => setNewReading({ ...newReading, title: e.target.value })}
+                    placeholder="Ex: Leitura Inicial"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="newReadingReference">Referência</Label>
+                  <Input
+                    id="newReadingReference"
+                    value={newReading.reference || ""}
+                    onChange={(e) => setNewReading({ ...newReading, reference: e.target.value })}
+                    placeholder="Ex: Salmos 23"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="newReadingText">Texto</Label>
+                <Textarea
+                  id="newReadingText"
+                  value={newReading.text || ""}
+                  onChange={(e) => setNewReading({ ...newReading, text: e.target.value })}
+                  placeholder="O Senhor é meu pastor, nada me faltará..."
+                />
+              </div>
+
+              <Button type="button" onClick={addReading}>
+                Adicionar Leitura
+              </Button>
+
+              {formData.readings && formData.readings.length > 0 ? (
+                <div className="space-y-2">
+                  {formData.readings.map((reading) => (
+                    <div key={reading.id} className="flex items-center justify-between border rounded-md p-2">
+                      <div>
+                        {reading.title} - {reading.reference}
+                      </div>
+                      <Button type="button" variant="outline" onClick={() => removeReading(reading.id)}>
+                        Remover
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-500">Nenhuma leitura adicionada.</p>
+              )}
+            </TabsContent>
+
+            {/* Aba de Anúncios */}
+            <TabsContent value="anuncios" className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="newAnnouncementTitle">Título do Anúncio</Label>
+                  <Input
+                    id="newAnnouncementTitle"
+                    value={newAnnouncement.title || ""}
+                    onChange={(e) => setNewAnnouncement({ ...newAnnouncement, title: e.target.value })}
+                    placeholder="Ex: Encontro de Jovens"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="newAnnouncementContent">Conteúdo</Label>
+                  <Input
+                    id="newAnnouncementContent"
+                    value={newAnnouncement.content || ""}
+                    onChange={(e) => setNewAnnouncement({ ...newAnnouncement, content: e.target.value })}
+                    placeholder="Ex: No próximo sábado às 19h teremos nosso encontro de jovens"
+                  />
+                </div>
+              </div>
+
+              <Button type="button" onClick={addAnnouncement}>
+                Adicionar Anúncio
+              </Button>
+
+              {formData.announcements && formData.announcements.length > 0 ? (
+                <div className="space-y-2">
+                  {formData.announcements.map((announcement) => (
+                    <div key={announcement.id} className="flex items-center justify-between border rounded-md p-2">
+                      <div>
+                        {announcement.title} - {announcement.content}
+                      </div>
+                      <Button type="button" variant="outline" onClick={() => removeAnnouncement(announcement.id)}>
+                        Remover
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-500">Nenhum anúncio adicionado.</p>
+              )}
+            </TabsContent>
+          </Tabs>
+
+          <div className="flex justify-end mt-6">
+            <Button type="button" variant="secondary" onClick={() => setIsDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button type="button" className="ml-2" onClick={handleSaveCulto}>
+              Salvar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

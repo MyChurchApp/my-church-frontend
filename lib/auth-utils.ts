@@ -1,83 +1,82 @@
-// Funções de autenticação
+// Caso este arquivo não exista ou precise ser atualizado
 
-/**
- * Obtém o token de autenticação do localStorage
- */
-export function getToken(): string | null {
-  if (typeof window === "undefined") {
-    console.log("🚨 getToken: Executando no servidor, retornando null")
-    return null
-  }
-
-  const token = localStorage.getItem("authToken")
-
-  if (!token) {
-    console.log("🚨 getToken: Token não encontrado no localStorage")
-    return null
-  }
-
-  console.log("✅ getToken: Token encontrado, tamanho:", token.length)
-
-  // Verificar se o token não expirou
-  try {
-    const payload = JSON.parse(atob(token.split(".")[1]))
-    const now = Math.floor(Date.now() / 1000)
-
-    if (payload.exp && payload.exp < now) {
-      console.log("🚨 getToken: Token expirado")
-      localStorage.removeItem("authToken")
-      localStorage.removeItem("userRole")
-      localStorage.removeItem("user")
-      return null
-    }
-
-    console.log("✅ getToken: Token válido, expira em:", new Date(payload.exp * 1000))
-  } catch (error) {
-    console.error("🚨 getToken: Erro ao validar token:", error)
-  }
-
-  return token
+// Função para obter o token do localStorage
+export const getToken = (): string | null => {
+  if (typeof window === "undefined") return null
+  return localStorage.getItem("authToken")
 }
 
-/**
- * Verifica se o usuário está autenticado
- */
-export function isAuthenticated(): boolean {
-  if (typeof window === "undefined") return false
+// Função para obter o usuário do localStorage
+export const getUser = (): any | null => {
+  if (typeof window === "undefined") return null
+
+  const userData = localStorage.getItem("user")
+  if (userData) {
+    try {
+      return JSON.parse(userData)
+    } catch (error) {
+      console.error("Erro ao parsear dados do usuário:", error)
+      return null
+    }
+  }
+
+  // Tentar extrair informações básicas do token
+  const token = getToken()
+  if (token) {
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1]))
+      return {
+        id: payload.nameid || payload.sub || "1",
+        name: payload.name || "Usuário",
+        email: payload.email || "",
+        role: payload.role || "Member",
+        accessLevel: payload.role === "Admin" ? "admin" : "member",
+      }
+    } catch (error) {
+      console.error("Erro ao decodificar token:", error)
+    }
+  }
+
+  return null
+}
+
+// Função para verificar se o usuário está autenticado
+export const isAuthenticated = (): boolean => {
   return !!getToken()
 }
 
-/**
- * Obtém o churchId do usuário atual do token
- */
-export function getChurchId(): number | null {
-  if (typeof window === "undefined") return null
+// Função para obter o papel/função do usuário
+export const getUserRole = (): string => {
+  const user = getUser()
+  if (user && user.role) {
+    return user.role
+  }
 
-  const token = getToken()
-  if (!token) return null
+  // Verificar no localStorage diretamente
+  if (typeof window !== "undefined") {
+    const role = localStorage.getItem("userRole")
+    if (role) return role
+  }
 
-  try {
-    // Primeiro, tentar obter do token JWT
-    const payload = JSON.parse(atob(token.split(".")[1]))
-    if (payload.churchId) {
-      console.log("✅ ChurchId obtido do token:", payload.churchId)
-      return Number.parseInt(payload.churchId)
-    }
+  return "Member" // Valor padrão
+}
 
-    // Backup: tentar obter do localStorage
-    const userData = localStorage.getItem("user")
-    if (userData) {
-      const user = JSON.parse(userData)
-      if (user.churchId) {
-        console.log("✅ ChurchId obtido do localStorage:", user.churchId)
-        return Number.parseInt(user.churchId)
-      }
-    }
+// Função para verificar permissões
+export const hasPermission = (userRole: string, requiredRole: string): boolean => {
+  if (userRole === "Admin") return true
+  if (userRole === "Pastor" && requiredRole !== "Admin") return true
+  if (userRole === "Leader" && (requiredRole === "Member" || requiredRole === "Leader")) return true
+  if (userRole === "Member" && requiredRole === "Member") return true
 
-    console.log("🚨 ChurchId não encontrado no token nem no localStorage")
-    return null
-  } catch (error) {
-    console.error("🚨 Erro ao obter churchId:", error)
-    return null
+  return false
+}
+
+// Função para fazer logout
+export const logout = () => {
+  if (typeof window !== "undefined") {
+    localStorage.removeItem("authToken")
+    localStorage.removeItem("userRole")
+    localStorage.removeItem("user")
+    window.location.href = "/login"
   }
 }

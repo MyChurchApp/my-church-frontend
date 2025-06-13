@@ -1,560 +1,689 @@
 "use client"
 
-import { Calendar } from "@/components/ui/calendar"
-
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
+import {
+  Calendar,
+  Clock,
+  Music,
+  Book,
+  MessageSquare,
+  Users,
+  Play,
+  Pause,
+  CheckCircle2,
+  XCircle,
+  Loader2,
+} from "lucide-react"
+import { useRouter } from "next/navigation"
 import { isAuthenticated } from "@/lib/auth-utils"
-import { authFetch } from "@/lib/auth-fetch"
-import { AlertCircle, CheckCircle, Clock, Music, Book, Users, ChevronRight } from "lucide-react"
 
-// Interface para os dados do culto
+// Tipos para a API
 interface WorshipService {
   id: number
   title: string
   date: string
-  startTime: string
-  endTime: string
+  time: string
+  status: "scheduled" | "in-progress" | "completed"
+  preacher: string
+  theme: string
   description: string
-  status: "scheduled" | "in-progress" | "completed" | "cancelled"
-  location: string
+  songs: Song[]
+  readings: Reading[]
+  announcements: Announcement[]
   attendees: number
-  items: WorshipItem[]
 }
 
-// Interface para os itens do culto
-interface WorshipItem {
+interface Song {
   id: number
   title: string
-  description: string
-  duration: number // em minutos
-  type: "praise" | "sermon" | "offering" | "announcement" | "prayer" | "reading" | "other"
-  responsible: string
-  order: number
-  status: "pending" | "in-progress" | "completed"
-  notes?: string
+  artist: string
+  key: string
+  bpm: number
+  duration: string
+  status: "pending" | "current" | "completed"
+}
+
+interface Reading {
+  id: number
+  title: string
+  reference: string
+  text: string
+  status: "pending" | "current" | "completed"
+}
+
+interface Announcement {
+  id: number
+  title: string
+  content: string
+  status: "pending" | "current" | "completed"
 }
 
 export default function AcompanharCultoPage() {
   const router = useRouter()
-  const [isLoading, setIsLoading] = useState(true)
+  const [cultoAtual, setCultoAtual] = useState<WorshipService | null>(null)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState("em-andamento")
-  const [worshipServices, setWorshipServices] = useState<WorshipService[]>([])
-  const [currentService, setCurrentService] = useState<WorshipService | null>(null)
-  const [debugInfo, setDebugInfo] = useState<any>(null)
+  const [activeTab, setActiveTab] = useState("musicas")
 
-  useEffect(() => {
-    // Verificar autenticação
-    if (!isAuthenticated()) {
-      router.push("/login")
-      return
+  // Estado para controlar o item atual em cada seção
+  const [currentSongIndex, setCurrentSongIndex] = useState(-1)
+  const [currentReadingIndex, setCurrentReadingIndex] = useState(-1)
+  const [currentAnnouncementIndex, setCurrentAnnouncementIndex] = useState(-1)
+
+  // Estado para controlar se o culto está em andamento
+  const [isWorshipInProgress, setIsWorshipInProgress] = useState(false)
+
+  // Função para obter o token de autenticação do localStorage
+  const getAuthToken = (): string | null => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("authToken")
     }
-
-    loadWorshipServices()
-  }, [router])
-
-  const loadWorshipServices = async () => {
-    setIsLoading(true)
-    setError(null)
-
-    try {
-      // Tentar carregar dados reais da API
-      const response = await authFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/Worship`)
-
-      if (response.ok) {
-        const data = await response.json()
-        setDebugInfo(data)
-
-        // Processar dados da API
-        // Implementar quando a API estiver disponível
-
-        // Por enquanto, usar dados de exemplo
-        const mockServices = getMockWorshipServices()
-        setWorshipServices(mockServices)
-
-        // Definir o culto atual (em andamento ou o próximo)
-        const inProgressService = mockServices.find((s) => s.status === "in-progress")
-        const nextService = mockServices
-          .filter((s) => s.status === "scheduled")
-          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0]
-
-        setCurrentService(inProgressService || nextService || null)
-      } else {
-        console.log("Erro ao carregar cultos:", response.status)
-        // Usar dados de exemplo em caso de erro
-        const mockServices = getMockWorshipServices()
-        setWorshipServices(mockServices)
-        setCurrentService(mockServices[0])
-      }
-    } catch (error) {
-      console.error("Erro ao carregar cultos:", error)
-      setError("Erro ao carregar dados dos cultos. Tente novamente.")
-
-      // Usar dados de exemplo em caso de erro
-      const mockServices = getMockWorshipServices()
-      setWorshipServices(mockServices)
-      setCurrentService(mockServices[0])
-    } finally {
-      setIsLoading(false)
-    }
+    return null
   }
 
-  // Função para obter dados de exemplo
-  const getMockWorshipServices = (): WorshipService[] => {
-    return [
-      {
+  // Função para fazer requisições autenticadas
+  const authenticatedFetch = async (url: string, options: RequestInit = {}) => {
+    const token = getAuthToken()
+
+    if (!token) {
+      throw new Error("Token de autenticação não encontrado")
+    }
+
+    const headers = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+      ...options.headers,
+    }
+
+    const response = await fetch(url, {
+      ...options,
+      headers,
+    })
+
+    if (response.status === 401) {
+      // Token expirado ou inválido
+      localStorage.removeItem("authToken")
+      router.push("/login")
+      throw new Error("Sessão expirada. Por favor, faça login novamente.")
+    }
+
+    if (!response.ok) {
+      throw new Error(`Erro na requisição: ${response.status}`)
+    }
+
+    return response.json()
+  }
+
+  // Função para buscar o culto atual da API
+  const fetchCurrentWorship = async (): Promise<WorshipService | null> => {
+    try {
+      // Aqui você faria a chamada real para a API
+      // const data = await authenticatedFetch("https://demoapp.top1soft.com.br/api/Worship/current")
+      // return data
+
+      // Por enquanto, retornamos dados simulados
+      return {
         id: 1,
         title: "Culto de Domingo",
-        date: "2025-06-16",
-        startTime: "10:00",
-        endTime: "12:00",
-        description: "Culto dominical com louvor e pregação",
+        date: "2025-06-15",
+        time: "10:00",
         status: "in-progress",
-        location: "Templo Principal",
-        attendees: 120,
-        items: [
+        preacher: "Pastor João Silva",
+        theme: "Fé e Perseverança",
+        description: "Culto dominical sobre a importância da fé em tempos difíceis",
+        songs: [
           {
-            id: 101,
-            title: "Abertura e Boas-vindas",
-            description: "Saudação inicial e boas-vindas aos presentes",
-            duration: 5,
-            type: "other",
-            responsible: "Pr. João Silva",
-            order: 1,
+            id: 1,
+            title: "Grande é o Senhor",
+            artist: "Adhemar de Campos",
+            key: "G",
+            bpm: 75,
+            duration: "4:30",
             status: "completed",
           },
           {
-            id: 102,
-            title: "Momento de Louvor",
-            description: "Louvor conduzido pelo ministério de música",
-            duration: 20,
-            type: "praise",
-            responsible: "Ministério de Louvor",
-            order: 2,
+            id: 2,
+            title: "Deus é Fiel",
+            artist: "Diante do Trono",
+            key: "D",
+            bpm: 72,
+            duration: "5:15",
+            status: "current",
+          },
+          {
+            id: 3,
+            title: "Maravilhosa Graça",
+            artist: "Ministério Ipiranga",
+            key: "E",
+            bpm: 68,
+            duration: "4:45",
+            status: "pending",
+          },
+          {
+            id: 4,
+            title: "Teu Santo Nome",
+            artist: "Gabriela Rocha",
+            key: "A",
+            bpm: 70,
+            duration: "6:00",
+            status: "pending",
+          },
+        ],
+        readings: [
+          {
+            id: 1,
+            title: "Leitura Inicial",
+            reference: "Salmos 23",
+            text: "O Senhor é meu pastor, nada me faltará...",
             status: "completed",
           },
           {
-            id: 103,
-            title: "Leitura Bíblica",
-            description: "Salmos 23",
-            duration: 5,
-            type: "reading",
-            responsible: "Diácono Pedro",
-            order: 3,
-            status: "in-progress",
-          },
-          {
-            id: 104,
-            title: "Pregação",
-            description: "Tema: O Bom Pastor",
-            duration: 40,
-            type: "sermon",
-            responsible: "Pr. João Silva",
-            order: 4,
-            status: "pending",
-          },
-          {
-            id: 105,
-            title: "Oferta e Dízimos",
-            description: "Momento de contribuição",
-            duration: 10,
-            type: "offering",
-            responsible: "Ministério de Finanças",
-            order: 5,
-            status: "pending",
-          },
-          {
-            id: 106,
-            title: "Avisos",
-            description: "Comunicados da semana",
-            duration: 5,
-            type: "announcement",
-            responsible: "Secretária Maria",
-            order: 6,
-            status: "pending",
-          },
-          {
-            id: 107,
-            title: "Oração Final",
-            description: "Encerramento e bênção",
-            duration: 5,
-            type: "prayer",
-            responsible: "Pr. João Silva",
-            order: 7,
+            id: 2,
+            title: "Leitura Principal",
+            reference: "Hebreus 11:1-6",
+            text: "Ora, a fé é a certeza daquilo que esperamos e a prova das coisas que não vemos...",
             status: "pending",
           },
         ],
-      },
-      {
-        id: 2,
-        title: "Culto de Quarta-feira",
-        date: "2025-06-19",
-        startTime: "19:30",
-        endTime: "21:00",
-        description: "Culto de ensino bíblico",
-        status: "scheduled",
-        location: "Templo Principal",
-        attendees: 0,
-        items: [
+        announcements: [
           {
-            id: 201,
-            title: "Abertura e Oração",
-            description: "Momento inicial de oração",
-            duration: 10,
-            type: "prayer",
-            responsible: "Pr. Carlos",
-            order: 1,
+            id: 1,
+            title: "Encontro de Jovens",
+            content: "No próximo sábado às 19h teremos nosso encontro de jovens",
             status: "pending",
           },
           {
-            id: 202,
-            title: "Louvor",
-            description: "Momento de adoração",
-            duration: 15,
-            type: "praise",
-            responsible: "Equipe de Louvor",
-            order: 2,
-            status: "pending",
-          },
-          {
-            id: 203,
-            title: "Estudo Bíblico",
-            description: "Tema: Epístola aos Romanos",
-            duration: 45,
-            type: "sermon",
-            responsible: "Pr. Carlos",
-            order: 3,
-            status: "pending",
-          },
-          {
-            id: 204,
-            title: "Encerramento",
-            description: "Oração final e despedida",
-            duration: 5,
-            type: "prayer",
-            responsible: "Pr. Carlos",
-            order: 4,
+            id: 2,
+            title: "Campanha de Arrecadação",
+            content: "Estamos arrecadando alimentos não perecíveis para famílias carentes",
             status: "pending",
           },
         ],
-      },
-    ]
-  }
-
-  // Função para obter o ícone do tipo de item
-  const getItemTypeIcon = (type: string) => {
-    switch (type) {
-      case "praise":
-        return <Music className="h-5 w-5" />
-      case "sermon":
-        return <Book className="h-5 w-5" />
-      case "reading":
-        return <Book className="h-5 w-5" />
-      case "offering":
-        return <ChevronRight className="h-5 w-5" />
-      case "announcement":
-        return <ChevronRight className="h-5 w-5" />
-      case "prayer":
-        return <ChevronRight className="h-5 w-5" />
-      default:
-        return <ChevronRight className="h-5 w-5" />
-    }
-  }
-
-  // Função para obter a cor do status
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "completed":
-        return "bg-green-100 text-green-800"
-      case "in-progress":
-        return "bg-blue-100 text-blue-800"
-      case "pending":
-        return "bg-gray-100 text-gray-800"
-      default:
-        return "bg-gray-100 text-gray-800"
-    }
-  }
-
-  // Função para obter o ícone do status
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "completed":
-        return <CheckCircle className="h-4 w-4" />
-      case "in-progress":
-        return <Clock className="h-4 w-4" />
-      case "pending":
-        return <Clock className="h-4 w-4" />
-      default:
-        return <Clock className="h-4 w-4" />
-    }
-  }
-
-  // Função para formatar a data
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    return date.toLocaleDateString("pt-BR", {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    })
-  }
-
-  // Função para testar a API
-  const testApi = async () => {
-    try {
-      const response = await authFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/Worship`)
-      const data = await response.json()
-      setDebugInfo(data)
-      alert("Dados recebidos da API! Verifique o console.")
-      console.log("Dados da API:", data)
+        attendees: 87,
+      }
     } catch (error) {
-      console.error("Erro ao testar API:", error)
-      alert("Erro ao testar API. Verifique o console.")
+      console.error("Erro ao buscar culto atual:", error)
+      throw error
     }
   }
 
-  if (isLoading) {
+  // Carregar dados iniciais
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true)
+      setError(null)
+
+      try {
+        // Verificar se o usuário está autenticado
+        if (!isAuthenticated()) {
+          router.push("/login")
+          return
+        }
+
+        // Buscar dados do culto atual
+        const worshipData = await fetchCurrentWorship()
+        setCultoAtual(worshipData)
+
+        // Configurar índices iniciais baseados no status
+        if (worshipData) {
+          setIsWorshipInProgress(worshipData.status === "in-progress")
+
+          // Encontrar o índice da música atual
+          const songIndex = worshipData.songs.findIndex((song) => song.status === "current")
+          setCurrentSongIndex(songIndex !== -1 ? songIndex : -1)
+
+          // Encontrar o índice da leitura atual
+          const readingIndex = worshipData.readings.findIndex((reading) => reading.status === "current")
+          setCurrentReadingIndex(readingIndex !== -1 ? readingIndex : -1)
+
+          // Encontrar o índice do anúncio atual
+          const announcementIndex = worshipData.announcements.findIndex(
+            (announcement) => announcement.status === "current",
+          )
+          setCurrentAnnouncementIndex(announcementIndex !== -1 ? announcementIndex : -1)
+        }
+      } catch (error) {
+        console.error("Erro ao carregar dados:", error)
+        setError("Não foi possível carregar os dados do culto. Por favor, tente novamente.")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadData()
+  }, [router])
+
+  // Funções para controlar o fluxo do culto
+  const startWorship = () => {
+    setIsWorshipInProgress(true)
+    // Em uma implementação real, você enviaria uma requisição para a API
+    // para atualizar o status do culto
+  }
+
+  const pauseWorship = () => {
+    setIsWorshipInProgress(false)
+    // Em uma implementação real, você enviaria uma requisição para a API
+    // para atualizar o status do culto
+  }
+
+  // Funções para controlar os itens em cada seção
+  const startItem = (section: "songs" | "readings" | "announcements", index: number) => {
+    if (!cultoAtual) return
+
+    // Atualizar o estado local
+    if (section === "songs") {
+      setCurrentSongIndex(index)
+
+      // Atualizar o status das músicas
+      const updatedSongs = cultoAtual.songs.map((song, i) => ({
+        ...song,
+        status: i < index ? "completed" : i === index ? "current" : "pending",
+      }))
+
+      setCultoAtual({
+        ...cultoAtual,
+        songs: updatedSongs,
+      })
+    } else if (section === "readings") {
+      setCurrentReadingIndex(index)
+
+      // Atualizar o status das leituras
+      const updatedReadings = cultoAtual.readings.map((reading, i) => ({
+        ...reading,
+        status: i < index ? "completed" : i === index ? "current" : "pending",
+      }))
+
+      setCultoAtual({
+        ...cultoAtual,
+        readings: updatedReadings,
+      })
+    } else if (section === "announcements") {
+      setCurrentAnnouncementIndex(index)
+
+      // Atualizar o status dos anúncios
+      const updatedAnnouncements = cultoAtual.announcements.map((announcement, i) => ({
+        ...announcement,
+        status: i < index ? "completed" : i === index ? "current" : "pending",
+      }))
+
+      setCultoAtual({
+        ...cultoAtual,
+        announcements: updatedAnnouncements,
+      })
+    }
+
+    // Em uma implementação real, você enviaria uma requisição para a API
+    // para atualizar o status do item
+  }
+
+  const completeItem = (section: "songs" | "readings" | "announcements", index: number) => {
+    if (!cultoAtual) return
+
+    // Atualizar o estado local
+    if (section === "songs") {
+      // Marcar a música atual como concluída
+      const updatedSongs = cultoAtual.songs.map((song, i) => ({
+        ...song,
+        status: i <= index ? "completed" : song.status,
+      }))
+
+      // Avançar para a próxima música, se houver
+      const nextIndex = index + 1
+      if (nextIndex < cultoAtual.songs.length) {
+        updatedSongs[nextIndex].status = "current"
+        setCurrentSongIndex(nextIndex)
+      } else {
+        setCurrentSongIndex(-1) // Todas as músicas foram concluídas
+      }
+
+      setCultoAtual({
+        ...cultoAtual,
+        songs: updatedSongs,
+      })
+    } else if (section === "readings") {
+      // Marcar a leitura atual como concluída
+      const updatedReadings = cultoAtual.readings.map((reading, i) => ({
+        ...reading,
+        status: i <= index ? "completed" : reading.status,
+      }))
+
+      // Avançar para a próxima leitura, se houver
+      const nextIndex = index + 1
+      if (nextIndex < cultoAtual.readings.length) {
+        updatedReadings[nextIndex].status = "current"
+        setCurrentReadingIndex(nextIndex)
+      } else {
+        setCurrentReadingIndex(-1) // Todas as leituras foram concluídas
+      }
+
+      setCultoAtual({
+        ...cultoAtual,
+        readings: updatedReadings,
+      })
+    } else if (section === "announcements") {
+      // Marcar o anúncio atual como concluído
+      const updatedAnnouncements = cultoAtual.announcements.map((announcement, i) => ({
+        ...announcement,
+        status: i <= index ? "completed" : announcement.status,
+      }))
+
+      // Avançar para o próximo anúncio, se houver
+      const nextIndex = index + 1
+      if (nextIndex < cultoAtual.announcements.length) {
+        updatedAnnouncements[nextIndex].status = "current"
+        setCurrentAnnouncementIndex(nextIndex)
+      } else {
+        setCurrentAnnouncementIndex(-1) // Todos os anúncios foram concluídos
+      }
+
+      setCultoAtual({
+        ...cultoAtual,
+        announcements: updatedAnnouncements,
+      })
+    }
+
+    // Em uma implementação real, você enviaria uma requisição para a API
+    // para atualizar o status do item
+  }
+
+  // Renderização condicional para carregamento
+  if (loading) {
     return (
-      <div className="p-6">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-          <div className="h-64 bg-gray-200 rounded"></div>
-          <div className="h-32 bg-gray-200 rounded"></div>
+      <div className="flex h-screen items-center justify-center bg-gray-50">
+        <div className="flex flex-col items-center gap-2">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-sm text-gray-500">Carregando dados do culto...</p>
         </div>
       </div>
     )
   }
 
-  return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Acompanhar Culto</h1>
-        <p className="text-gray-600">Acompanhe o andamento dos cultos em tempo real</p>
-      </div>
-
-      {/* Error Message */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-md p-4 flex items-start">
-          <AlertCircle className="h-5 w-5 text-red-500 mr-2 mt-0.5" />
-          <div>
-            <p className="text-red-800 font-medium">Erro ao carregar dados</p>
-            <p className="text-red-700">{error}</p>
-            <Button variant="outline" size="sm" onClick={loadWorshipServices} className="mt-2">
-              Tentar Novamente
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Debug Info */}
-      {debugInfo && (
-        <Card className="bg-gray-50">
-          <CardHeader>
-            <CardTitle className="text-sm font-medium">Informações de Debug</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <pre className="text-xs overflow-auto max-h-40">{JSON.stringify(debugInfo, null, 2)}</pre>
+  // Renderização condicional para erro
+  if (error) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-50">
+        <Card className="w-full max-w-md">
+          <CardContent className="flex flex-col items-center p-6">
+            <XCircle className="h-16 w-16 text-red-500 mb-4" />
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Erro ao carregar</h2>
+            <p className="text-gray-600 text-center mb-4">{error}</p>
+            <Button onClick={() => window.location.reload()}>Tentar novamente</Button>
           </CardContent>
         </Card>
-      )}
-
-      {/* Test API Button */}
-      <div className="flex gap-2">
-        <Button variant="outline" size="sm" onClick={testApi}>
-          Testar API
-        </Button>
-        <Button variant="outline" size="sm" onClick={loadWorshipServices}>
-          Recarregar Dados
-        </Button>
       </div>
+    )
+  }
 
-      {/* Tabs */}
-      <Tabs defaultValue="em-andamento" value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="em-andamento">Em Andamento</TabsTrigger>
-          <TabsTrigger value="programados">Programados</TabsTrigger>
-          <TabsTrigger value="concluidos">Concluídos</TabsTrigger>
-        </TabsList>
+  // Renderização condicional para quando não há culto em andamento
+  if (!cultoAtual) {
+    return (
+      <div className="flex h-screen bg-gray-50">
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 overflow-y-auto p-6">
+            <Card className="w-full max-w-2xl mx-auto">
+              <CardContent className="flex flex-col items-center p-6">
+                <Calendar className="h-16 w-16 text-gray-400 mb-4" />
+                <h2 className="text-xl font-semibold text-gray-900 mb-2">Nenhum culto em andamento</h2>
+                <p className="text-gray-600 text-center mb-4">
+                  Não há nenhum culto em andamento no momento. Verifique a programação ou volte mais tarde.
+                </p>
+                <Button onClick={() => router.push("/dashboard/culto")}>Ver programação</Button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
-        {/* Em Andamento */}
-        <TabsContent value="em-andamento">
-          {worshipServices.filter((service) => service.status === "in-progress").length > 0 ? (
-            <div className="space-y-6">
-              {worshipServices
-                .filter((service) => service.status === "in-progress")
-                .map((service) => (
-                  <Card key={service.id}>
-                    <CardHeader>
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <CardTitle>{service.title}</CardTitle>
-                          <p className="text-gray-600 text-sm">
-                            {formatDate(service.date)} • {service.startTime} - {service.endTime}
-                          </p>
-                        </div>
-                        <Badge className="bg-blue-100 text-blue-800">Em Andamento</Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
+  // Renderização principal
+  return (
+    <div className="flex h-screen bg-gray-50">
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Header */}
+        <header className="bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Acompanhar Culto</h1>
+              <p className="text-gray-600">Acompanhe o andamento do culto em tempo real</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge
+                variant={isWorshipInProgress ? "default" : "outline"}
+                className={isWorshipInProgress ? "bg-green-500 hover:bg-green-600" : ""}
+              >
+                {isWorshipInProgress ? "Em andamento" : "Não iniciado"}
+              </Badge>
+              {isWorshipInProgress ? (
+                <Button variant="outline" size="sm" onClick={pauseWorship}>
+                  <Pause className="h-4 w-4 mr-2" />
+                  Pausar
+                </Button>
+              ) : (
+                <Button size="sm" onClick={startWorship}>
+                  <Play className="h-4 w-4 mr-2" />
+                  Iniciar
+                </Button>
+              )}
+            </div>
+          </div>
+        </header>
+
+        {/* Main Content */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="p-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Coluna da Esquerda - Informações do Culto */}
+              <Card className="lg:col-span-1">
+                <CardHeader>
+                  <CardTitle>Informações do Culto</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <h3 className="text-xl font-semibold text-gray-900">{cultoAtual.title}</h3>
+                    <div className="flex items-center gap-2 mt-1 text-gray-600">
+                      <Calendar className="h-4 w-4" />
+                      <span>{new Date(cultoAtual.date).toLocaleDateString("pt-BR")}</span>
+                      <Clock className="h-4 w-4 ml-2" />
+                      <span>{cultoAtual.time}</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4 text-gray-500" />
+                      <span className="text-sm font-medium">Pregador:</span>
+                      <span className="text-sm">{cultoAtual.preacher}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <MessageSquare className="h-4 w-4 text-gray-500" />
+                      <span className="text-sm font-medium">Tema:</span>
+                      <span className="text-sm">{cultoAtual.theme}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4 text-gray-500" />
+                      <span className="text-sm font-medium">Presentes:</span>
+                      <span className="text-sm">{cultoAtual.attendees} pessoas</span>
+                    </div>
+                  </div>
+
+                  {cultoAtual.description && (
+                    <div className="pt-2">
+                      <p className="text-sm text-gray-600">{cultoAtual.description}</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Coluna da Direita - Abas com Músicas, Leituras e Anúncios */}
+              <Card className="lg:col-span-2">
+                <CardContent className="p-0">
+                  <Tabs defaultValue="musicas" value={activeTab} onValueChange={setActiveTab} className="w-full">
+                    <TabsList className="w-full grid grid-cols-3">
+                      <TabsTrigger value="musicas" className="flex items-center gap-1">
+                        <Music className="h-4 w-4" />
+                        <span className="hidden sm:inline">Músicas</span>
+                      </TabsTrigger>
+                      <TabsTrigger value="leituras" className="flex items-center gap-1">
+                        <Book className="h-4 w-4" />
+                        <span className="hidden sm:inline">Leituras</span>
+                      </TabsTrigger>
+                      <TabsTrigger value="anuncios" className="flex items-center gap-1">
+                        <MessageSquare className="h-4 w-4" />
+                        <span className="hidden sm:inline">Anúncios</span>
+                      </TabsTrigger>
+                    </TabsList>
+
+                    {/* Conteúdo da aba Músicas */}
+                    <TabsContent value="musicas" className="p-4">
                       <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Users className="h-5 w-5 text-gray-500" />
-                            <span className="text-gray-700">{service.attendees} presentes</span>
-                          </div>
-                          <div className="text-gray-700">{service.location}</div>
-                        </div>
-
-                        <Separator />
-
-                        <div className="space-y-4">
-                          <h3 className="font-medium">Programação</h3>
-                          <div className="space-y-3">
-                            {service.items.map((item) => (
-                              <div key={item.id} className="flex items-start gap-3">
-                                <div
-                                  className={`p-2 rounded-full ${
-                                    item.status === "completed"
-                                      ? "bg-green-100"
-                                      : item.status === "in-progress"
-                                        ? "bg-blue-100"
-                                        : "bg-gray-100"
-                                  }`}
-                                >
-                                  {getItemTypeIcon(item.type)}
-                                </div>
+                        {cultoAtual.songs.map((song, index) => (
+                          <Card
+                            key={song.id}
+                            className={`
+                            ${song.status === "completed" ? "bg-gray-50" : ""}
+                            ${song.status === "current" ? "border-green-500 border-2" : ""}
+                          `}
+                          >
+                            <CardContent className="p-4">
+                              <div className="flex items-center justify-between">
                                 <div className="flex-1">
-                                  <div className="flex justify-between">
-                                    <h4 className="font-medium">{item.title}</h4>
-                                    <Badge className={getStatusColor(item.status)}>
-                                      <div className="flex items-center gap-1">
-                                        {getStatusIcon(item.status)}
-                                        <span>
-                                          {item.status === "completed"
-                                            ? "Concluído"
-                                            : item.status === "in-progress"
-                                              ? "Em andamento"
-                                              : "Pendente"}
-                                        </span>
-                                      </div>
-                                    </Badge>
+                                  <div className="flex items-center gap-2">
+                                    <h3 className="font-semibold">{song.title}</h3>
+                                    {song.status === "completed" && <CheckCircle2 className="h-4 w-4 text-green-500" />}
+                                    {song.status === "current" && <Badge className="bg-green-500">Atual</Badge>}
                                   </div>
-                                  <p className="text-sm text-gray-600">{item.description}</p>
-                                  <div className="flex justify-between text-xs text-gray-500 mt-1">
-                                    <span>{item.responsible}</span>
-                                    <span>{item.duration} min</span>
+                                  <p className="text-sm text-gray-600">{song.artist}</p>
+                                  <div className="flex items-center gap-4 mt-1 text-xs text-gray-500">
+                                    <span>Tom: {song.key}</span>
+                                    <span>BPM: {song.bpm}</span>
+                                    <span>Duração: {song.duration}</span>
                                   </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  {isWorshipInProgress && song.status === "pending" && (
+                                    <Button size="sm" variant="outline" onClick={() => startItem("songs", index)}>
+                                      <Play className="h-3 w-3 mr-1" />
+                                      Iniciar
+                                    </Button>
+                                  )}
+                                  {isWorshipInProgress && song.status === "current" && (
+                                    <Button size="sm" onClick={() => completeItem("songs", index)}>
+                                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                                      Concluir
+                                    </Button>
+                                  )}
                                 </div>
                               </div>
-                            ))}
-                          </div>
-                        </div>
+                            </CardContent>
+                          </Card>
+                        ))}
                       </div>
-                    </CardContent>
-                  </Card>
-                ))}
-            </div>
-          ) : (
-            <Card>
-              <CardContent className="p-6 text-center">
-                <Clock className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-                <h3 className="text-lg font-medium text-gray-900 mb-1">Nenhum culto em andamento</h3>
-                <p className="text-gray-600 mb-4">No momento não há cultos acontecendo</p>
-                <Button onClick={() => setActiveTab("programados")}>Ver Cultos Programados</Button>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
+                    </TabsContent>
 
-        {/* Programados */}
-        <TabsContent value="programados">
-          {worshipServices.filter((service) => service.status === "scheduled").length > 0 ? (
-            <div className="space-y-4">
-              {worshipServices
-                .filter((service) => service.status === "scheduled")
-                .map((service) => (
-                  <Card key={service.id}>
-                    <CardHeader>
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <CardTitle>{service.title}</CardTitle>
-                          <p className="text-gray-600 text-sm">
-                            {formatDate(service.date)} • {service.startTime} - {service.endTime}
-                          </p>
-                        </div>
-                        <Badge className="bg-gray-100 text-gray-800">Programado</Badge>
+                    {/* Conteúdo da aba Leituras */}
+                    <TabsContent value="leituras" className="p-4">
+                      <div className="space-y-4">
+                        {cultoAtual.readings.map((reading, index) => (
+                          <Card
+                            key={reading.id}
+                            className={`
+                            ${reading.status === "completed" ? "bg-gray-50" : ""}
+                            ${reading.status === "current" ? "border-green-500 border-2" : ""}
+                          `}
+                          >
+                            <CardContent className="p-4">
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <h3 className="font-semibold">{reading.title}</h3>
+                                    {reading.status === "completed" && (
+                                      <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                    )}
+                                    {reading.status === "current" && <Badge className="bg-green-500">Atual</Badge>}
+                                  </div>
+                                  <p className="text-sm font-medium text-gray-700 mt-1">{reading.reference}</p>
+                                  <p className="text-sm text-gray-600 mt-2">{reading.text}</p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  {isWorshipInProgress && reading.status === "pending" && (
+                                    <Button size="sm" variant="outline" onClick={() => startItem("readings", index)}>
+                                      <Play className="h-3 w-3 mr-1" />
+                                      Iniciar
+                                    </Button>
+                                  )}
+                                  {isWorshipInProgress && reading.status === "current" && (
+                                    <Button size="sm" onClick={() => completeItem("readings", index)}>
+                                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                                      Concluir
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
                       </div>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-gray-700 mb-4">{service.description}</p>
-                      <div className="flex justify-between text-sm text-gray-600">
-                        <span>Local: {service.location}</span>
-                        <span>{service.items.length} itens na programação</span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-            </div>
-          ) : (
-            <Card>
-              <CardContent className="p-6 text-center">
-                <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-                <h3 className="text-lg font-medium text-gray-900 mb-1">Nenhum culto programado</h3>
-                <p className="text-gray-600 mb-4">Não há cultos agendados para os próximos dias</p>
-                <Button onClick={() => router.push("/dashboard/culto/gestao")}>Programar Novo Culto</Button>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
+                    </TabsContent>
 
-        {/* Concluídos */}
-        <TabsContent value="concluidos">
-          {worshipServices.filter((service) => service.status === "completed").length > 0 ? (
-            <div className="space-y-4">
-              {worshipServices
-                .filter((service) => service.status === "completed")
-                .map((service) => (
-                  <Card key={service.id}>
-                    <CardHeader>
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <CardTitle>{service.title}</CardTitle>
-                          <p className="text-gray-600 text-sm">
-                            {formatDate(service.date)} • {service.startTime} - {service.endTime}
-                          </p>
-                        </div>
-                        <Badge className="bg-green-100 text-green-800">Concluído</Badge>
+                    {/* Conteúdo da aba Anúncios */}
+                    <TabsContent value="anuncios" className="p-4">
+                      <div className="space-y-4">
+                        {cultoAtual.announcements.map((announcement, index) => (
+                          <Card
+                            key={announcement.id}
+                            className={`
+                            ${announcement.status === "completed" ? "bg-gray-50" : ""}
+                            ${announcement.status === "current" ? "border-green-500 border-2" : ""}
+                          `}
+                          >
+                            <CardContent className="p-4">
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <h3 className="font-semibold">{announcement.title}</h3>
+                                    {announcement.status === "completed" && (
+                                      <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                    )}
+                                    {announcement.status === "current" && <Badge className="bg-green-500">Atual</Badge>}
+                                  </div>
+                                  <p className="text-sm text-gray-600 mt-1">{announcement.content}</p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  {isWorshipInProgress && announcement.status === "pending" && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => startItem("announcements", index)}
+                                    >
+                                      <Play className="h-3 w-3 mr-1" />
+                                      Iniciar
+                                    </Button>
+                                  )}
+                                  {isWorshipInProgress && announcement.status === "current" && (
+                                    <Button size="sm" onClick={() => completeItem("announcements", index)}>
+                                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                                      Concluir
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
                       </div>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-gray-700 mb-4">{service.description}</p>
-                      <div className="flex justify-between text-sm text-gray-600">
-                        <span>Local: {service.location}</span>
-                        <span>Presentes: {service.attendees}</span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                    </TabsContent>
+                  </Tabs>
+                </CardContent>
+              </Card>
             </div>
-          ) : (
-            <Card>
-              <CardContent className="p-6 text-center">
-                <CheckCircle className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-                <h3 className="text-lg font-medium text-gray-900 mb-1">Nenhum culto concluído</h3>
-                <p className="text-gray-600 mb-4">Não há registros de cultos concluídos</p>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-      </Tabs>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
