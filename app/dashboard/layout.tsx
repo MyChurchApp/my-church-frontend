@@ -47,7 +47,6 @@ const getRealUserData = async (): Promise<User | null> => {
 
 // Função para obter dados da igreja
 const getChurchData = (): ChurchData => {
-  // Por enquanto retorna dados padrão, pode ser expandido para buscar da API
   return {
     id: "1",
     name: "MyChurch",
@@ -64,22 +63,23 @@ export default function DashboardLayout({
   const [user, setUser] = useState<User | null>(null)
   const [churchData, setChurchData] = useState<ChurchData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const initializeDashboard = async () => {
-      // Verificar se está autenticado
-      if (!isAuthenticated()) {
-        router.push("/login")
-        return
-      }
-
       try {
+        // Verificar se está autenticado
+        if (!isAuthenticated()) {
+          router.push("/login")
+          return
+        }
+
         // Obter dados do usuário
         const userData = await getRealUserData()
 
         if (!userData) {
           console.error("❌ Não foi possível obter dados do usuário")
-          router.push("/login")
+          setError("Erro ao carregar dados do usuário")
           return
         }
 
@@ -87,7 +87,7 @@ export default function DashboardLayout({
         setChurchData(getChurchData())
       } catch (error) {
         console.error("❌ Erro ao inicializar dashboard:", error)
-        router.push("/login")
+        setError("Erro ao inicializar dashboard")
       } finally {
         setIsLoading(false)
       }
@@ -107,11 +107,33 @@ export default function DashboardLayout({
     )
   }
 
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">{error}</p>
+          <button
+            onClick={() => router.push("/login")}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            Voltar ao Login
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   if (!user || !churchData) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <p className="text-gray-600">Erro ao carregar dados do usuário</p>
+          <p className="text-gray-600 mb-4">Erro ao carregar dados</p>
+          <button
+            onClick={() => router.push("/login")}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            Voltar ao Login
+          </button>
         </div>
       </div>
     )
