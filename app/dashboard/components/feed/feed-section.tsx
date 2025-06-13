@@ -5,13 +5,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { RefreshCw, Send, Edit, Trash2, User, Clock, AlertCircle } from "lucide-react"
+import { RefreshCw, Send, Edit, Trash2, User, Clock, AlertCircle, Heart } from "lucide-react"
 import {
   formatTimeAgo,
   canEditOrDeletePost,
   getTimeLeftForEdit,
   isRecentPost,
   type FeedItem,
+  type PostLikeState,
 } from "@/services/feed.service"
 
 interface FeedSectionProps {
@@ -19,9 +20,11 @@ interface FeedSectionProps {
   loading: boolean
   error: string | null
   hasMore: boolean
+  likeStates: PostLikeState
   onCreatePost: (content: string) => Promise<number>
   onUpdatePost: (postId: number, content: string) => Promise<void>
   onDeletePost: (postId: number) => Promise<void>
+  onLikePost: (postId: number) => Promise<void>
   onLoadMore: () => Promise<void>
   onRefresh: () => Promise<void>
 }
@@ -31,9 +34,11 @@ export function FeedSection({
   loading,
   error,
   hasMore,
+  likeStates,
   onCreatePost,
   onUpdatePost,
   onDeletePost,
+  onLikePost,
   onLoadMore,
   onRefresh,
 }: FeedSectionProps) {
@@ -290,12 +295,28 @@ export function FeedSection({
                     </div>
                   )}
 
-                  {/* Estatísticas do post */}
-                  <div className="flex items-center justify-between text-xs text-gray-500 pt-2 border-t">
-                    <span>{post.likesCount} curtidas</span>
-                    {post.memberId.toString() === currentUserId && !isRecent && (
-                      <span className="text-orange-600">Não pode mais ser editado</span>
-                    )}
+                  {/* Estatísticas e ações do post */}
+                  <div className="flex items-center justify-between pt-2 border-t">
+                    <div className="flex items-center space-x-4">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onLikePost(post.id)}
+                        disabled={likeStates[post.id]?.loading}
+                        className={`flex items-center space-x-1 ${
+                          likeStates[post.id]?.isLiked ? "text-red-600" : "text-gray-500"
+                        }`}
+                      >
+                        <Heart className={`h-4 w-4 ${likeStates[post.id]?.isLiked ? "fill-current" : ""}`} />
+                        <span className="text-xs">{likeStates[post.id]?.likesCount ?? post.likesCount}</span>
+                      </Button>
+                    </div>
+
+                    <div className="text-xs text-gray-500">
+                      {post.memberId.toString() === currentUserId && !isRecent && (
+                        <span className="text-orange-600">Não pode mais ser editado</span>
+                      )}
+                    </div>
                   </div>
                 </div>
               )

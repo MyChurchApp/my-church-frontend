@@ -56,6 +56,15 @@ export interface UpdateFeedPostRequest {
   content: string
 }
 
+// Interface para controlar estado dos likes
+export interface PostLikeState {
+  [postId: number]: {
+    isLiked: boolean
+    likesCount: number
+    loading: boolean
+  }
+}
+
 // Interface para erros da API
 export interface ApiError {
   errors: {
@@ -182,6 +191,52 @@ export const deleteFeedPost = async (postId: number): Promise<void> => {
     }
   } catch (error) {
     console.error("Erro ao deletar post:", error)
+    throw error
+  }
+}
+
+// Função para adicionar like ao post
+export const likeFeedPost = async (postId: number): Promise<void> => {
+  try {
+    const response = await authFetch(`${API_BASE_URL}/Feed/${postId}/like`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: "",
+    })
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        throw new Error("Não autorizado. Faça login novamente.")
+      }
+
+      const errorMessage = await extractErrorMessage(response)
+      throw new Error(errorMessage)
+    }
+  } catch (error) {
+    console.error("Erro ao curtir post:", error)
+    throw error
+  }
+}
+
+// Função para remover like do post
+export const unlikeFeedPost = async (postId: number): Promise<void> => {
+  try {
+    const response = await authFetch(`${API_BASE_URL}/Feed/${postId}/like`, {
+      method: "DELETE",
+    })
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        throw new Error("Não autorizado. Faça login novamente.")
+      }
+
+      const errorMessage = await extractErrorMessage(response)
+      throw new Error(errorMessage)
+    }
+  } catch (error) {
+    console.error("Erro ao descurtir post:", error)
     throw error
   }
 }
