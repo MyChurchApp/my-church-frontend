@@ -98,6 +98,25 @@ const getAuthToken = (): string | null => {
 const getCurrentUser = () => {
   if (typeof window === "undefined") return null
 
+  // Primeiro tentar obter do localStorage (dados completos)
+  const userData = localStorage.getItem("user")
+  if (userData) {
+    try {
+      const user = JSON.parse(userData)
+      return {
+        id: user.id || "1",
+        name: user.name || "Usuário",
+        email: user.email || "",
+        churchId: user.churchId || 0,
+        role: user.role || "Member",
+        accessLevel: user.accessLevel || "member",
+      }
+    } catch (error) {
+      console.error("Erro ao parsear dados do usuário:", error)
+    }
+  }
+
+  // Fallback: tentar extrair do token
   const token = localStorage.getItem("authToken")
   if (!token) return null
 
@@ -108,6 +127,8 @@ const getCurrentUser = () => {
       name: payload.name || payload.email || "Usuário",
       email: payload.email || "",
       churchId: payload.churchId || 0,
+      role: payload.role || "Member",
+      accessLevel: payload.role === "Admin" ? "admin" : "member",
     }
   } catch (error) {
     console.error("Erro ao decodificar token:", error)

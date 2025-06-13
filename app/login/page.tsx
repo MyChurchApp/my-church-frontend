@@ -76,26 +76,44 @@ export default function LoginPage() {
 
       if (response.ok) {
         const data = await response.json()
+        console.log("Resposta completa do login:", data)
 
-        // Salvar token no localStorage
-        if (typeof window !== "undefined") {
-          localStorage.setItem("authToken", data.token.token)
-          localStorage.setItem("userRole", data.token.role)
+        // Verificar se a resposta tem a estrutura esperada
+        if (data.token && data.token.token) {
+          // Salvar token no localStorage
+          if (typeof window !== "undefined") {
+            localStorage.setItem("authToken", data.token.token)
+            localStorage.setItem("userRole", data.token.role)
 
-          // Também salvar um objeto de usuário com informações básicas
-          const userData = {
-            identifier: identifier,
-            role: data.token.role,
-            accessLevel: data.token.role === "Admin" ? "admin" : "member",
+            // Salvar dados completos do usuário incluindo churchId
+            const userData = {
+              id: data.token.member?.id || "1",
+              name: data.token.member?.name || "Usuário",
+              email: data.token.member?.email || identifier,
+              phone: data.token.member?.phone || "",
+              role: data.token.role,
+              accessLevel: data.token.role === "Admin" ? "admin" : "member",
+              churchId: data.token.member?.churchId || null,
+              isBaptized: data.token.member?.isBaptized || false,
+              isTither: data.token.member?.isTither || false,
+              isActive: data.token.member?.isActive || true,
+            }
+
+            localStorage.setItem("user", JSON.stringify(userData))
+
+            console.log("Dados do usuário salvos:", userData)
+            console.log("ChurchId extraído:", userData.churchId)
           }
-          localStorage.setItem("user", JSON.stringify(userData))
-        }
 
-        // Redirecionar conforme parâmetros ou para dashboard
-        if (redirectParam === "checkout" && planoParam) {
-          router.push(`/planos/checkout?plano=${planoParam}`)
+          // Redirecionar conforme parâmetros ou para dashboard
+          if (redirectParam === "checkout" && planoParam) {
+            router.push(`/planos/checkout?plano=${planoParam}`)
+          } else {
+            router.push("/dashboard")
+          }
         } else {
-          router.push("/dashboard")
+          console.error("Estrutura de resposta inesperada:", data)
+          setError("Erro na resposta do servidor. Tente novamente.")
         }
       } else {
         // Se o login falhar, mostrar erro
