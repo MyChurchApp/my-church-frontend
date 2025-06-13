@@ -53,6 +53,8 @@ const getRealUser = (): User | null => {
         maritalStatus: member.maritalStatus || "",
         ministry: member.ministry || "",
         isActive: member.isActive !== undefined ? member.isActive : true,
+        cpf: "",
+        church: "",
       };
 
       return userData;

@@ -1,90 +1,109 @@
 // Fake API para dados da igreja
 export interface User {
-  cpf: string
-  name: string
-  church: string
-  role: string
-  accessLevel: "admin" | "member"
+  cpf: string;
+  name: string;
+  church: string;
+  role: string;
+  accessLevel: "admin" | "member";
+  id?: string;
+  email?: string;
+  phone?: string;
+  birthDate?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+  maritalStatus?: "solteiro" | "casado" | "divorciado" | "viuvo";
+  baptized?: boolean;
+  memberSince?: string;
+  isTither?: string;
+  ministry?: string;
+  photo?: string;
+  isActive?: boolean;
+  documents?: string[];
+  isBaptized?: string;
+  notes?: string;
+  baptizedDate?: string;
 }
 
 export interface ChurchData {
-  id: string
-  name: string
-  address: string
-  phone: string
-  email: string
-  pastor: string
-  members: number
-  founded: string
+  id: string;
+  name: string;
+  address: string;
+  phone: string;
+  email: string;
+  pastor: string;
+  members: number;
+  founded: string;
 }
 
 export interface Notification {
-  id: string
-  type: "event" | "announcement" | "prayer" | "birthday" | "finance"
-  title: string
-  content: string
-  author: string
-  timestamp: string
-  likes: number
-  comments: number
-  image?: string
+  id: string;
+  type: "event" | "announcement" | "prayer" | "birthday" | "finance";
+  title: string;
+  content: string;
+  author: string;
+  timestamp: string;
+  likes: number;
+  comments: number;
+  image?: string;
 }
 
 export interface Event {
-  id: string
-  title: string
-  description: string
-  date: string
-  time: string
-  location: string
-  type: "culto" | "evento" | "reuniao" | "estudo"
-  organizer: string
-  attendees?: number
-  recurrence: "once" | "weekly" | "biweekly"
-  color?: string
-  isRecurring?: boolean
-  parentEventId?: string
+  id: string;
+  title: string;
+  description: string;
+  date: string;
+  time: string;
+  location: string;
+  type: "culto" | "evento" | "reuniao" | "estudo";
+  organizer: string;
+  attendees?: number;
+  recurrence: "once" | "weekly" | "biweekly";
+  color?: string;
+  isRecurring?: boolean;
+  parentEventId?: string;
 }
 
 export interface Member {
-  id: string
-  name: string
-  email: string
-  phone: string
-  cpf: string
-  birthDate: string
-  address: string
-  city: string
-  state: string
-  zipCode: string
-  maritalStatus: "solteiro" | "casado" | "divorciado" | "viuvo"
-  baptized: boolean
-  memberSince: string
-  ministry: string
-  photo?: string
-  isActive: boolean
-  notes?: string
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  cpf: string;
+  birthDate: string;
+  address: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  maritalStatus: "solteiro" | "casado" | "divorciado" | "viuvo";
+  baptized: boolean;
+  memberSince: string;
+  ministry: string;
+  photo?: string;
+  isActive: boolean;
+  notes?: string;
 }
 
 export interface FinanceCategory {
-  id: string
-  name: string
-  type: "entrada" | "saida"
-  description?: string
-  isActive: boolean
-  createdAt: string
+  id: string;
+  name: string;
+  type: "entrada" | "saida";
+  description?: string;
+  isActive: boolean;
+  createdAt: string;
 }
 
 export interface FinanceRecord {
-  id: string
-  type: "entrada" | "saida"
-  categoryId: string
-  categoryName: string
-  description: string
-  amount: number
-  date: string
-  method: "dinheiro" | "pix" | "cartao" | "transferencia"
-  member?: string
+  id: string;
+  type: "entrada" | "saida";
+  categoryId: string;
+  categoryName: string;
+  description: string;
+  amount: number;
+  date: string;
+  method: "dinheiro" | "pix" | "cartao" | "transferencia";
+  member?: string;
 }
 
 export const fakeChurchData: ChurchData = {
@@ -96,7 +115,7 @@ export const fakeChurchData: ChurchData = {
   pastor: "Pastor João Silva",
   members: 450,
   founded: "1985",
-}
+};
 
 // Usuários fake para teste
 export const fakeUsers = {
@@ -114,7 +133,7 @@ export const fakeUsers = {
     role: "Membro",
     accessLevel: "member" as const,
   },
-}
+};
 
 export const fakeMembers: Member[] = [
   {
@@ -288,7 +307,7 @@ export const fakeMembers: Member[] = [
     isActive: true,
     notes: "Responsável pela transmissão online dos cultos",
   },
-]
+];
 
 export const fakeEvents: Event[] = [
   {
@@ -356,7 +375,7 @@ export const fakeEvents: Event[] = [
     recurrence: "weekly",
     color: "#ef4444",
   },
-]
+];
 
 export const fakeFinanceCategories: FinanceCategory[] = [
   {
@@ -407,7 +426,7 @@ export const fakeFinanceCategories: FinanceCategory[] = [
     isActive: true,
     createdAt: "2024-01-01",
   },
-]
+];
 
 export const fakeFinanceRecords: FinanceRecord[] = [
   {
@@ -462,7 +481,7 @@ export const fakeFinanceRecords: FinanceRecord[] = [
     date: "2025-01-05",
     method: "transferencia",
   },
-]
+];
 
 export const fakeNotifications: Notification[] = [
   {
@@ -597,23 +616,25 @@ export const fakeNotifications: Notification[] = [
     likes: 89,
     comments: 34,
   },
-]
+];
 
 // Função para gerar eventos recorrentes
 export const generateRecurringEvents = (baseEvent: Event): Event[] => {
   if (baseEvent.recurrence === "once") {
-    return [baseEvent]
+    return [baseEvent];
   }
 
-  const events: Event[] = [baseEvent]
-  const startDate = new Date(baseEvent.date)
-  const endOfYear = new Date(startDate.getFullYear(), 11, 31)
+  const events: Event[] = [baseEvent];
+  const startDate = new Date(baseEvent.date);
+  const endOfYear = new Date(startDate.getFullYear(), 11, 31);
 
-  let currentDate = new Date(startDate)
-  const intervalDays = baseEvent.recurrence === "weekly" ? 7 : 14
+  let currentDate = new Date(startDate);
+  const intervalDays = baseEvent.recurrence === "weekly" ? 7 : 14;
 
   while (currentDate < endOfYear) {
-    currentDate = new Date(currentDate.getTime() + intervalDays * 24 * 60 * 60 * 1000)
+    currentDate = new Date(
+      currentDate.getTime() + intervalDays * 24 * 60 * 60 * 1000
+    );
 
     if (currentDate <= endOfYear) {
       const recurringEvent: Event = {
@@ -622,76 +643,81 @@ export const generateRecurringEvents = (baseEvent: Event): Event[] => {
         date: currentDate.toISOString().split("T")[0],
         isRecurring: true,
         parentEventId: baseEvent.id,
-      }
-      events.push(recurringEvent)
+      };
+      events.push(recurringEvent);
     }
   }
 
-  return events
-}
+  return events;
+};
 
 export const getUser = (): User | null => {
   if (typeof window !== "undefined") {
-    const userData = localStorage.getItem("user")
-    return userData ? JSON.parse(userData) : null
+    const userData = localStorage.getItem("user");
+    return userData ? JSON.parse(userData) : null;
   }
-  return null
-}
+  return null;
+};
 
 export const getChurchData = (): ChurchData => {
-  return fakeChurchData
-}
+  return fakeChurchData;
+};
 
 export const getNotifications = (): Notification[] => {
-  return fakeNotifications
-}
+  return fakeNotifications;
+};
 
 export const getEvents = (): Event[] => {
-  const allEvents: Event[] = []
+  const allEvents: Event[] = [];
   fakeEvents.forEach((event) => {
-    const recurringEvents = generateRecurringEvents(event)
-    allEvents.push(...recurringEvents)
-  })
-  return allEvents
-}
+    const recurringEvents = generateRecurringEvents(event);
+    allEvents.push(...recurringEvents);
+  });
+  return allEvents;
+};
 
 export const getMembers = (): Member[] => {
-  return fakeMembers
-}
+  return fakeMembers;
+};
 
 export const getFinanceRecords = (): FinanceRecord[] => {
-  return fakeFinanceRecords
-}
+  return fakeFinanceRecords;
+};
 
 export const getFinanceCategories = (): FinanceCategory[] => {
-  return fakeFinanceCategories
-}
+  return fakeFinanceCategories;
+};
 
 export const formatTimeAgo = (timestamp: string): string => {
-  const now = new Date()
-  const time = new Date(timestamp)
-  const diffInSeconds = Math.floor((now.getTime() - time.getTime()) / 1000)
+  const now = new Date();
+  const time = new Date(timestamp);
+  const diffInSeconds = Math.floor((now.getTime() - time.getTime()) / 1000);
 
-  if (diffInSeconds < 60) return "Agora mesmo"
-  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}min atrás`
-  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h atrás`
-  if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d atrás`
+  if (diffInSeconds < 60) return "Agora mesmo";
+  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}min atrás`;
+  if (diffInSeconds < 86400)
+    return `${Math.floor(diffInSeconds / 3600)}h atrás`;
+  if (diffInSeconds < 604800)
+    return `${Math.floor(diffInSeconds / 86400)}d atrás`;
 
-  return time.toLocaleDateString("pt-BR")
-}
+  return time.toLocaleDateString("pt-BR");
+};
 
 export const formatCurrency = (value: number): string => {
   return new Intl.NumberFormat("pt-BR", {
     style: "currency",
     currency: "BRL",
-  }).format(value)
-}
+  }).format(value);
+};
 
-export const hasPermission = (userAccessLevel: string, requiredLevel: string): boolean => {
-  if (userAccessLevel === "admin") return true
-  if (requiredLevel === "member") return true
-  return false
-}
+export const hasPermission = (
+  userAccessLevel: string,
+  requiredLevel: string
+): boolean => {
+  if (userAccessLevel === "admin") return true;
+  if (requiredLevel === "member") return true;
+  return false;
+};
 
 export const eventColors = [
   { name: "Azul", value: "#3b82f6" },
@@ -704,7 +730,7 @@ export const eventColors = [
   { name: "Amarelo", value: "#eab308" },
   { name: "Ciano", value: "#06b6d4" },
   { name: "Esmeralda", value: "#059669" },
-]
+];
 
 // Novas funções para a página de configurações
 export function getChurchInfo() {
@@ -714,7 +740,7 @@ export function getChurchInfo() {
     email: "contato@igrejabatistacentral.com.br",
     phone: "(11) 99999-9999",
     address: "Rua das Flores, 123 - Centro\nSão Paulo - SP\nCEP: 01234-567",
-  }
+  };
 }
 
 export function getSubscriptionInfo() {
@@ -735,5 +761,5 @@ export function getSubscriptionInfo() {
       "Suporte prioritário",
       "Acesso mobile",
     ],
-  }
+  };
 }
