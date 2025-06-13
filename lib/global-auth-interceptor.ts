@@ -1,62 +1,71 @@
-"use client"
+"use client";
 
-import { isAuthenticated, logout } from "@/lib/auth-utils"
+import { isAuthenticated, logout } from "@/lib/auth-utils";
 
-let originalFetch: typeof fetch
-let isInterceptorActive = false
+let originalFetch: typeof fetch;
+let isInterceptorActive = false;
 
 /**
  * Interceptor global para monitorar todas as requisições
  * Faz logout automático quando detecta status 401
  */
 export function setupGlobalAuthInterceptor() {
-  if (isInterceptorActive) return
+  if (isInterceptorActive) return;
 
   // Salvar referência do fetch original
-  originalFetch = window.fetch
+  originalFetch = window.fetch;
 
   // Sobrescrever fetch global
-  window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+  window.fetch = async (
+    input: RequestInfo | URL,
+    init?: RequestInit
+  ): Promise<Response> => {
     try {
-      const response = await originalFetch(input, init)
+      const response = await originalFetch(input, init);
 
       // Verificar se é uma requisição para nossa API
-      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url
-      const isApiRequest = url.includes("/api/") || url.includes(process.env.NEXT_PUBLIC_API_URL || "")
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+          ? input.href
+          : input.url;
+      const isApiRequest = url.includes(process.env.NEXT_PUBLIC_API_URL || "");
 
       // Se for 401 em requisição da API e usuário estiver logado
       if (response.status === 401 && isApiRequest && isAuthenticated()) {
-
         // Disparar evento customizado para toast
         window.dispatchEvent(
           new CustomEvent("auth-error", {
-            detail: { message: "Sessão expirada. Redirecionando para login..." },
-          }),
-        )
+            detail: {
+              message: "Sessão expirada. Redirecionando para login...",
+            },
+          })
+        );
 
         // Fazer logout após um pequeno delay para mostrar o toast
         setTimeout(() => {
-          logout()
-        }, 1500)
+          logout();
+        }, 1500);
       }
 
-      return response
+      return response;
     } catch (error) {
-      console.error("🚨 [Global Interceptor] Erro na requisição:", error)
-      throw error
+      console.error("🚨 [Global Interceptor] Erro na requisição:", error);
+      throw error;
     }
-  }
+  };
 
-  isInterceptorActive = true
+  isInterceptorActive = true;
 }
 
 /**
  * Remove o interceptor global (cleanup)
  */
 export function teardownGlobalAuthInterceptor() {
-  if (!isInterceptorActive || !originalFetch) return
+  if (!isInterceptorActive || !originalFetch) return;
 
   // Restaurar fetch original
-  window.fetch = originalFetch
-  isInterceptorActive = false
+  window.fetch = originalFetch;
+  isInterceptorActive = false;
 }
