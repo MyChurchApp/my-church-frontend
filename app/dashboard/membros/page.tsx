@@ -6,36 +6,10 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Switch } from "@/components/ui/switch"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import {
-  Users,
-  Plus,
-  Search,
-  Filter,
-  Edit,
-  Mail,
-  Phone,
-  MapPin,
-  Calendar,
-  Heart,
-  Key,
-  Send,
-  UserCheck,
-  UserX,
-  Download,
-  FileText,
-  Loader2,
-  AlertCircle,
-  Trash2,
-} from "lucide-react"
+import { Users, Plus, Search, Filter, UserCheck, UserX, ChevronLeft, ChevronRight } from "lucide-react"
 import { getUser, type User } from "@/lib/api"
 import {
   getMembersFromAPI,
@@ -47,6 +21,8 @@ import {
   type ApiMember,
 } from "@/lib/api"
 import { toast } from "@/hooks/use-toast"
+import { MemberRegistrationModal } from "@/components/member-registration-modal"
+import { getUserRole } from "@/lib/auth-utils"
 
 export default function MembrosPage() {
   const router = useRouter()
@@ -61,12 +37,16 @@ export default function MembrosPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editingMember, setEditingMember] = useState<any>(null)
 
   // Paginação
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
   const pageSize = 20
+  const [totalMembers, setTotalMembers] = useState(0)
 
   // Form state for new/edit member
   const [memberForm, setMemberForm] = useState({
@@ -97,6 +77,8 @@ export default function MembrosPage() {
   })
 
   // Listener para erros 500
+  const userRole = getUserRole()
+  const isAdmin = userRole === "Admin"
 
   // Função para converter imagem para base64
   const convertImageToBase64 = (file: File): Promise<string> => {
@@ -125,16 +107,17 @@ export default function MembrosPage() {
 
   const loadMembers = async () => {
     try {
-      setLoading(true)
+      setIsLoading(true)
       setError(null)
 
-      const response = await getMembersFromAPI(currentPage, pageSize)
+      const response = await getMembersFromAPI(currentPage, 10)
       const convertedMembers = response.items.map(convertApiMemberToLocal)
 
       setMembers(convertedMembers)
       setFilteredMembers(convertedMembers)
       setTotalPages(response.totalPages)
       setTotalCount(response.totalCount)
+      setTotalMembers(response.totalCount)
     } catch (error: any) {
       console.error("Erro ao carregar membros:", error)
 
@@ -153,8 +136,10 @@ export default function MembrosPage() {
       if (!error.message.includes("Erro interno do servidor")) {
         setError(errorMessage)
       }
+      setMembers([])
     } finally {
       setLoading(false)
+      setIsLoading(false)
     }
   }
 
@@ -175,6 +160,21 @@ export default function MembrosPage() {
 
     setFilteredMembers(filtered)
   }, [members, searchTerm, statusFilter])
+
+  useEffect(() => {
+    // Filtrar membros baseado no termo de busca
+    if (searchTerm.trim() === "") {
+      setFilteredMembers(members)
+    } else {
+      const filtered = members.filter(
+        (member) =>
+          member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          member.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (member.document && member.document.some((doc) => doc.number.includes(searchTerm.replace(/\D/g, "")))),
+      )
+      setFilteredMembers(filtered)
+    }
+  }, [members, searchTerm])
 
   const generateMembersPDFReport = () => {
     const activeMembers = members.filter((member) => member.isActive)
@@ -294,7 +294,89 @@ export default function MembrosPage() {
     })
   }
 
-  const handleCreateMember = async (e: React.FormEvent) => {
+  const handleCreateMember = async (memberData: any) => {
+    try {
+      const apiData = convertLocalMemberToApi(memberData)
+      const newMember = await createMemberAPI(apiData)
+
+      // Recarregar a lista de membros
+      await loadMembers()
+      setIsModalOpen(false)
+    } catch (error) {
+      console.error("Erro ao criar membro:", error)
+      throw error
+    }
+  }
+
+  const handleEditMember = async (memberData: any) => {
+    if (!editingMember) return
+
+    try {
+      const apiData = convertLocalMemberToApi(memberData)
+      await updateMemberAPI(editingMember.id, apiData)
+
+      // Recarregar a lista de membros
+      await loadMembers()
+      setIsModalOpen(false)
+      setEditingMember(null)
+    } catch (error) {
+      console.error("Erro ao editar membro:", error)
+      throw error
+    }
+  }
+
+  const handleDeleteMember = async (memberId: number) => {
+    if (!confirm("Tem certeza que deseja excluir este membro?")) return
+
+    try {
+      await deleteMemberAPI(memberId)
+
+      // Recarregar a lista de membros
+      await loadMembers()
+    } catch (error) {
+      console.error("Erro ao deletar membro:", error)
+      alert("Erro ao deletar membro. Tente novamente.")
+    }
+  }
+
+  const openEditModal = (member: ApiMember) => {
+    const convertedMember = convertApiMemberToLocal(member)
+    setEditingMember({ ...convertedMember, id: member.id })
+    setIsModalOpen(true)
+  }
+
+  const closeModal = () => {
+    setIsModalOpen(false)
+    setEditingMember(null)
+  }
+
+  const activeMembers = filteredMembers.filter((member) => member.isActive)
+  const inactiveMembers = filteredMembers.filter((member) => !member.isActive)
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page)
+  }
+
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase()
+  }
+
+  const formatDocument = (documents: any[]) => {
+    if (!documents || documents.length === 0) return "N/A"
+    const cpf = documents.find((doc) => doc.type === 1) // CPF
+    if (cpf) {
+      const number = cpf.number
+      return number.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")
+    }
+    return documents[0]?.number || "N/A"
+  }
+
+  const handleCreateMemberOld = async (e: React.FormEvent) => {
     e.preventDefault()
 
     // Validação básica
@@ -383,7 +465,7 @@ export default function MembrosPage() {
     }
   }
 
-  const handleEditMember = async (e: React.FormEvent) => {
+  const handleEditMemberOld = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!selectedMember) {
@@ -480,7 +562,7 @@ export default function MembrosPage() {
     }
   }
 
-  const handleDeleteMember = async (member: any) => {
+  const handleDeleteMemberOld = async (member: any) => {
     if (!confirm(`Tem certeza que deseja excluir o membro ${member.name}?`)) return
 
     try {
@@ -597,8 +679,23 @@ export default function MembrosPage() {
     )
   }
 
-  const handlePageChange = (page: number) => {
+  const handlePageChangeOld = (page: number) => {
     setCurrentPage(page)
+  }
+
+  if (isLoading) {
+    return (
+      <div className="p-6">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="h-32 bg-gray-200 rounded"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
   }
 
   if (!user) {
@@ -606,811 +703,209 @@ export default function MembrosPage() {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <header className="bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Membros</h1>
-              <p className="text-gray-600">Gerencie os membros da igreja</p>
-            </div>
-            <div className="flex gap-2">
-              {user.accessLevel === "admin" && (
-                <>
-                  <Button onClick={generateMembersPDFReport} variant="outline" className="flex items-center gap-2">
-                    <Download className="h-4 w-4" />
-                    Relatório PDF
-                  </Button>
-                  {/* ✅ CORRIGIDO: Botão separado do Dialog para abrir o modal */}
-                  <Button onClick={() => setIsCreateDialogOpen(true)} className="flex items-center gap-2">
-                    <Plus className="h-4 w-4" />
-                    Novo Membro
-                  </Button>
-                </>
-              )}
-            </div>
-          </div>
-        </header>
-
-        {/* Error Alert */}
-        {error && (
-          <div className="px-6 py-2">
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          </div>
-        )}
-
-        {/* Create Member Dialog */}
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Cadastrar Novo Membro</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleCreateMember} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="member-name">Nome Completo *</Label>
-                  <Input
-                    id="member-name"
-                    value={memberForm.name}
-                    onChange={(e) => setMemberForm({ ...memberForm, name: e.target.value })}
-                    placeholder="Nome completo"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="member-document">Documento (CPF) *</Label>
-                  <Input
-                    id="member-document"
-                    value={memberForm.document}
-                    onChange={(e) => setMemberForm({ ...memberForm, document: e.target.value })}
-                    placeholder="000.000.000-00"
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Seção de Documentos */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">Documentos</h3>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="rg">RG</Label>
-                    <Input
-                      id="rg"
-                      value={memberForm.rg}
-                      onChange={(e) => setMemberForm({ ...memberForm, rg: e.target.value })}
-                      placeholder="00.000.000-0"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="tituloEleitor">Título de Eleitor</Label>
-                    <Input
-                      id="tituloEleitor"
-                      value={memberForm.tituloEleitor}
-                      onChange={(e) =>
-                        setMemberForm({
-                          ...memberForm,
-                          tituloEleitor: e.target.value,
-                        })
-                      }
-                      placeholder="0000 0000 0000"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="cnh">CNH</Label>
-                    <Input
-                      id="cnh"
-                      value={memberForm.cnh}
-                      onChange={(e) => setMemberForm({ ...memberForm, cnh: e.target.value })}
-                      placeholder="00000000000"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="certidaoNascimento">Certidão de Nascimento</Label>
-                    <Input
-                      id="certidaoNascimento"
-                      value={memberForm.certidaoNascimento}
-                      onChange={(e) =>
-                        setMemberForm({
-                          ...memberForm,
-                          certidaoNascimento: e.target.value,
-                        })
-                      }
-                      placeholder="Número da certidão"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="outrosDocumentos">Outros Documentos</Label>
-                  <Input
-                    id="outrosDocumentos"
-                    value={memberForm.outrosDocumentos}
-                    onChange={(e) =>
-                      setMemberForm({
-                        ...memberForm,
-                        outrosDocumentos: e.target.value,
-                      })
-                    }
-                    placeholder="Outros documentos"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="member-photo">Foto</Label>
-                <Input
-                  id="member-photo"
-                  type="file"
-                  accept="image/*"
-                  onChange={async (e) => {
-                    if (e.target.files && e.target.files[0]) {
-                      try {
-                        const base64 = await convertImageToBase64(e.target.files[0])
-                        setMemberForm({ ...memberForm, photo: base64 })
-                      } catch (error) {
-                        console.error("Erro ao converter imagem:", error)
-                        setError("Erro ao processar a imagem. Tente novamente.")
-                      }
-                    }
-                  }}
-                />
-                <p className="text-xs text-muted-foreground">Opcional. Deixe em branco para não enviar foto.</p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="member-email">Email *</Label>
-                  <Input
-                    id="member-email"
-                    type="email"
-                    value={memberForm.email}
-                    onChange={(e) => setMemberForm({ ...memberForm, email: e.target.value })}
-                    placeholder="email@exemplo.com"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="member-phone">Telefone *</Label>
-                  <Input
-                    id="member-phone"
-                    type="tel"
-                    value={memberForm.phone}
-                    onChange={(e) => setMemberForm({ ...memberForm, phone: e.target.value })}
-                    placeholder="(11) 99999-9999"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="member-birth">Data de Nascimento *</Label>
-                  <Input
-                    id="member-birth"
-                    type="date"
-                    value={memberForm.birthDate}
-                    onChange={(e) =>
-                      setMemberForm({
-                        ...memberForm,
-                        birthDate: e.target.value,
-                      })
-                    }
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="member-marital">Estado Civil</Label>
-                  <Select
-                    value={memberForm.maritalStatus}
-                    onValueChange={(value) => setMemberForm({ ...memberForm, maritalStatus: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Solteiro">Solteiro(a)</SelectItem>
-                      <SelectItem value="Casado">Casado(a)</SelectItem>
-                      <SelectItem value="Divorciado">Divorciado(a)</SelectItem>
-                      <SelectItem value="Viuvo">Viúvo(a)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="member-since">Membro desde</Label>
-                  <Input
-                    id="member-since"
-                    type="date"
-                    value={memberForm.memberSince}
-                    onChange={(e) =>
-                      setMemberForm({
-                        ...memberForm,
-                        memberSince: e.target.value,
-                      })
-                    }
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="member-ministry">Ministério</Label>
-                  <Input
-                    id="member-ministry"
-                    value={memberForm.ministry}
-                    onChange={(e) => setMemberForm({ ...memberForm, ministry: e.target.value })}
-                    placeholder="Ministério que participa"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="member-baptized"
-                  checked={memberForm.isBaptized}
-                  onCheckedChange={(checked) => setMemberForm({ ...memberForm, isBaptized: checked })}
-                />
-                <Label htmlFor="member-baptized">Batizado</Label>
-              </div>
-
-              {memberForm.isBaptized && (
-                <div className="space-y-2">
-                  <Label htmlFor="member-baptized-date">Data de Batismo</Label>
-                  <Input
-                    id="member-baptized-date"
-                    type="date"
-                    value={memberForm.baptizedDate}
-                    onChange={(e) =>
-                      setMemberForm({
-                        ...memberForm,
-                        baptizedDate: e.target.value,
-                      })
-                    }
-                  />
-                </div>
-              )}
-
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="member-tither"
-                  checked={memberForm.isTither}
-                  onCheckedChange={(checked) => setMemberForm({ ...memberForm, isTither: checked })}
-                />
-                <Label htmlFor="member-tither">Dizimista</Label>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="member-notes">Observações</Label>
-                <Textarea
-                  id="member-notes"
-                  value={memberForm.notes}
-                  onChange={(e) => setMemberForm({ ...memberForm, notes: e.target.value })}
-                  placeholder="Observações sobre o membro"
-                  rows={3}
-                />
-              </div>
-
-              <Button type="submit" className="w-full" disabled={submitting}>
-                {submitting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Cadastrando...
-                  </>
-                ) : (
-                  "Cadastrar Membro"
-                )}
-              </Button>
-            </form>
-          </DialogContent>
-        </Dialog>
-
-        {/* Edit Member Dialog */}
-        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Editar Membro</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleEditMember} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="edit-member-name">Nome Completo *</Label>
-                  <Input
-                    id="edit-member-name"
-                    value={memberForm.name}
-                    onChange={(e) => setMemberForm({ ...memberForm, name: e.target.value })}
-                    placeholder="Nome completo"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-member-document">Documento (CPF) *</Label>
-                  <Input
-                    id="edit-member-document"
-                    value={memberForm.document}
-                    onChange={(e) => setMemberForm({ ...memberForm, document: e.target.value })}
-                    placeholder="000.000.000-00"
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Seção de Documentos */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">Documentos</h3>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="rg">RG</Label>
-                    <Input
-                      id="rg"
-                      value={memberForm.rg}
-                      onChange={(e) => setMemberForm({ ...memberForm, rg: e.target.value })}
-                      placeholder="00.000.000-0"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="tituloEleitor">Título de Eleitor</Label>
-                    <Input
-                      id="tituloEleitor"
-                      value={memberForm.tituloEleitor}
-                      onChange={(e) =>
-                        setMemberForm({
-                          ...memberForm,
-                          tituloEleitor: e.target.value,
-                        })
-                      }
-                      placeholder="0000 0000 0000"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="cnh">CNH</Label>
-                    <Input
-                      id="cnh"
-                      value={memberForm.cnh}
-                      onChange={(e) => setMemberForm({ ...memberForm, cnh: e.target.value })}
-                      placeholder="00000000000"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="certidaoNascimento">Certidão de Nascimento</Label>
-                    <Input
-                      id="certidaoNascimento"
-                      value={memberForm.certidaoNascimento}
-                      onChange={(e) =>
-                        setMemberForm({
-                          ...memberForm,
-                          certidaoNascimento: e.target.value,
-                        })
-                      }
-                      placeholder="Número da certidão"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="outrosDocumentos">Outros Documentos</Label>
-                  <Input
-                    id="outrosDocumentos"
-                    value={memberForm.outrosDocumentos}
-                    onChange={(e) =>
-                      setMemberForm({
-                        ...memberForm,
-                        outrosDocumentos: e.target.value,
-                      })
-                    }
-                    placeholder="Outros documentos"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="edit-member-photo">Foto</Label>
-                <Input
-                  id="edit-member-photo"
-                  type="file"
-                  accept="image/*"
-                  onChange={async (e) => {
-                    if (e.target.files && e.target.files[0]) {
-                      try {
-                        const base64 = await convertImageToBase64(e.target.files[0])
-                        setMemberForm({ ...memberForm, photo: base64 })
-                      } catch (error) {
-                        console.error("Erro ao converter imagem:", error)
-                        setError("Erro ao processar a imagem. Tente novamente.")
-                      }
-                    }
-                  }}
-                />
-                <p className="text-xs text-muted-foreground">Opcional. Deixe em branco para manter a foto atual.</p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="edit-member-email">Email *</Label>
-                  <Input
-                    id="edit-member-email"
-                    type="email"
-                    value={memberForm.email}
-                    onChange={(e) => setMemberForm({ ...memberForm, email: e.target.value })}
-                    placeholder="email@exemplo.com"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-member-phone">Telefone *</Label>
-                  <Input
-                    id="edit-member-phone"
-                    type="tel"
-                    value={memberForm.phone}
-                    onChange={(e) => setMemberForm({ ...memberForm, phone: e.target.value })}
-                    placeholder="(11) 99999-9999"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="edit-member-birth">Data de Nascimento *</Label>
-                  <Input
-                    id="edit-member-birth"
-                    type="date"
-                    value={memberForm.birthDate}
-                    onChange={(e) =>
-                      setMemberForm({
-                        ...memberForm,
-                        birthDate: e.target.value,
-                      })
-                    }
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-member-marital">Estado Civil</Label>
-                  <Select
-                    value={memberForm.maritalStatus}
-                    onValueChange={(value) => setMemberForm({ ...memberForm, maritalStatus: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Solteiro">Solteiro(a)</SelectItem>
-                      <SelectItem value="Casado">Casado(a)</SelectItem>
-                      <SelectItem value="Divorciado">Divorciado(a)</SelectItem>
-                      <SelectItem value="Viuvo">Viúvo(a)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="edit-member-since">Membro desde</Label>
-                  <Input
-                    id="edit-member-since"
-                    type="date"
-                    value={memberForm.memberSince}
-                    onChange={(e) =>
-                      setMemberForm({
-                        ...memberForm,
-                        memberSince: e.target.value,
-                      })
-                    }
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-member-ministry">Ministério</Label>
-                  <Input
-                    id="edit-member-ministry"
-                    value={memberForm.ministry}
-                    onChange={(e) => setMemberForm({ ...memberForm, ministry: e.target.value })}
-                    placeholder="Ministério que participa"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="edit-member-baptized"
-                  checked={memberForm.isBaptized}
-                  onCheckedChange={(checked) => setMemberForm({ ...memberForm, isBaptized: checked })}
-                />
-                <Label htmlFor="edit-member-baptized">Batizado</Label>
-              </div>
-
-              {memberForm.isBaptized && (
-                <div className="space-y-2">
-                  <Label htmlFor="edit-member-baptized-date">Data de Batismo</Label>
-                  <Input
-                    id="edit-member-baptized-date"
-                    type="date"
-                    value={memberForm.baptizedDate}
-                    onChange={(e) =>
-                      setMemberForm({
-                        ...memberForm,
-                        baptizedDate: e.target.value,
-                      })
-                    }
-                  />
-                </div>
-              )}
-
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="edit-member-tither"
-                  checked={memberForm.isTither}
-                  onCheckedChange={(checked) => setMemberForm({ ...memberForm, isTither: checked })}
-                />
-                <Label htmlFor="edit-member-tither">Dizimista</Label>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="edit-member-active"
-                  checked={memberForm.isActive}
-                  onCheckedChange={(checked) => setMemberForm({ ...memberForm, isActive: checked })}
-                />
-                <Label htmlFor="edit-member-active">Membro Ativo</Label>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="edit-member-notes">Observações</Label>
-                <Textarea
-                  id="edit-member-notes"
-                  value={memberForm.notes}
-                  onChange={(e) => setMemberForm({ ...memberForm, notes: e.target.value })}
-                  placeholder="Observações sobre o membro"
-                  rows={3}
-                />
-              </div>
-
-              {user.accessLevel === "admin" && selectedMember && (
-                <div className="border-t pt-4 space-y-3">
-                  <h4 className="font-medium text-gray-900">Gerenciamento de Senha</h4>
-                  <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => handleSendPasswordReset(selectedMember)}
-                      className="flex items-center gap-2"
-                    >
-                      <Send className="h-4 w-4" />
-                      Enviar Recuperação
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => handleGenerateNewPassword(selectedMember)}
-                      className="flex items-center gap-2"
-                    >
-                      <Key className="h-4 w-4" />
-                      Gerar Nova Senha
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              <Button type="submit" className="w-full" disabled={submitting}>
-                {submitting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Salvando...
-                  </>
-                ) : (
-                  "Salvar Alterações"
-                )}
-              </Button>
-            </form>
-          </DialogContent>
-        </Dialog>
-
-        {/* Main Content */}
-        <div className="flex-1 overflow-y-auto">
-          <div className="p-6">
-            {/* Members Summary */}
-            <Card className="mb-6">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
-                  Resumo de Membros
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-blue-600">{totalCount}</div>
-                    <p className="text-sm text-gray-600">Total de Membros</p>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600">{members.filter((m) => m.isActive).length}</div>
-                    <p className="text-sm text-gray-600">Membros Ativos</p>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-red-600">{members.filter((m) => !m.isActive).length}</div>
-                    <p className="text-sm text-gray-600">Membros Inativos</p>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-purple-600">{filteredMembers.length}</div>
-                    <p className="text-sm text-gray-600">Resultados da Busca</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Search and Filters */}
-            <div className="mb-6 flex flex-col sm:flex-row gap-4">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <Input
-                  placeholder="Buscar por nome ou email..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4 text-gray-500" />
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-40">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos</SelectItem>
-                    <SelectItem value="active">Ativos</SelectItem>
-                    <SelectItem value="inactive">Inativos</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* Loading State */}
-            {loading && (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-                <span className="ml-2 text-gray-600">Carregando membros...</span>
-              </div>
-            )}
-
-            {/* Members Grid */}
-            {!loading && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {filteredMembers.map((member) => (
-                  <Card key={member.id} className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-4">
-                      <div className="flex flex-col items-center text-center">
-                        <Avatar className="h-20 w-20 mb-3">
-                          <AvatarImage src={member.photo || "/placeholder.svg"} alt={member.name} />
-                          <AvatarFallback className="text-lg">
-                            {member.name
-                              .split(" ")
-                              .map((n) => n[0])
-                              .join("")}
-                          </AvatarFallback>
-                        </Avatar>
-
-                        <h3 className="font-semibold text-lg mb-1">{member.name}</h3>
-
-                        {user.accessLevel === "admin" ? (
-                          <>
-                            <div className="mb-3">{getStatusBadge(member.isActive)}</div>
-
-                            <div className="w-full space-y-2 text-sm text-gray-600">
-                              <div className="flex items-center gap-2">
-                                <Mail className="h-4 w-4" />
-                                <span className="truncate">{member.email}</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Phone className="h-4 w-4" />
-                                <span>{member.phone}</span>
-                              </div>
-                              {member.city && (
-                                <div className="flex items-center gap-2">
-                                  <MapPin className="h-4 w-4" />
-                                  <span className="truncate">
-                                    {member.city}, {member.state}
-                                  </span>
-                                </div>
-                              )}
-                              {member.memberSince && (
-                                <div className="flex items-center gap-2">
-                                  <Calendar className="h-4 w-4" />
-                                  <span>Membro desde {new Date(member.memberSince).getFullYear()}</span>
-                                </div>
-                              )}
-                              {member.ministry && (
-                                <div className="flex items-center gap-2">
-                                  <Heart className="h-4 w-4" />
-                                  <span className="truncate">{member.ministry}</span>
-                                </div>
-                              )}
-                            </div>
-
-                            <div className="flex gap-2 mt-4 w-full">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => openEditDialog(member)}
-                                className="flex-1 flex items-center gap-2"
-                              >
-                                <Edit className="h-4 w-4" />
-                                Editar
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleDeleteMember(member)}
-                                className="flex items-center gap-2 text-red-600 hover:text-red-700"
-                                disabled={submitting}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </>
-                        ) : (
-                          <div className="mb-3">{getStatusBadge(member.isActive)}</div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-
-            {/* Pagination */}
-            {!loading && totalPages > 1 && (
-              <div className="flex justify-center items-center gap-2 mt-6">
-                <Button
-                  variant="outline"
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                >
-                  Anterior
-                </Button>
-
-                <span className="text-sm text-gray-600">
-                  Página {currentPage} de {totalPages} ({totalCount} membros)
-                </span>
-
-                <Button
-                  variant="outline"
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                >
-                  Próxima
-                </Button>
-              </div>
-            )}
-
-            {!loading && filteredMembers.length === 0 && (
-              <div className="text-center py-12">
-                <Users className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum membro encontrado</h3>
-                <p className="text-gray-500">
-                  {searchTerm || statusFilter !== "all"
-                    ? "Tente ajustar os filtros de busca"
-                    : "Comece cadastrando o primeiro membro da igreja"}
-                </p>
-              </div>
-            )}
-          </div>
+    <div className="p-6 space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Membros</h1>
+          <p className="text-gray-600">Gerencie os membros da sua igreja</p>
         </div>
+        {isAdmin && (
+          <Button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2">
+            <Plus className="h-4 w-4" />
+            Novo Membro
+          </Button>
+        )}
       </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <Users className="h-5 w-5 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Total de Membros</p>
+                <p className="text-xl font-semibold">{totalMembers}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-green-100 rounded-lg">
+                <UserCheck className="h-5 w-5 text-green-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Membros Ativos</p>
+                <p className="text-xl font-semibold">{activeMembers.length}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-red-100 rounded-lg">
+                <UserX className="h-5 w-5 text-red-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Membros Inativos</p>
+                <p className="text-xl font-semibold">{inactiveMembers.length}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Search and Filters */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+          <Input
+            placeholder="Buscar por nome, email ou CPF..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <Button variant="outline" className="flex items-center gap-2">
+          <Filter className="h-4 w-4" />
+          Filtros
+        </Button>
+      </div>
+
+      {/* Error Message */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-md p-4">
+          <p className="text-red-700">{error}</p>
+          <Button variant="outline" size="sm" onClick={loadMembers} className="mt-2">
+            Tentar Novamente
+          </Button>
+        </div>
+      )}
+
+      {/* Members Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {filteredMembers.map((member) => (
+          <Card key={member.id} className="hover:shadow-md transition-shadow">
+            <CardContent className="p-4">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <Avatar>
+                    <AvatarImage src={member.photo || undefined} />
+                    <AvatarFallback>{getInitials(member.name)}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <h3 className="font-medium text-gray-900">{member.name}</h3>
+                    <p className="text-sm text-gray-600">{member.email}</p>
+                  </div>
+                </div>
+                <Badge variant={member.isActive ? "default" : "secondary"}>
+                  {member.isActive ? "Ativo" : "Inativo"}
+                </Badge>
+              </div>
+
+              <div className="space-y-2 text-sm text-gray-600">
+                <div className="flex justify-between">
+                  <span>CPF:</span>
+                  <span>{formatDocument(member.document)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Telefone:</span>
+                  <span>{member.phone || "N/A"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Batizado:</span>
+                  <span>{member.isBaptized ? "Sim" : "Não"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Dizimista:</span>
+                  <span>{member.isTither ? "Sim" : "Não"}</span>
+                </div>
+              </div>
+
+              {isAdmin && (
+                <div className="flex gap-2 mt-4">
+                  <Button variant="outline" size="sm" onClick={() => openEditModal(member)} className="flex-1">
+                    Editar
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleDeleteMember(member.id)}
+                    className="text-red-600 hover:text-red-700"
+                  >
+                    Excluir
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+          >
+            <ChevronLeft className="h-4 w-4" />
+            Anterior
+          </Button>
+
+          <span className="text-sm text-gray-600">
+            Página {currentPage} de {totalPages}
+          </span>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+          >
+            Próxima
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+
+      {/* Empty State */}
+      {!isLoading && filteredMembers.length === 0 && (
+        <div className="text-center py-12">
+          <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            {searchTerm ? "Nenhum membro encontrado" : "Nenhum membro cadastrado"}
+          </h3>
+          <p className="text-gray-600 mb-4">
+            {searchTerm ? "Tente ajustar os termos de busca" : "Comece adicionando o primeiro membro da sua igreja"}
+          </p>
+          {isAdmin && !searchTerm && (
+            <Button onClick={() => setIsModalOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Adicionar Primeiro Membro
+            </Button>
+          )}
+        </div>
+      )}
+
+      {/* Modal */}
+      <MemberRegistrationModal
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        onSubmit={editingMember ? handleEditMember : handleCreateMember}
+        initialData={editingMember}
+        isEditing={!!editingMember}
+      />
     </div>
   )
 }

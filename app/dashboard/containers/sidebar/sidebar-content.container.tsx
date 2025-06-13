@@ -1,139 +1,55 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { SidebarContent } from "../../components/sidebar/sidebar-content"
-import { MembersService, type BirthdayMember } from "@/services/members.service"
-import { VerseOfDayService, type VerseOfDay } from "@/services/verse-of-day.service"
-import { isAuthenticated } from "@/lib/api"
+import { SidebarContent } from "@/app/dashboard/components/sidebar/sidebar-content"
+import { getMembersFromAPI, type ApiMember } from "@/lib/api"
+import { getUserRole } from "@/lib/auth-utils"
 
 export function SidebarContentContainer() {
-  const [verseOfDay, setVerseOfDay] = useState<VerseOfDay>({
-    verseText: "",
-    reference: "",
-  })
-  const [isLoadingVerse, setIsLoadingVerse] = useState(false)
-  const [birthdays, setBirthdays] = useState<BirthdayMember[]>([])
-  const [isLoadingBirthdays, setIsLoadingBirthdays] = useState(false)
-  const [currentBannerIndex, setCurrentBannerIndex] = useState(0)
-  const [currentPromoIndex, setCurrentPromoIndex] = useState(0)
+  const [members, setMembers] = useState<ApiMember[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const getInitials = (name: string | undefined | null): string => {
-    if (!name || typeof name !== "string") return "U"
-    return (
-      name
-        .split(" ")
-        .filter((n) => n.length > 0)
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2) || "U"
-    )
-  }
+  const userRole = getUserRole()
+  const isAdmin = userRole === "Admin"
 
-  const loadBirthdays = async () => {
-    setIsLoadingBirthdays(true)
+  useEffect(() => {
+    loadMembers()
+  }, [])
+
+  const loadMembers = async () => {
     try {
-      if (isAuthenticated()) {
-        const isConnected = await MembersService.testConnection()
+      setIsLoading(true)
+      setError(null)
 
-        if (!isConnected) {
-          console.warn("Endpoint de aniversários não disponível. Usando dados fake.")
-          setBirthdays([])
-          return
-        }
-
-        const birthdayMembers = await MembersService.getWeeklyBirthdays()
-
-        setBirthdays(birthdayMembers)
-      } else {
-        setBirthdays([])
-      }
+      // Buscar apenas os primeiros membros para a sidebar
+      const membersData = await getMembersFromAPI(1, 5)
+      setMembers(membersData.items)
     } catch (error) {
-      console.error("Erro ao carregar aniversários:", error)
-      setBirthdays([])
+      console.error("Erro ao carregar membros:", error)
+      setError("Erro ao carregar membros")
+      setMembers([])
     } finally {
-      setIsLoadingBirthdays(false)
+      setIsLoading(false)
     }
   }
 
-  const loadVerseOfDay = async () => {
-    setIsLoadingVerse(true)
-    try {
-      const verse = await VerseOfDayService.getVerseOfDay()
-
-      if (VerseOfDayService.isValidVerse(verse)) {
-        setVerseOfDay(verse)
-      } else {
-        console.warn("Versículo inválido recebido da API.")
-        setVerseOfDay({
-          verseText: "Erro ao carregar versículo do dia",
-          reference: "Tente novamente mais tarde",
-        })
-      }
-    } catch (error) {
-      console.error("Erro ao carregar versículo do dia:", error)
-      setVerseOfDay({
-        verseText: "Erro ao carregar versículo do dia",
-        reference: "Verifique sua conexão",
-      })
-    } finally {
-      setIsLoadingVerse(false)
-    }
-  }
-
-  const nextBanner = () => {
-    setCurrentBannerIndex((prev) => (prev + 1) % 3)
-  }
-
-  const prevBanner = () => {
-    setCurrentBannerIndex((prev) => (prev - 1 + 3) % 3)
-  }
-
-  const nextPromo = () => {
-    setCurrentPromoIndex((prev) => (prev + 1) % 3)
-  }
-
-  const prevPromo = () => {
-    setCurrentPromoIndex((prev) => (prev - 1 + 3) % 3)
-  }
-
-  useEffect(() => {
-    loadBirthdays()
-    loadVerseOfDay()
-  }, [])
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentBannerIndex((prev) => (prev + 1) % 3)
-    }, 5000)
-
-    return () => clearInterval(interval)
-  }, [])
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentPromoIndex((prev) => (prev + 1) % 3)
-    }, 4000)
-
-    return () => clearInterval(interval)
-  }, [])
+  // Converter membros da API para o formato esperado pelo componente
+  const convertedMembers = members.map((member) => ({
+    id: member.id.toString(),
+    name: member.name,
+    role: member.role === 1 ? "Admin" : "Membro",
+    avatar: member.photo || "/placeholder.svg?height=32&width=32",
+    isOnline: Math.random() > 0.5, // Simulação de status online
+  }))
 
   return (
     <SidebarContent
-      verseOfDay={verseOfDay}
-      isLoadingVerse={isLoadingVerse}
-      birthdays={birthdays}
-      isLoadingBirthdays={isLoadingBirthdays}
-      currentBannerIndex={currentBannerIndex}
-      currentPromoIndex={currentPromoIndex}
-      onNextBanner={nextBanner}
-      onPrevBanner={prevBanner}
-      onNextPromo={nextPromo}
-      onPrevPromo={prevPromo}
-      onSetBannerIndex={setCurrentBannerIndex}
-      onSetPromoIndex={setCurrentPromoIndex}
-      getInitials={getInitials}
-      formatBirthdayDate={MembersService.formatBirthdayDate}
+      members={convertedMembers}
+      isLoading={isLoading}
+      error={error}
+      isAdmin={isAdmin}
+      onRefresh={loadMembers}
     />
   )
 }
