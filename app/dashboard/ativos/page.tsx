@@ -12,7 +12,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
-import { Sidebar } from "@/components/sidebar"
 import {
   Package,
   Plus,
@@ -44,7 +43,8 @@ import {
   convertApiDataToForm,
   type Asset,
 } from "@/services/assets.service"
-import { getUser, hasPermission } from "@/lib/fake-api"
+// Removendo a importação do fake-api
+import { getUserRole, isAuthenticated } from "@/lib/auth-utils"
 // Adicionar ao topo do arquivo, após os outros imports
 import { exportAssetsToCSV } from "@/lib/export-utils"
 
@@ -67,14 +67,15 @@ export default function AtivosPage() {
   const [dragActive, setDragActive] = useState(false)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
 
-  const user = getUser()
+  // Substituindo getUser() por getUserRole()
+  const userRole = getUserRole()
   const [hasAccess, setHasAccess] = useState(false)
   const [totalPages, setTotalPages] = useState(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Redirecionar para home se não tiver permissão
   useEffect(() => {
-    if (!user || !hasPermission(user.accessLevel, "admin") || user.accessLevel !== "admin") {
+    if (!isAuthenticated() || userRole !== "Admin") {
       setHasAccess(false)
       const timer = setTimeout(() => {
         router.push("/")
@@ -84,7 +85,7 @@ export default function AtivosPage() {
     } else {
       setHasAccess(true)
     }
-  }, [user, router])
+  }, [userRole, router])
 
   // Todos os useEffect devem vir aqui, antes do return condicional
   useEffect(() => {

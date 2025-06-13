@@ -3,14 +3,13 @@
 import type React from "react"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Sidebar } from "@/components/sidebar"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Send, MessageSquare, Heart, Loader2 } from "lucide-react"
-import { getUser, type User } from "@/lib/fake-api"
+import { getUserRole } from "@/lib/auth-utils"
 
 // Helper function to safely get initials
 const getInitials = (name: string | undefined): string => {
@@ -52,7 +51,7 @@ interface FeedResponse {
 
 export default function ComunicacaoPage() {
   const router = useRouter()
-  const [user, setUser] = useState<User | null>(null)
+  const [user, setUser] = useState<any>(null)
   const [feedItems, setFeedItems] = useState<FeedItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isApiAvailable, setIsApiAvailable] = useState(false)
@@ -141,16 +140,34 @@ export default function ComunicacaoPage() {
           const feedData = await getFeedFromAPI()
           setFeedItems(feedData.items)
           setIsApiAvailable(true)
+
+          // Obter dados do usuário do localStorage
+          const userData = localStorage.getItem("user")
+          if (userData) {
+            setUser(JSON.parse(userData))
+          } else {
+            // Criar um usuário básico com o role
+            setUser({
+              name: "Usuário",
+              role: getUserRole(),
+            })
+          }
         } catch (error) {
           console.error("Erro ao carregar dados da API:", error)
-          // Fallback para dados fake
-          setUser(getUser())
+          // Fallback para dados básicos
+          setUser({
+            name: "Usuário",
+            role: getUserRole(),
+          })
           setFeedItems([])
           setIsApiAvailable(false)
         }
       } else {
-        // Sem token, usar dados fake
-        setUser(getUser())
+        // Sem token, usar dados básicos
+        setUser({
+          name: "Usuário",
+          role: getUserRole(),
+        })
         setFeedItems([])
         setIsApiAvailable(false)
       }
@@ -171,7 +188,6 @@ export default function ComunicacaoPage() {
       if (isApiAvailable) {
         // Enviar para API real
         const newPost = await createPost(content)
-       
 
         // Atualizar a lista de posts imediatamente
         setFeedItems((prevItems) => [newPost, ...prevItems])
