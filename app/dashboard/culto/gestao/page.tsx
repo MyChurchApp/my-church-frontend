@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Calendar, Clock, Users, Play, Square, AlertCircle, Menu, ChevronRight } from "lucide-react"
+import { Calendar, Clock, Users, Play, Square, AlertCircle, ChevronRight } from "lucide-react"
 import Link from "next/link"
 import { worshipService, type WorshipService, WorshipStatus } from "@/services/worship.service"
 import { format } from "date-fns"
@@ -18,7 +18,6 @@ export default function GestaoDecultoPage() {
   const [finishedServices, setFinishedServices] = useState<WorshipService[]>([])
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   // Função para carregar os cultos
   const loadWorshipServices = async () => {
@@ -178,43 +177,7 @@ export default function GestaoDecultoPage() {
 
   return (
     <div className="container mx-auto p-4">
-      {/* Header com botão de voltar e menu mobile */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <Link href="/dashboard" className="md:hidden">
-            <Button variant="ghost" size="icon" className="mr-2">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          </Link>
-          <h1 className="text-2xl font-bold">Gestão de Culto</h1>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="md:hidden"
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          >
-            <Menu className="h-4 w-4 mr-2" />
-            Menu
-          </Button>
-        </div>
-      </div>
-
-      {/* Menu mobile */}
-      {isMobileMenuOpen && (
-        <div className="md:hidden mb-4 bg-white rounded-lg shadow-md p-4">
-          <div className="flex flex-col space-y-2">
-            <Link href="/dashboard/culto" className="text-gray-700 hover:bg-gray-100 py-2 px-3 rounded-md">
-              Acompanhar Culto
-            </Link>
-            <Link href="/dashboard/culto/gestao" className="text-blue-600 font-medium py-2 px-3 rounded-md bg-blue-50">
-              Gestão de Culto
-            </Link>
-          </div>
-        </div>
-      )}
+      <h1 className="text-2xl font-bold mb-6">Gestão de Culto</h1>
 
       {/* Botão de atualizar */}
       <div className="mb-4">
