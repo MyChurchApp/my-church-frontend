@@ -1,8 +1,7 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
-
-import { FeedSection } from "@/app/dashboard/components/feed/feed-section.component"
+import { useState, useEffect } from "react"
+import { FeedSection } from "../../components/feed/feed-section"
 import {
   getFeed,
   createFeedPost,
@@ -12,75 +11,107 @@ import {
   unlikeFeedPost,
   type FeedItem,
   type FeedResponse,
-  type PostLikeState,
 } from "@/services/feed.service"
 
-const PAGE_SIZE = 10
-
-export const FeedSectionContainer = () => {
+export function FeedSectionContainer() {
   const [feedItems, setFeedItems] = useState<FeedItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [page, setPage] = useState(1)
-  const [hasMore, setHasMore] = useState(true)
-  const [likeStates, setLikeStates] = useState<PostLikeState>({})
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [hasMore, setHasMore] = useState(false)
+  const [likeStates, setLikeStates] = useState<
+    Record<number, { isLiked: boolean; likesCount: number; loading: boolean }>
+  >({})
 
-  const loadFeed = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-
+  const loadFeed = async (page = 1, append = false) => {
     try {
-      const response: FeedResponse = await getFeed(page, PAGE_SIZE)
-      setFeedItems((prevItems) => [...prevItems, ...response.items])
-      setHasMore(response.items.length === PAGE_SIZE)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load feed")
+      if (!append) {
+        setLoading(true)
+      }
+      setError(null)
+
+      const feedData: FeedResponse = await getFeed(page, 10)
+
+      if (append) {
+        setFeedItems((prev) => [...prev, ...feedData.items])
+      } else {
+        setFeedItems(feedData.items || [])
+      }
+
+      setCurrentPage(feedData.pageNumber)
+      setTotalPages(feedData.totalPages)
+      setHasMore(feedData.pageNumber < feedData.totalPages)
+
+      // Inicializar estados de like para novos posts
+      const newLikeStates: Record<number, { isLiked: boolean; likesCount: number; loading: boolean }> = {}
+      feedData.items.forEach((item) => {
+        if (!likeStates[item.id]) {
+          newLikeStates[item.id] = {
+            isLiked: false, // A API não retorna se o usuário atual curtiu
+            likesCount: item.likesCount,
+            loading: false,
+          }
+        }
+      })
+
+      if (Object.keys(newLikeStates).length > 0) {
+        setLikeStates((prev) => ({ ...prev, ...newLikeStates }))
+      }
+    } catch (error) {
+      console.error("Erro ao carregar feed:", error)
+      setError("Erro ao carregar feed. Tente novamente.")
+      if (!append) {
+        setFeedItems([])
+      }
     } finally {
-      setLoading(false)
+      if (!append) {
+        setLoading(false)
+      }
     }
-  }, [page])
+  }
 
   useEffect(() => {
-    loadFeed().then(() => {
-      if (feedItems.length > 0) {
-        initializeLikeStates(feedItems)
-      }
-    })
+    loadFeed()
   }, [])
 
-  const handleCreatePost = async (text: string) => {
+  const handleCreatePost = async (content: string) => {
     try {
-      setLoading(true)
-      const newPost = await createFeedPost(text)
-      setFeedItems((prevItems) => [newPost, ...prevItems])
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create post")
-    } finally {
-      setLoading(false)
+      const postId = await createFeedPost(content)
+
+      // Recarregar o feed para mostrar o novo post
+      await loadFeed(1, false)
+
+      return postId
+    } catch (error) {
+      console.error("Erro ao criar post:", error)
+      throw error
     }
   }
 
-  const handleUpdatePost = async (id: number, text: string) => {
+  const handleUpdatePost = async (postId: number, content: string) => {
     try {
-      setLoading(true)
-      await updateFeedPost(id, text)
-      setFeedItems((prevItems) => prevItems.map((item) => (item.id === id ? { ...item, text } : item)))
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update post")
-    } finally {
-      setLoading(false)
+      await updateFeedPost(postId, content)
+
+      // Atualizar o post na lista local
+      setFeedItems((prev) =>
+        prev.map((item) => (item.id === postId ? { ...item, content, updated: new Date().toISOString() } : item)),
+      )
+    } catch (error) {
+      console.error("Erro ao atualizar post:", error)
+      throw error
     }
   }
 
-  const handleDeletePost = async (id: number) => {
+  const handleDeletePost = async (postId: number) => {
     try {
-      setLoading(true)
-      await deleteFeedPost(id)
-      setFeedItems((prevItems) => prevItems.filter((item) => item.id !== id))
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete post")
-    } finally {
-      setLoading(false)
+      await deleteFeedPost(postId)
+
+      // Remover o post da lista local
+      setFeedItems((prev) => prev.filter((item) => item.id !== postId))
+    } catch (error) {
+      console.error("Erro ao deletar post:", error)
+      throw error
     }
   }
 
@@ -114,8 +145,8 @@ export const FeedSectionContainer = () => {
         },
       }))
 
-      // Atualizar o feed para obter contagem real
-      await loadFeed()
+      // Recarregar feed para obter dados atualizados
+      await loadFeed(1, false)
     } catch (error) {
       // Reverter estado em caso de erro
       setLikeStates((prev) => ({
@@ -128,32 +159,20 @@ export const FeedSectionContainer = () => {
       }))
 
       console.error("Erro ao curtir/descurtir post:", error)
-      setError(error instanceof Error ? error.message : "Erro ao processar like")
+      throw error
     }
   }
 
-  const handleLoadMore = () => {
-    if (hasMore) {
-      setPage((prevPage) => prevPage + 1)
+  const handleLoadMore = async () => {
+    if (hasMore && !loading) {
+      await loadFeed(currentPage + 1, true)
     }
   }
 
-  const handleRefresh = () => {
-    setPage(1)
+  const handleRefresh = async () => {
+    setCurrentPage(1)
     setFeedItems([])
-    loadFeed()
-  }
-
-  const initializeLikeStates = (items: FeedItem[]) => {
-    const newLikeStates: PostLikeState = {}
-    items.forEach((item) => {
-      newLikeStates[item.id] = {
-        isLiked: false, // A API não retorna se o usuário atual curtiu, então assumimos false
-        likesCount: item.likesCount,
-        loading: false,
-      }
-    })
-    setLikeStates((prev) => ({ ...prev, ...newLikeStates }))
+    await loadFeed(1, false)
   }
 
   return (
