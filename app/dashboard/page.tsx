@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Users, Calendar, DollarSign, TrendingUp } from "lucide-react"
+import { FeedSectionContainer } from "./containers/feed/feed-section.container"
 
 export default function DashboardPage() {
   const [stats, setStats] = useState({
@@ -76,18 +77,8 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* Welcome Message */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Bem-vindo ao MyChurch</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-gray-600">
-            Sistema de gestão eclesiástica completo para sua igreja. Use o menu lateral para navegar pelas diferentes
-            funcionalidades.
-          </p>
-        </CardContent>
-      </Card>
+      {/* Feed da Comunidade */}
+      <FeedSectionContainer />
     </div>
   )
 }

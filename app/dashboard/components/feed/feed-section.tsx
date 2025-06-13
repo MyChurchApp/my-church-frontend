@@ -5,15 +5,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { RefreshCw, Send, Edit, Trash2, User } from "lucide-react"
-import { formatTimeAgo, type ApiFeedItem } from "@/lib/api"
+import { formatTimeAgo, canEditOrDeletePost, type FeedItem } from "@/services/feed.service"
 
 interface FeedSectionProps {
-  feedItems: ApiFeedItem[]
+  feedItems: FeedItem[]
   loading: boolean
   error: string | null
-  onCreatePost: (content: string) => Promise<ApiFeedItem>
-  onUpdatePost: (postId: number, content: string) => Promise<ApiFeedItem>
+  hasMore: boolean
+  onCreatePost: (content: string) => Promise<number>
+  onUpdatePost: (postId: number, content: string) => Promise<void>
   onDeletePost: (postId: number) => Promise<void>
+  onLoadMore: () => Promise<void>
   onRefresh: () => Promise<void>
 }
 
@@ -21,15 +23,34 @@ export function FeedSection({
   feedItems,
   loading,
   error,
+  hasMore,
   onCreatePost,
   onUpdatePost,
   onDeletePost,
+  onLoadMore,
   onRefresh,
 }: FeedSectionProps) {
   const [newPostContent, setNewPostContent] = useState("")
   const [editingPost, setEditingPost] = useState<number | null>(null)
   const [editContent, setEditContent] = useState("")
   const [submitting, setSubmitting] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
+
+  // Obter ID do usuário atual
+  const getCurrentUserId = (): string => {
+    if (typeof window === "undefined") return ""
+
+    const token = localStorage.getItem("authToken")
+    if (!token) return ""
+
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1]))
+      return payload.nameid || payload.sub || payload.id || ""
+    } catch (error) {
+      console.error("Erro ao decodificar token:", error)
+      return ""
+    }
+  }
 
   const handleSubmitPost = async () => {
     if (!newPostContent.trim()) return
@@ -45,7 +66,7 @@ export function FeedSection({
     }
   }
 
-  const handleEditPost = (post: ApiFeedItem) => {
+  const handleEditPost = (post: FeedItem) => {
     setEditingPost(post.id)
     setEditContent(post.content)
   }
@@ -74,6 +95,19 @@ export function FeedSection({
       console.error("Erro ao deletar post:", error)
     }
   }
+
+  const handleLoadMore = async () => {
+    try {
+      setLoadingMore(true)
+      await onLoadMore()
+    } catch (error) {
+      console.error("Erro ao carregar mais posts:", error)
+    } finally {
+      setLoadingMore(false)
+    }
+  }
+
+  const currentUserId = getCurrentUserId()
 
   if (error) {
     return (
@@ -120,7 +154,7 @@ export function FeedSection({
           <div className="flex justify-end">
             <Button onClick={handleSubmitPost} disabled={!newPostContent.trim() || submitting} size="sm">
               <Send className="h-4 w-4 mr-2" />
-              Publicar
+              {submitting ? "Publicando..." : "Publicar"}
             </Button>
           </div>
         </div>
@@ -171,14 +205,17 @@ export function FeedSection({
                       <p className="text-xs text-gray-500">{formatTimeAgo(post.created)}</p>
                     </div>
                   </div>
-                  <div className="flex items-center space-x-1">
-                    <Button variant="ghost" size="sm" onClick={() => handleEditPost(post)}>
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => handleDeletePost(post.id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+
+                  {canEditOrDeletePost(post, currentUserId) && (
+                    <div className="flex items-center space-x-1">
+                      <Button variant="ghost" size="sm" onClick={() => handleEditPost(post)}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => handleDeletePost(post.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
 
                 {editingPost === post.id ? (
@@ -200,17 +237,34 @@ export function FeedSection({
                         Cancelar
                       </Button>
                       <Button size="sm" onClick={handleSaveEdit} disabled={!editContent.trim() || submitting}>
-                        Salvar
+                        {submitting ? "Salvando..." : "Salvar"}
                       </Button>
                     </div>
                   </div>
                 ) : (
                   <div className="text-sm">
                     <p className="whitespace-pre-wrap">{post.content}</p>
+                    {post.updated && (
+                      <p className="text-xs text-gray-400 mt-2">Editado em {formatTimeAgo(post.updated)}</p>
+                    )}
                   </div>
                 )}
+
+                {/* Estatísticas do post */}
+                <div className="flex items-center justify-between text-xs text-gray-500 pt-2 border-t">
+                  <span>{post.likesCount} curtidas</span>
+                </div>
               </div>
             ))}
+
+            {/* Botão carregar mais */}
+            {hasMore && (
+              <div className="text-center">
+                <Button variant="outline" onClick={handleLoadMore} disabled={loadingMore}>
+                  {loadingMore ? "Carregando..." : "Carregar mais"}
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </CardContent>
