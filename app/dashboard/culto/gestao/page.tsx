@@ -1,263 +1,386 @@
-"use client"
+"use client";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  RefreshCw,
+  AlertCircle,
+  Calendar,
+  Clock,
+  Users,
+  CheckCircle,
+} from "lucide-react";
+import { getUser, type User } from "@/lib/fake-api";
+import {
+  getWorshipServices,
+  updateWorshipService,
+  type WorshipService,
+} from "@/services/worship.service";
 
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Calendar, Clock, Users, Play, Square, AlertCircle, ChevronRight } from "lucide-react"
-import Link from "next/link"
-import { worshipService, type WorshipService, WorshipStatus } from "@/services/worship.service"
-import { format } from "date-fns"
-import { ptBR } from "date-fns/locale"
+export default function GestaoPage() {
+  const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
+  const [worshipServices, setWorshipServices] = useState<WorshipService[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [updating, setUpdating] = useState<number | null>(null);
 
-export default function GestaoDecultoPage() {
-  const [activeTab, setActiveTab] = useState<string>("not-started")
-  const [notStartedServices, setNotStartedServices] = useState<WorshipService[]>([])
-  const [inProgressServices, setInProgressServices] = useState<WorshipService[]>([])
-  const [finishedServices, setFinishedServices] = useState<WorshipService[]>([])
-  const [isLoading, setIsLoading] = useState<boolean>(true)
-  const [error, setError] = useState<string | null>(null)
-
-  // Função para carregar os cultos
-  const loadWorshipServices = async () => {
-    setIsLoading(true)
-    setError(null)
-
-    try {
-      // Carregar cultos não iniciados
-      const notStarted = await worshipService.getWorshipByStatus(WorshipStatus.NotStarted)
-      setNotStartedServices(notStarted)
-
-      // Carregar cultos em andamento
-      const inProgress = await worshipService.getWorshipByStatus(WorshipStatus.InProgress)
-      setInProgressServices(inProgress)
-
-      // Carregar cultos finalizados
-      const finished = await worshipService.getWorshipByStatus(WorshipStatus.Finished)
-      setFinishedServices(finished)
-    } catch (err) {
-      console.error("Erro ao carregar cultos:", err)
-      setError("Não foi possível carregar os cultos. Verifique sua conexão e tente novamente.")
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  // Função para iniciar um culto
-  const handleStartWorship = async (id: number) => {
-    try {
-      await worshipService.startWorship(id)
-      // Recarregar os cultos após iniciar
-      loadWorshipServices()
-    } catch (err) {
-      console.error("Erro ao iniciar culto:", err)
-      setError("Não foi possível iniciar o culto. Tente novamente.")
-    }
-  }
-
-  // Função para finalizar um culto
-  const handleFinishWorship = async (id: number) => {
-    try {
-      await worshipService.finishWorship(id)
-      // Recarregar os cultos após finalizar
-      loadWorshipServices()
-    } catch (err) {
-      console.error("Erro ao finalizar culto:", err)
-      setError("Não foi possível finalizar o culto. Tente novamente.")
-    }
-  }
-
-  // Carregar cultos ao montar o componente
   useEffect(() => {
-    loadWorshipServices()
-  }, [])
-
-  // Função para formatar data
-  const formatDate = (dateString: string) => {
-    try {
-      const date = new Date(dateString)
-      return format(date, "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: ptBR })
-    } catch (e) {
-      return dateString
+    const userData = getUser();
+    if (!userData) {
+      router.push("/login");
+      return;
     }
-  }
 
-  // Renderizar card de culto
-  const renderWorshipCard = (worship: WorshipService, status: WorshipStatus) => (
-    <Card key={worship.id} className="mb-4">
-      <CardHeader>
-        <div className="flex justify-between items-start">
-          <div>
-            <CardTitle className="text-lg">{worship.title}</CardTitle>
-            <CardDescription>{worship.theme}</CardDescription>
-          </div>
-          <Badge
-            variant={
-              status === WorshipStatus.NotStarted
-                ? "outline"
-                : status === WorshipStatus.InProgress
-                  ? "default"
-                  : "secondary"
-            }
-            className={
-              status === WorshipStatus.NotStarted
-                ? "bg-yellow-50 text-yellow-700 border-yellow-200"
-                : status === WorshipStatus.InProgress
-                  ? "bg-green-100 text-green-800"
-                  : "bg-gray-100 text-gray-800"
-            }
-          >
-            {status === WorshipStatus.NotStarted
-              ? "Não iniciado"
-              : status === WorshipStatus.InProgress
-                ? "Em andamento"
-                : "Finalizado"}
+    if (userData.accessLevel !== "admin") {
+      router.push("/dashboard");
+      return;
+    }
+
+    setUser(userData);
+    loadWorshipServices();
+  }, [router]);
+
+  const loadWorshipServices = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const services = await getWorshipServices();
+      setWorshipServices(services);
+    } catch (err) {
+      console.error("Erro ao carregar cultos:", err);
+      setError(
+        "Não foi possível carregar os cultos. Verifique sua conexão e tente novamente."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateService = async (
+    serviceId: number,
+    status: "started" | "finished"
+  ) => {
+    try {
+      setUpdating(serviceId);
+      await updateWorshipService(serviceId, { status });
+      await loadWorshipServices();
+    } catch (err) {
+      console.error("Erro ao atualizar culto:", err);
+      setError("Erro ao atualizar o status do culto.");
+    } finally {
+      setUpdating(null);
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "not_started":
+        return (
+          <Badge variant="outline" className="bg-gray-100 text-gray-800">
+            Não iniciado
           </Badge>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
-          <div className="flex items-center text-sm">
-            <Calendar className="h-4 w-4 mr-2 text-gray-500" />
-            <span>{formatDate(worship.startTime)}</span>
-          </div>
-          <div className="flex items-center text-sm">
-            <Clock className="h-4 w-4 mr-2 text-gray-500" />
-            <span>
-              Duração estimada: {new Date(worship.endTime).getHours() - new Date(worship.startTime).getHours()} horas
-            </span>
-          </div>
-          {worship.presencesCount > 0 && (
-            <div className="flex items-center text-sm">
-              <Users className="h-4 w-4 mr-2 text-gray-500" />
-              <span>{worship.presencesCount} presentes</span>
-            </div>
-          )}
-          {worship.activities && worship.activities.length > 0 && (
-            <div className="mt-4">
-              <p className="text-sm font-medium mb-2">Atividades: {worship.activities.length}</p>
-              <div className="space-y-2">
-                {worship.activities.slice(0, 2).map((activity) => (
-                  <div key={activity.id} className="text-sm p-2 bg-gray-50 rounded-md">
-                    <div className="font-medium">{activity.name}</div>
-                    {activity.isCurrent && <Badge className="mt-1 bg-blue-100 text-blue-800">Atual</Badge>}
-                  </div>
-                ))}
-                {worship.activities.length > 2 && (
-                  <div className="text-sm text-gray-500 flex items-center">
-                    <span>+{worship.activities.length - 2} atividades</span>
-                    <ChevronRight className="h-4 w-4 ml-1" />
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      </CardContent>
-      <CardFooter className="flex justify-end gap-2 pt-2 border-t">
-        <Link href={`/dashboard/culto/detalhes/${worship.id}`}>
-          <Button variant="outline" size="sm">
-            Ver detalhes
-          </Button>
-        </Link>
-        {status === WorshipStatus.NotStarted && (
-          <Button size="sm" onClick={() => handleStartWorship(worship.id)}>
-            <Play className="h-4 w-4 mr-1" /> Iniciar
-          </Button>
-        )}
-        {status === WorshipStatus.InProgress && (
-          <Button size="sm" variant="destructive" onClick={() => handleFinishWorship(worship.id)}>
-            <Square className="h-4 w-4 mr-1" /> Finalizar
-          </Button>
-        )}
-      </CardFooter>
-    </Card>
-  )
+        );
+      case "started":
+        return (
+          <Badge variant="outline" className="bg-blue-100 text-blue-800">
+            Em andamento
+          </Badge>
+        );
+      case "finished":
+        return (
+          <Badge variant="outline" className="bg-green-100 text-green-800">
+            Finalizado
+          </Badge>
+        );
+      default:
+        return (
+          <Badge variant="outline" className="bg-gray-100 text-gray-800">
+            {status}
+          </Badge>
+        );
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("pt-BR", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+  };
+
+  const formatTime = (dateString: string) => {
+    return new Date(dateString).toLocaleTimeString("pt-BR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const notStartedServices = worshipServices.filter(
+    (service) => service.status === "not_started"
+  );
+  const ongoingServices = worshipServices.filter(
+    (service) => service.status === "started"
+  );
+  const finishedServices = worshipServices.filter(
+    (service) => service.status === "finished"
+  );
+
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-6">Gestão de Culto</h1>
-
-      {/* Botão de atualizar */}
-      <div className="mb-4">
-        <Button variant="outline" onClick={loadWorshipServices} disabled={isLoading}>
-          {isLoading ? "Carregando..." : "Atualizar"}
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Gestão de Culto</h1>
+          <p className="text-gray-600">Gerencie os cultos da igreja</p>
+        </div>
+        <Button
+          onClick={loadWorshipServices}
+          disabled={loading}
+          variant="outline"
+        >
+          <RefreshCw
+            className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`}
+          />
+          Atualizar
         </Button>
       </div>
 
-      {/* Mensagem de erro */}
       {error && (
-        <Card className="mb-4 border-red-200 bg-red-50">
-          <CardContent className="p-4 flex items-center text-red-700">
-            <AlertCircle className="h-5 w-5 mr-2" />
-            <span>{error}</span>
-          </CardContent>
-        </Card>
+        <Alert variant="destructive" className="mb-6">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
 
-      {/* Tabs para os diferentes status */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid grid-cols-3 mb-4">
-          <TabsTrigger value="not-started">Não iniciados</TabsTrigger>
-          <TabsTrigger value="in-progress">Em andamento</TabsTrigger>
-          <TabsTrigger value="finished">Finalizados</TabsTrigger>
+      <Tabs defaultValue="not_started" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="not_started">
+            Não iniciados ({notStartedServices.length})
+          </TabsTrigger>
+          <TabsTrigger value="ongoing">
+            Em andamento ({ongoingServices.length})
+          </TabsTrigger>
+          <TabsTrigger value="finished">
+            Finalizados ({finishedServices.length})
+          </TabsTrigger>
         </TabsList>
 
-        {/* Cultos não iniciados */}
-        <TabsContent value="not-started">
-          {isLoading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-gray-500">Carregando cultos não iniciados...</p>
+        <TabsContent value="not_started">
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             </div>
           ) : notStartedServices.length === 0 ? (
             <Card>
-              <CardContent className="p-6 text-center">
-                <p className="text-gray-500">Não há cultos aguardando início.</p>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <Calendar className="h-12 w-12 text-gray-400 mb-4" />
+                <p className="text-gray-500 text-center">
+                  Não há cultos aguardando início.
+                </p>
               </CardContent>
             </Card>
           ) : (
-            notStartedServices.map((worship) => renderWorshipCard(worship, WorshipStatus.NotStarted))
-          )}
-        </TabsContent>
-
-        {/* Cultos em andamento */}
-        <TabsContent value="in-progress">
-          {isLoading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-gray-500">Carregando cultos em andamento...</p>
+            <div className="grid gap-4">
+              {notStartedServices.map((service) => (
+                <Card key={service.id}>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg">{service.title}</CardTitle>
+                      {getStatusBadge(service.status)}
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-gray-500" />
+                        <span className="text-sm">
+                          {formatDate(service.date)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-gray-500" />
+                        <span className="text-sm">
+                          {formatTime(service.date)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4 text-gray-500" />
+                        <span className="text-sm">
+                          {service.expectedAttendance || 0} pessoas esperadas
+                        </span>
+                      </div>
+                    </div>
+                    {service.description && (
+                      <p className="text-gray-600 mb-4">
+                        {service.description}
+                      </p>
+                    )}
+                    <Button
+                      onClick={() => handleUpdateService(service.id, "started")}
+                      disabled={updating === service.id}
+                      className="w-full md:w-auto"
+                    >
+                      {updating === service.id ? (
+                        <>
+                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                          Iniciando...
+                        </>
+                      ) : (
+                        "Iniciar Culto"
+                      )}
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
-          ) : inProgressServices.length === 0 ? (
-            <Card>
-              <CardContent className="p-6 text-center">
-                <p className="text-gray-500">Não há cultos em andamento no momento.</p>
-              </CardContent>
-            </Card>
-          ) : (
-            inProgressServices.map((worship) => renderWorshipCard(worship, WorshipStatus.InProgress))
           )}
         </TabsContent>
 
-        {/* Cultos finalizados */}
+        <TabsContent value="ongoing">
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+          ) : ongoingServices.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <Clock className="h-12 w-12 text-gray-400 mb-4" />
+                <p className="text-gray-500 text-center">
+                  Não há cultos em andamento.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4">
+              {ongoingServices.map((service) => (
+                <Card key={service.id} className="border-blue-200 bg-blue-50">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg">{service.title}</CardTitle>
+                      {getStatusBadge(service.status)}
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-gray-500" />
+                        <span className="text-sm">
+                          {formatDate(service.date)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-gray-500" />
+                        <span className="text-sm">
+                          {formatTime(service.date)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4 text-gray-500" />
+                        <span className="text-sm">
+                          {service.actualAttendance || 0} pessoas presentes
+                        </span>
+                      </div>
+                    </div>
+                    {service.description && (
+                      <p className="text-gray-600 mb-4">
+                        {service.description}
+                      </p>
+                    )}
+                    <Button
+                      onClick={() =>
+                        handleUpdateService(service.id, "finished")
+                      }
+                      disabled={updating === service.id}
+                      variant="outline"
+                      className="w-full md:w-auto"
+                    >
+                      {updating === service.id ? (
+                        <>
+                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                          Finalizando...
+                        </>
+                      ) : (
+                        "Finalizar Culto"
+                      )}
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
         <TabsContent value="finished">
-          {isLoading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-gray-500">Carregando cultos finalizados...</p>
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             </div>
           ) : finishedServices.length === 0 ? (
             <Card>
-              <CardContent className="p-6 text-center">
-                <p className="text-gray-500">Não há cultos finalizados.</p>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <CheckCircle className="h-12 w-12 text-gray-400 mb-4" />
+                <p className="text-gray-500 text-center">
+                  Não há cultos finalizados.
+                </p>
               </CardContent>
             </Card>
           ) : (
-            finishedServices.map((worship) => renderWorshipCard(worship, WorshipStatus.Finished))
+            <div className="grid gap-4">
+              {finishedServices.map((service) => (
+                <Card key={service.id} className="border-green-200 bg-green-50">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg">{service.title}</CardTitle>
+                      {getStatusBadge(service.status)}
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-gray-500" />
+                        <span className="text-sm">
+                          {formatDate(service.date)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-gray-500" />
+                        <span className="text-sm">
+                          {formatTime(service.date)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4 text-gray-500" />
+                        <span className="text-sm">
+                          {service.actualAttendance || 0} pessoas presentes
+                        </span>
+                      </div>
+                    </div>
+                    {service.description && (
+                      <p className="text-gray-600 mt-4">
+                        {service.description}
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           )}
         </TabsContent>
       </Tabs>
     </div>
-  )
+  );
 }

@@ -1,17 +1,15 @@
 "use client";
 
+import type React from "react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { StatsCardsContainer } from "./containers/stats/stats-cards.container";
-import { FeedSectionContainer } from "./containers/feed/feed-section.container";
-import { SidebarContentContainer } from "./containers/sidebar/sidebar-content.container";
+import { Sidebar } from "@/components/sidebar";
 import {
   getUser,
   getChurchData,
   type User,
   type ChurchData,
 } from "@/lib/fake-api";
-import { useSignalR } from "./useSignalR";
 
 // Função helper para verificar se o usuário está logado via API real
 const isRealUser = (): boolean => {
@@ -78,13 +76,15 @@ const getRealUser = (): User | null => {
   }
 };
 
-export default function DashboardPage() {
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [churchData, setChurchData] = useState<ChurchData | null>(null);
-
-  // Inicia SignalR passando ID do culto (troque "1" se precisar)
-  useSignalR(1);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const initializeDashboard = () => {
@@ -103,12 +103,13 @@ export default function DashboardPage() {
 
       setUser(userData);
       setChurchData(getChurchData());
+      setIsLoading(false);
     };
 
     initializeDashboard();
   }, [router]);
 
-  if (!user || !churchData) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -119,15 +120,53 @@ export default function DashboardPage() {
     );
   }
 
-  return (
-    <div className="p-4 md:p-6">
-      {user.accessLevel === "admin" && (
-        <StatsCardsContainer churchData={churchData} />
-      )}
+  if (!user || !churchData) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <p className="text-gray-600">Erro ao carregar dados do usuário</p>
+        </div>
+      </div>
+    );
+  }
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pb-8">
-        <FeedSectionContainer user={user} />
-        <SidebarContentContainer />
+  return (
+    <div className="flex h-screen bg-gray-50">
+      <Sidebar />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Header */}
+        <header className="bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="hidden md:block">
+                <h2 className="text-lg font-semibold text-gray-900">
+                  {churchData.name}
+                </h2>
+                <p className="text-sm text-gray-600">
+                  Sistema de Gestão Eclesiástica
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="hidden md:block text-right">
+                <p className="font-medium text-gray-900">{user.name}</p>
+                <p className="text-sm text-gray-600">{user.role}</p>
+              </div>
+              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                <span className="text-blue-600 font-medium">
+                  {user.name
+                    .split(" ")
+                    .map((n) => n[0])
+                    .join("")
+                    .slice(0, 2)}
+                </span>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* Main Content */}
+        <main className="flex-1 overflow-y-auto">{children}</main>
       </div>
     </div>
   );

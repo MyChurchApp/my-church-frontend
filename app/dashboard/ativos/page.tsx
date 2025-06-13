@@ -349,7 +349,6 @@ export default function AtivosPage() {
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      <Sidebar />
       <div className="flex-1 p-4 md:p-6 space-y-6">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">

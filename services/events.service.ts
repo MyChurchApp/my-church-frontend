@@ -1,73 +1,74 @@
-import { authFetch } from "@/lib/auth-fetch"
+import { authFetch } from "@/lib/auth-fetch";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://demoapp.top1soft.com.br"
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || "https://demoapp.top1soft.com.br/api";
 
 export interface EventRequest {
-  title: string
-  description: string
-  date: string // ISO string
-  finishDate: string // ISO string
-  location: string
-  requiresParticipantList: boolean
-  recurrenceType: number
-  frequency: number
+  title: string;
+  description: string;
+  date: string; // ISO string
+  finishDate: string; // ISO string
+  location: string;
+  requiresParticipantList: boolean;
+  recurrenceType: number;
+  frequency: number;
 }
 
 export interface EventUpdateRequest extends EventRequest {
-  id: number
+  id: number;
 }
 
 export interface EventResponse {
-  id: number
-  title: string
-  description: string
-  date: string
-  finishDate: string
-  location: string
-  churchId: number
+  id: number;
+  title: string;
+  description: string;
+  date: string;
+  finishDate: string;
+  location: string;
+  churchId: number;
   church: {
-    id: number
-    name: string
-    logo: string
+    id: number;
+    name: string;
+    logo: string;
     address: {
-      id: number
-      street: string
-      city: string
-      state: string
-      zipCode: string
-      country: string
-      neighborhood: string
-    }
-    phone: string
-    description: string
-    members: any[]
-    subscription: any
-  }
-  requiresParticipantList: boolean
-  participants: any[]
+      id: number;
+      street: string;
+      city: string;
+      state: string;
+      zipCode: string;
+      country: string;
+      neighborhood: string;
+    };
+    phone: string;
+    description: string;
+    members: any[];
+    subscription: any;
+  };
+  requiresParticipantList: boolean;
+  participants: any[];
   recurrence: {
-    id: number
-    eventId: number
-    recurrenceType: number
-    frequency: number
-    recurrenceEndDate: string
-  }
-  notifications: any[]
+    id: number;
+    eventId: number;
+    recurrenceType: number;
+    frequency: number;
+    recurrenceEndDate: string;
+  };
+  notifications: any[];
 }
 
 export interface CalendarEventResponse {
-  id: number
-  title: string
-  description: string
-  location: string
-  churchId: number
-  isRecurring: boolean
-  recurrenceType: number
-  frequency: number
+  id: number;
+  title: string;
+  description: string;
+  location: string;
+  churchId: number;
+  isRecurring: boolean;
+  recurrenceType: number;
+  frequency: number;
   occurrences: {
-    start: string
-    end: string
-  }[]
+    start: string;
+    end: string;
+  }[];
 }
 
 class EventsService {
@@ -82,17 +83,17 @@ class EventsService {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(eventData),
-      })
+      });
 
       if (!response.ok) {
-        throw new Error(`Erro ao criar evento: ${response.status}`)
+        throw new Error(`Erro ao criar evento: ${response.status}`);
       }
 
-      const eventId = await response.text()
-      return Number.parseInt(eventId)
+      const eventId = await response.text();
+      return Number.parseInt(eventId);
     } catch (error) {
-      console.error("Erro ao criar evento:", error)
-      throw error
+      console.error("Erro ao criar evento:", error);
+      throw error;
     }
   }
 
@@ -103,23 +104,26 @@ class EventsService {
     try {
       const response = await authFetch(`${API_BASE_URL}/Event/${id}`, {
         method: "GET",
-      })
+      });
 
       if (!response.ok) {
-        throw new Error(`Erro ao buscar evento: ${response.status}`)
+        throw new Error(`Erro ao buscar evento: ${response.status}`);
       }
 
-      return await response.json()
+      return await response.json();
     } catch (error) {
-      console.error("Erro ao buscar evento:", error)
-      throw error
+      console.error("Erro ao buscar evento:", error);
+      throw error;
     }
   }
 
   /**
    * Atualiza um evento existente
    */
-  async updateEvent(id: number, eventData: EventUpdateRequest): Promise<EventResponse> {
+  async updateEvent(
+    id: number,
+    eventData: EventUpdateRequest
+  ): Promise<EventResponse> {
     try {
       const response = await authFetch(`${API_BASE_URL}/Event/${id}`, {
         method: "PUT",
@@ -127,16 +131,16 @@ class EventsService {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(eventData),
-      })
+      });
 
       if (!response.ok) {
-        throw new Error(`Erro ao atualizar evento: ${response.status}`)
+        throw new Error(`Erro ao atualizar evento: ${response.status}`);
       }
 
-      return await response.json()
+      return await response.json();
     } catch (error) {
-      console.error("Erro ao atualizar evento:", error)
-      throw error
+      console.error("Erro ao atualizar evento:", error);
+      throw error;
     }
   }
 
@@ -147,40 +151,47 @@ class EventsService {
     try {
       const response = await authFetch(`${API_BASE_URL}/Event/${id}`, {
         method: "DELETE",
-      })
+      });
 
       if (!response.ok) {
-        throw new Error(`Erro ao deletar evento: ${response.status}`)
+        throw new Error(`Erro ao deletar evento: ${response.status}`);
       }
     } catch (error) {
-      console.error("Erro ao deletar evento:", error)
-      throw error
+      console.error("Erro ao deletar evento:", error);
+      throw error;
     }
   }
 
   /**
    * Lista eventos para o calendário do mês/ano informado (inclui recorrentes)
    */
-  async getCalendarEvents(year?: number, month?: number): Promise<CalendarEventResponse[]> {
+  async getCalendarEvents(
+    year?: number,
+    month?: number
+  ): Promise<CalendarEventResponse[]> {
     try {
-      const params = new URLSearchParams()
-      if (year) params.append("Year", year.toString())
-      if (month) params.append("Month", month.toString())
+      const params = new URLSearchParams();
+      if (year) params.append("Year", year.toString());
+      if (month) params.append("Month", month.toString());
 
-      const url = `${API_BASE_URL}/Event/calendar${params.toString() ? `?${params.toString()}` : ""}`
+      const url = `${API_BASE_URL}/Event/calendar${
+        params.toString() ? `?${params.toString()}` : ""
+      }`;
 
       const response = await authFetch(url, {
         method: "GET",
-      })
+      });
 
       if (!response.ok) {
-        throw new Error(`Erro ao buscar eventos do calendário: ${response.status}`)
+        throw new Error(
+          `Erro ao buscar eventos do calendário: ${response.status}`
+        );
       }
 
-      return await response.json()
+      return await response.json();
     } catch (error) {
-      console.error("Erro ao buscar eventos do calendário:", error)
-      throw error
+      console.error("Erro ao buscar eventos do calendário:", error);
+      throw error;
     }
   }
 
@@ -193,13 +204,15 @@ class EventsService {
       description: formData.description || "",
       date: new Date(formData.date + "T" + formData.time).toISOString(),
       finishDate: formData.finishDate
-        ? new Date(formData.finishDate + "T" + (formData.finishTime || formData.time)).toISOString()
+        ? new Date(
+            formData.finishDate + "T" + (formData.finishTime || formData.time)
+          ).toISOString()
         : new Date(formData.date + "T" + formData.time).toISOString(),
       location: formData.location || "",
       requiresParticipantList: formData.requiresParticipantList || false,
       recurrenceType: this.getRecurrenceType(formData.recurrence),
       frequency: this.getFrequency(formData.recurrence),
-    }
+    };
   }
 
   /**
@@ -208,17 +221,17 @@ class EventsService {
   private getRecurrenceType(recurrence: string): number {
     switch (recurrence) {
       case "once":
-        return 0 // Sem recorrência
+        return 0; // Sem recorrência
       case "weekly":
-        return 1 // Semanal
+        return 1; // Semanal
       case "biweekly":
-        return 1 // Semanal (com frequência 2)
+        return 1; // Semanal (com frequência 2)
       case "monthly":
-        return 2 // Mensal
+        return 2; // Mensal
       case "yearly":
-        return 3 // Anual
+        return 3; // Anual
       default:
-        return 0
+        return 0;
     }
   }
 
@@ -228,15 +241,15 @@ class EventsService {
   private getFrequency(recurrence: string): number {
     switch (recurrence) {
       case "weekly":
-        return 1 // A cada 1 semana
+        return 1; // A cada 1 semana
       case "biweekly":
-        return 2 // A cada 2 semanas
+        return 2; // A cada 2 semanas
       case "monthly":
-        return 1 // A cada 1 mês
+        return 1; // A cada 1 mês
       case "yearly":
-        return 1 // A cada 1 ano
+        return 1; // A cada 1 ano
       default:
-        return 0 // Sem frequência
+        return 0; // Sem frequência
     }
   }
 
@@ -244,8 +257,8 @@ class EventsService {
    * Converte evento da API para formato do formulário
    */
   formatEventFromAPI(apiEvent: EventResponse): any {
-    const eventDate = new Date(apiEvent.date)
-    const finishDate = new Date(apiEvent.finishDate)
+    const eventDate = new Date(apiEvent.date);
+    const finishDate = new Date(apiEvent.finishDate);
 
     return {
       id: apiEvent.id,
@@ -257,27 +270,33 @@ class EventsService {
       finishTime: finishDate.toTimeString().slice(0, 5),
       location: apiEvent.location,
       requiresParticipantList: apiEvent.requiresParticipantList,
-      recurrence: this.getRecurrenceString(apiEvent.recurrence?.recurrenceType, apiEvent.recurrence?.frequency),
-    }
+      recurrence: this.getRecurrenceString(
+        apiEvent.recurrence?.recurrenceType,
+        apiEvent.recurrence?.frequency
+      ),
+    };
   }
 
   /**
    * Converte tipo de recorrência da API para string do formulário
    */
-  private getRecurrenceString(recurrenceType?: number, frequency?: number): string {
-    if (!recurrenceType || recurrenceType === 0) return "once"
+  private getRecurrenceString(
+    recurrenceType?: number,
+    frequency?: number
+  ): string {
+    if (!recurrenceType || recurrenceType === 0) return "once";
 
     switch (recurrenceType) {
       case 1: // Semanal
-        return frequency === 2 ? "biweekly" : "weekly"
+        return frequency === 2 ? "biweekly" : "weekly";
       case 2: // Mensal
-        return "monthly"
+        return "monthly";
       case 3: // Anual
-        return "yearly"
+        return "yearly";
       default:
-        return "once"
+        return "once";
     }
   }
 }
 
-export const eventsService = new EventsService()
+export const eventsService = new EventsService();
