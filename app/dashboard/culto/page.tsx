@@ -3,10 +3,11 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Book, Clock, Bug, BookOpen, AlertCircle, RefreshCw, Database, Hash } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Book, Clock, Bug, BookOpen, AlertCircle, RefreshCw, Database, Hash, ArrowLeft, Menu } from "lucide-react"
 import { useSignalR } from "../useSignalR"
 import { getBibleReading } from "@/lib/bible-api"
-import CultoHeader from "./components/culto-header"
+import Link from "next/link"
 
 interface BibleReading {
   id: string
@@ -32,6 +33,7 @@ export default function CultoPage() {
   const [readings, setReadings] = useState<BibleReading[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [debugInfo, setDebugInfo] = useState<string[]>([])
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   // Usar o hook SignalR
   useSignalR(1)
@@ -273,7 +275,42 @@ export default function CultoPage() {
   return (
     <div className="container mx-auto p-4">
       {/* Header com botão de voltar e menu mobile */}
-      <CultoHeader title="Acompanhar Culto" />
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Link href="/dashboard" className="md:hidden">
+            <Button variant="ghost" size="icon" className="mr-2">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          </Link>
+          <h1 className="text-2xl font-bold">Acompanhar Culto</h1>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="md:hidden"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          >
+            <Menu className="h-4 w-4 mr-2" />
+            Menu
+          </Button>
+        </div>
+      </div>
+
+      {/* Menu mobile */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden mb-4 bg-white rounded-lg shadow-md p-4">
+          <div className="flex flex-col space-y-2">
+            <Link href="/dashboard/culto" className="text-blue-600 font-medium py-2 px-3 rounded-md bg-blue-50">
+              Acompanhar Culto
+            </Link>
+            <Link href="/dashboard/culto/gestao" className="text-gray-700 hover:bg-gray-100 py-2 px-3 rounded-md">
+              Gestão de Culto
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* Status de conexão */}
       <div className="mb-4 flex items-center gap-2 text-sm">

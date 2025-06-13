@@ -100,7 +100,6 @@ export const worshipService = {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
-          Accept: "application/json",
         },
       })
 
@@ -109,26 +108,15 @@ export const worshipService = {
       }
 
       const data = await response.json()
-      console.log(`✅ Resposta da API:`, data)
+      console.log(`✅ Cultos obtidos com sucesso. Total: ${data.totalCount || 0}`)
 
-      // Verificar o formato da resposta e extrair os dados corretamente
-      if (Array.isArray(data) && data.length > 0) {
-        // A API retorna um array com um objeto de paginação
+      // Verificar se a resposta já está no formato esperado ou se é um array
+      if (Array.isArray(data)) {
+        // Se for um array, assumimos que é o primeiro item que contém a paginação
         return data[0] || { items: [], pageNumber: 0, pageSize: 0, totalCount: 0, totalPages: 0 }
-      } else if (data && data.items) {
-        // A API retorna diretamente o objeto de paginação
-        return data
-      } else {
-        // Formato desconhecido, criar um objeto padrão
-        console.warn("⚠️ Formato de resposta desconhecido:", data)
-        return {
-          items: Array.isArray(data) ? data : [],
-          pageNumber: 0,
-          pageSize: 0,
-          totalCount: Array.isArray(data) ? data.length : 0,
-          totalPages: 1,
-        }
       }
+
+      return data
     } catch (error) {
       console.error("❌ Erro ao listar cultos:", error)
       throw error
@@ -147,11 +135,9 @@ export const worshipService = {
         status,
         pageSize: 50, // Buscar uma quantidade razoável de cultos
       })
-
-      console.log(`✅ Cultos com status ${status} obtidos:`, response)
       return response.items || []
     } catch (error) {
-      console.error(`❌ Erro ao buscar cultos com status ${status}:`, error)
+      console.error("❌ Erro ao buscar cultos por status:", error)
       throw error
     }
   },
@@ -168,7 +154,6 @@ export const worshipService = {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
-          Accept: "application/json",
         },
       })
 
@@ -177,7 +162,7 @@ export const worshipService = {
       }
 
       const data = await response.json()
-      console.log(`✅ Detalhes do culto obtidos com sucesso:`, data)
+      console.log(`✅ Detalhes do culto obtidos com sucesso.`)
       return data
     } catch (error) {
       console.error("❌ Erro ao buscar detalhes do culto:", error)
