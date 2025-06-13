@@ -1,36 +1,15 @@
-/**
- * Funções utilitárias para autenticação
- */
+// Funções de autenticação
 
 /**
- * Obter token do localStorage
- */
-export function getAuthToken(): string | null {
-  if (typeof window === "undefined") return null
-  return localStorage.getItem("authToken")
-}
-
-/**
- * Limpar dados de autenticação
- */
-export function clearAuthData(): void {
-  if (typeof window !== "undefined") {
-    localStorage.removeItem("authToken")
-    localStorage.removeItem("userRole")
-    localStorage.removeItem("user")
-    window.location.href = "/login"
-  }
-}
-
-/**
- * Verificar se o usuário está autenticado
+ * Verifica se o usuário está autenticado
  */
 export function isAuthenticated(): boolean {
-  return !!getAuthToken()
+  if (typeof window === "undefined") return false
+  return !!localStorage.getItem("authToken")
 }
 
 /**
- * Obter papel do usuário
+ * Obtém o papel/função do usuário atual
  */
 export function getUserRole(): string | null {
   if (typeof window === "undefined") return null
@@ -38,30 +17,67 @@ export function getUserRole(): string | null {
 }
 
 /**
- * Obter dados do usuário
+ * Obtém o ID do usuário atual
  */
-export function getUser(): any {
+export function getCurrentUserId(): string | null {
   if (typeof window === "undefined") return null
-  const userStr = localStorage.getItem("user")
-  if (!userStr) return null
+
   try {
-    return JSON.parse(userStr)
-  } catch (e) {
-    console.error("Erro ao parsear dados do usuário:", e)
+    const token = localStorage.getItem("authToken")
+    if (!token) return null
+
+    // Tentar obter do objeto de usuário
+    const userData = localStorage.getItem("user")
+    if (userData) {
+      const user = JSON.parse(userData)
+      if (user.id) return user.id.toString()
+    }
+
+    // Tentar decodificar do token JWT
+    const payload = JSON.parse(atob(token.split(".")[1]))
+    return payload.nameid || payload.sub || null
+  } catch (error) {
+    console.error("Erro ao obter ID do usuário:", error)
     return null
   }
 }
 
 /**
- * Obter token (alias para getAuthToken)
+ * Obtém o usuário atual
  */
-export function getToken(): string | null {
-  return getAuthToken()
-}
+export function getUser() {
+  if (typeof window === "undefined") return null
 
-/**
- * Fazer logout (alias para clearAuthData)
- */
-export function logout(): void {
-  clearAuthData()
+  try {
+    const token = localStorage.getItem("authToken")
+    const role = localStorage.getItem("userRole")
+
+    if (!token) return null
+
+    // Tentar obter do objeto de usuário
+    const userData = localStorage.getItem("user")
+    if (userData) {
+      const user = JSON.parse(userData)
+      return {
+        id: user.id?.toString() || "1",
+        name: user.name || "Usuário",
+        email: user.email || user.identifier || "",
+        role: role || "Membro",
+        accessLevel: role === "Admin" ? "admin" : "member",
+      }
+    }
+
+    // Tentar decodificar do token JWT
+    const payload = JSON.parse(atob(token.split(".")[1]))
+    return {
+      id: payload.nameid || payload.sub || "1",
+      name: payload.name || payload.email || "Usuário",
+      email: payload.email || "",
+      role: role || "Membro",
+      accessLevel: role === "Admin" ? "admin" : "member",
+    }
+  } catch (error) {
+    console.error("Erro ao obter dados do usuário:", error)
+    return null
+  }
 }

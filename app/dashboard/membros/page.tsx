@@ -1,7 +1,5 @@
 "use client"
 
-import type React from "react"
-
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -10,7 +8,6 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Users, Plus, Search, Filter, UserCheck, UserX, ChevronLeft, ChevronRight } from "lucide-react"
-import { getUser, type User } from "@/lib/api"
 import {
   getMembersFromAPI,
   createMemberAPI,
@@ -22,7 +19,8 @@ import {
 } from "@/lib/api"
 import { toast } from "@/hooks/use-toast"
 import { MemberRegistrationModal } from "@/components/member-registration-modal"
-import { getUserRole } from "@/lib/auth-utils"
+import { getUserRole, isAuthenticated } from "@/lib/auth-utils"
+import type { User } from "@/lib/types"
 
 export default function MembrosPage() {
   const router = useRouter()
@@ -31,9 +29,6 @@ export default function MembrosPage() {
   const [filteredMembers, setFilteredMembers] = useState<ApiMember[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
-  const [selectedMember, setSelectedMember] = useState<ApiMember | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -48,60 +43,26 @@ export default function MembrosPage() {
   const pageSize = 20
   const [totalMembers, setTotalMembers] = useState(0)
 
-  // Form state for new/edit member
-  const [memberForm, setMemberForm] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    document: "",
-    rg: "",
-    tituloEleitor: "",
-    cnh: "",
-    certidaoNascimento: "",
-    outrosDocumentos: "",
-    photo: "",
-    birthDate: "",
-    address: "",
-    city: "",
-    state: "",
-    zipCode: "",
-    maritalStatus: "",
-    isBaptized: false,
-    baptizedDate: "",
-    isTither: false,
-    memberSince: "",
-    ministry: "",
-    roleMember: 0,
-    isActive: true,
-    notes: "",
-  })
-
   // Listener para erros 500
   const userRole = getUserRole()
   const isAdmin = userRole === "Admin"
 
-  // Função para converter imagem para base64
-  const convertImageToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.readAsDataURL(file)
-      reader.onload = () => {
-        const base64String = reader.result as string
-        const base64 = base64String.split(",")[1]
-        resolve(base64)
-      }
-      reader.onerror = (error) => reject(error)
-    })
-  }
-
   useEffect(() => {
-    const userData = getUser()
-    if (!userData) {
+    // Verificar autenticação
+    if (!isAuthenticated()) {
       router.push("/login")
       return
     }
 
-    setUser(userData)
+    // Definir usuário básico
+    setUser({
+      id: "1",
+      name: "Usuário",
+      email: "",
+      role: userRole || "Membro",
+      accessLevel: userRole === "Admin" ? "admin" : "member",
+    })
+
     loadMembers()
   }, [router, currentPage])
 
@@ -374,313 +335,6 @@ export default function MembrosPage() {
       return number.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")
     }
     return documents[0]?.number || "N/A"
-  }
-
-  const handleCreateMemberOld = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    // Validação básica
-    if (!memberForm.name.trim()) {
-      setError("Nome é obrigatório")
-      return
-    }
-
-    if (!memberForm.email.trim()) {
-      setError("Email é obrigatório")
-      return
-    }
-
-    if (!memberForm.phone.trim()) {
-      setError("Telefone é obrigatório")
-      return
-    }
-
-    if (!memberForm.document.trim()) {
-      setError("Documento (CPF) é obrigatório")
-      return
-    }
-
-    if (!memberForm.birthDate.trim()) {
-      setError("Data de nascimento é obrigatória")
-      return
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(memberForm.email.trim())) {
-      setError("Email deve ter um formato válido")
-      return
-    }
-
-    const cpfRegex = /^\d{11}$|^\d{3}\.\d{3}\.\d{3}-\d{2}$/
-    if (!cpfRegex.test(memberForm.document.trim())) {
-      setError("CPF deve ter 11 dígitos ou formato 000.000.000-00")
-      return
-    }
-
-    try {
-      setSubmitting(true)
-      setError(null)
-
-      const apiMemberData = convertLocalMemberToApi(memberForm)
-
-      const newApiMember = await createMemberAPI(apiMemberData)
-
-      if (!newApiMember) {
-        throw new Error("API retornou dados vazios")
-      }
-
-      const newMember = convertApiMemberToLocal(newApiMember)
-
-      setMembers([newMember, ...members])
-      resetForm()
-      setIsCreateDialogOpen(false)
-
-      toast({
-        title: "Membro cadastrado!",
-        description: `${newMember.name} foi cadastrado com sucesso.`,
-      })
-
-      // Recarregar a lista para garantir sincronização
-      await loadMembers()
-    } catch (error: any) {
-      console.error("Erro detalhado ao criar membro:", error)
-
-      if (!error.message.includes("Erro interno do servidor")) {
-        let errorMessage = "Erro ao criar membro"
-        if (error.message) {
-          if (error.message.includes("400")) {
-            errorMessage = "Dados inválidos. Verifique os campos obrigatórios."
-          } else if (error.message.includes("401")) {
-            errorMessage = "Não autorizado. Faça login novamente."
-          } else if (error.message.includes("Resposta da API inválida")) {
-            errorMessage = "Erro na resposta do servidor. Tente novamente."
-          } else {
-            errorMessage = error.message
-          }
-        }
-        setError(errorMessage)
-      }
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  const handleEditMemberOld = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (!selectedMember) {
-      setError("Nenhum membro selecionado")
-      return
-    }
-
-    // Validação básica (mesma do create)
-    if (!memberForm.name.trim()) {
-      setError("Nome é obrigatório")
-      return
-    }
-
-    if (!memberForm.email.trim()) {
-      setError("Email é obrigatório")
-      return
-    }
-
-    if (!memberForm.phone.trim()) {
-      setError("Telefone é obrigatório")
-      return
-    }
-
-    if (!memberForm.document.trim()) {
-      setError("Documento (CPF) é obrigatório")
-      return
-    }
-
-    if (!memberForm.birthDate.trim()) {
-      setError("Data de nascimento é obrigatória")
-      return
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(memberForm.email.trim())) {
-      setError("Email deve ter um formato válido")
-      return
-    }
-
-    const cpfRegex = /^\d{11}$|^\d{3}\.\d{3}\.\d{3}-\d{2}$/
-    if (!cpfRegex.test(memberForm.document.trim())) {
-      setError("CPF deve ter 11 dígitos ou formato 000.000.000-00")
-      return
-    }
-
-    try {
-      setSubmitting(true)
-      setError(null)
-
-      const apiMemberData = convertLocalMemberToApi(memberForm)
-
-      const updatedApiMember = await updateMemberAPI(Number.parseInt(selectedMember.id), apiMemberData)
-
-      if (!updatedApiMember) {
-        throw new Error("API retornou dados vazios")
-      }
-
-      const updatedMember = convertApiMemberToLocal(updatedApiMember)
-
-      setMembers(members.map((member) => (member.id === selectedMember.id ? updatedMember : member)))
-      resetForm()
-      setSelectedMember(null)
-      setIsEditDialogOpen(false)
-
-      toast({
-        title: "Membro atualizado!",
-        description: `${updatedMember.name} foi atualizado com sucesso.`,
-      })
-
-      // Recarregar a lista para garantir sincronização
-      await loadMembers()
-    } catch (error: any) {
-      console.error("Erro ao editar membro:", error)
-
-      if (!error.message.includes("Erro interno do servidor")) {
-        let errorMessage = "Erro ao editar membro"
-        if (error.message) {
-          if (error.message.includes("400")) {
-            errorMessage = "Dados inválidos. Verifique os campos obrigatórios."
-          } else if (error.message.includes("401")) {
-            errorMessage = "Não autorizado. Faça login novamente."
-          } else if (error.message.includes("404")) {
-            errorMessage = "Membro não encontrado."
-          } else if (error.message.includes("Resposta da API inválida")) {
-            errorMessage = "Erro na resposta do servidor. Tente novamente."
-          } else {
-            errorMessage = error.message
-          }
-        }
-        setError(errorMessage)
-      }
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  const handleDeleteMemberOld = async (member: any) => {
-    if (!confirm(`Tem certeza que deseja excluir o membro ${member.name}?`)) return
-
-    try {
-      setSubmitting(true)
-      setError(null)
-
-      await deleteMemberAPI(Number.parseInt(member.id))
-      setMembers(members.filter((m) => m.id !== member.id))
-
-      toast({
-        title: "Membro excluído!",
-        description: `${member.name} foi excluído com sucesso.`,
-      })
-
-      await loadMembers()
-    } catch (error: any) {
-      console.error("Erro ao deletar membro:", error)
-
-      if (!error.message.includes("Erro interno do servidor")) {
-        setError(error.message || "Erro ao deletar membro")
-      }
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  const openEditDialog = (member: any) => {
-    setSelectedMember(member)
-    setMemberForm({
-      name: member.name,
-      email: member.email,
-      phone: member.phone,
-      document: member.cpf,
-      rg: member.rg || "",
-      tituloEleitor: member.tituloEleitor || "",
-      cnh: member.cnh || "",
-      certidaoNascimento: member.certidaoNascimento || "",
-      outrosDocumentos: member.outrosDocumentos || "",
-      photo: member.photo || "",
-      birthDate: member.birthDate,
-      address: member.address,
-      city: member.city,
-      state: member.state,
-      zipCode: member.zipCode,
-      maritalStatus: member.maritalStatus,
-      isBaptized: member.baptized,
-      baptizedDate: member.baptizedDate || "",
-      isTither: member.isTither || false,
-      memberSince: member.memberSince,
-      ministry: member.ministry,
-      roleMember: 0,
-      isActive: member.isActive,
-      notes: member.notes || "",
-    })
-    setIsEditDialogOpen(true)
-  }
-
-  const resetForm = () => {
-    setMemberForm({
-      name: "",
-      email: "",
-      phone: "",
-      document: "",
-      rg: "",
-      tituloEleitor: "",
-      cnh: "",
-      certidaoNascimento: "",
-      outrosDocumentos: "",
-      photo: "",
-      birthDate: "",
-      address: "",
-      city: "",
-      state: "",
-      zipCode: "",
-      maritalStatus: "",
-      isBaptized: false,
-      baptizedDate: "",
-      isTither: false,
-      memberSince: "",
-      ministry: "",
-      roleMember: 0,
-      isActive: true,
-      notes: "",
-    })
-  }
-
-  const handleSendPasswordReset = (member: any) => {
-    toast({
-      title: "Email enviado!",
-      description: `Email de recuperação de senha enviado para ${member.email}`,
-    })
-  }
-
-  const handleGenerateNewPassword = (member: any) => {
-    const newPassword = Math.random().toString(36).slice(-8)
-    toast({
-      title: "Nova senha gerada!",
-      description: `Nova senha para ${member.name}: ${newPassword}`,
-      duration: 10000,
-    })
-  }
-
-  const getStatusBadge = (isActive: boolean) => {
-    return isActive ? (
-      <Badge className="bg-green-100 text-green-800">
-        <UserCheck className="h-3 w-3 mr-1" />
-        Ativo
-      </Badge>
-    ) : (
-      <Badge className="bg-red-100 text-red-800">
-        <UserX className="h-3 w-3 mr-1" />
-        Inativo
-      </Badge>
-    )
-  }
-
-  const handlePageChangeOld = (page: number) => {
-    setCurrentPage(page)
   }
 
   if (isLoading) {

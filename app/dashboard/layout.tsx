@@ -5,21 +5,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Sidebar } from "@/components/sidebar"
 import { isAuthenticated } from "@/lib/auth-utils"
-
-// Interface para dados do usuário real
-interface User {
-  id: string
-  name: string
-  email: string
-  role: string
-  accessLevel: string
-}
-
-// Interface para dados da igreja (simplificada)
-interface ChurchData {
-  name: string
-  logo?: string
-}
+import type { User, ChurchData } from "@/lib/types"
 
 // Função para obter dados do usuário real da API
 const getRealUserData = async (): Promise<User | null> => {
@@ -63,6 +49,7 @@ const getRealUserData = async (): Promise<User | null> => {
 const getChurchData = (): ChurchData => {
   // Por enquanto retorna dados padrão, pode ser expandido para buscar da API
   return {
+    id: "1",
     name: "MyChurch",
     logo: "/mychurch-logo.png",
   }
