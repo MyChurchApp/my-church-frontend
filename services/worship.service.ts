@@ -65,10 +65,6 @@ export enum WorshipStatus {
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://demoapp.top1soft.com.br"
 
 export const worshipService = {
-  /**
-   * Lista cultos com filtros
-   * @param params Parâmetros de filtro
-   */
   async listWorshipServices(params: {
     status?: WorshipStatus
     title?: string
