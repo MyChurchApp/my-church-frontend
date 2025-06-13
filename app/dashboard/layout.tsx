@@ -4,55 +4,7 @@ import type React from "react"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Sidebar } from "@/components/sidebar"
-import { isAuthenticated } from "@/lib/auth-utils"
-import type { User, ChurchData } from "@/lib/types"
-
-// Função para obter dados do usuário real da API
-const getRealUserData = async (): Promise<User | null> => {
-  if (typeof window === "undefined") return null
-
-  const token = localStorage.getItem("authToken")
-  const role = localStorage.getItem("userRole")
-
-  if (!token) return null
-
-  try {
-    // Tentar obter dados do membro se existir
-    const memberData = localStorage.getItem("user")
-    if (memberData) {
-      const member = JSON.parse(memberData)
-      return {
-        id: member.id?.toString() || "1",
-        name: member.name || "Usuário",
-        email: member.email || member.identifier || "",
-        role: role || "Membro",
-        accessLevel: role === "Admin" ? "admin" : "member",
-      }
-    }
-
-    // Fallback: decodificar token JWT
-    const payload = JSON.parse(atob(token.split(".")[1]))
-    return {
-      id: payload.nameid || payload.sub || "1",
-      name: payload.name || payload.email || "Usuário",
-      email: payload.email || "",
-      role: role || "Membro",
-      accessLevel: role === "Admin" ? "admin" : "member",
-    }
-  } catch (error) {
-    console.error("❌ Erro ao obter dados do usuário:", error)
-    return null
-  }
-}
-
-// Função para obter dados da igreja
-const getChurchData = (): ChurchData => {
-  return {
-    id: "1",
-    name: "MyChurch",
-    logo: "/mychurch-logo.png",
-  }
-}
+import { getToken, getUserData, getChurchInfo } from "@/lib/auth-utils"
 
 export default function DashboardLayout({
   children,
@@ -60,31 +12,33 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   const router = useRouter()
-  const [user, setUser] = useState<User | null>(null)
-  const [churchData, setChurchData] = useState<ChurchData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [user, setUser] = useState<any>(null)
+  const [church, setChurch] = useState<any>(null)
 
   useEffect(() => {
-    const initializeDashboard = async () => {
+    const initializeDashboard = () => {
       try {
-        // Verificar se está autenticado
-        if (!isAuthenticated()) {
+        // Verificar se há token
+        const token = getToken()
+        if (!token) {
           router.push("/login")
           return
         }
 
         // Obter dados do usuário
-        const userData = await getRealUserData()
-
+        const userData = getUserData()
         if (!userData) {
-          console.error("❌ Não foi possível obter dados do usuário")
           setError("Erro ao carregar dados do usuário")
           return
         }
 
+        // Obter dados da igreja
+        const churchData = getChurchInfo()
+
         setUser(userData)
-        setChurchData(getChurchData())
+        setChurch(churchData)
       } catch (error) {
         console.error("❌ Erro ao inicializar dashboard:", error)
         setError("Erro ao inicializar dashboard")
@@ -107,27 +61,11 @@ export default function DashboardLayout({
     )
   }
 
-  if (error) {
+  if (error || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <p className="text-red-600 mb-4">{error}</p>
-          <button
-            onClick={() => router.push("/login")}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
-            Voltar ao Login
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  if (!user || !churchData) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <p className="text-gray-600 mb-4">Erro ao carregar dados</p>
+          <p className="text-red-600 mb-4">{error || "Erro ao carregar dados"}</p>
           <button
             onClick={() => router.push("/login")}
             className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
@@ -148,7 +86,7 @@ export default function DashboardLayout({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="hidden md:block">
-                <h2 className="text-lg font-semibold text-gray-900">{churchData.name}</h2>
+                <h2 className="text-lg font-semibold text-gray-900">{church?.name || "MyChurch"}</h2>
                 <p className="text-sm text-gray-600">Sistema de Gestão Eclesiástica</p>
               </div>
             </div>
@@ -160,10 +98,10 @@ export default function DashboardLayout({
               <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
                 <span className="text-blue-600 font-medium">
                   {user.name
-                    .split(" ")
-                    .map((n) => n[0])
+                    ?.split(" ")
+                    .map((n: string) => n[0])
                     .join("")
-                    .slice(0, 2)}
+                    .slice(0, 2) || "U"}
                 </span>
               </div>
             </div>

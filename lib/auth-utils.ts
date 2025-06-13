@@ -1,5 +1,3 @@
-// Caso este arquivo não exista ou precise ser atualizado
-
 // Função para obter o token do localStorage
 export const getToken = (): string | null => {
   if (typeof window === "undefined") return null
@@ -78,5 +76,44 @@ export const logout = () => {
     localStorage.removeItem("userRole")
     localStorage.removeItem("user")
     window.location.href = "/login"
+  }
+}
+
+// Função para obter dados básicos do usuário
+export const getUserData = () => {
+  if (typeof window === "undefined") return null
+
+  const token = getToken()
+  const role = getUserRole()
+  const user = getUser()
+
+  if (!token) return null
+
+  return {
+    id: user?.id || "1",
+    name: user?.name || "Usuário",
+    email: user?.email || "",
+    role: role,
+    accessLevel: role === "Admin" ? "admin" : "member",
+  }
+}
+
+// Função para obter informações da igreja
+export const getChurchInfo = () => {
+  if (typeof window === "undefined") return null
+
+  const churchData = localStorage.getItem("churchData")
+  if (churchData) {
+    try {
+      return JSON.parse(churchData)
+    } catch (error) {
+      console.error("Erro ao parsear dados da igreja:", error)
+    }
+  }
+
+  return {
+    id: "1",
+    name: "MyChurch",
+    logo: "/mychurch-logo.png",
   }
 }

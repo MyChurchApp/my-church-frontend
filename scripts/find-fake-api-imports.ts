@@ -1,56 +1,45 @@
-import * as fs from "fs"
-import * as path from "path"
+import { readFileSync, readdirSync, statSync } from "fs"
+import { join } from "path"
 
-// Função para verificar se um arquivo contém a importação
-function checkFileForImport(filePath: string): boolean {
-  try {
-    const content = fs.readFileSync(filePath, "utf8")
-    return content.includes("@/lib/fake-api")
-  } catch (error) {
-    console.error(`Erro ao ler o arquivo ${filePath}:`, error)
-    return false
-  }
-}
+function findImports(dir: string, results: string[] = []): string[] {
+  const files = readdirSync(dir)
 
-// Função para percorrer diretórios recursivamente
-function walkDir(dir: string, callback: (filePath: string) => void) {
-  const files = fs.readdirSync(dir)
-
-  files.forEach((file) => {
-    const filePath = path.join(dir, file)
-    const stat = fs.statSync(filePath)
+  for (const file of files) {
+    const filePath = join(dir, file)
+    const stat = statSync(filePath)
 
     if (stat.isDirectory()) {
-      // Ignorar node_modules e .git
-      if (file !== "node_modules" && file !== ".git") {
-        walkDir(filePath, callback)
+      // Skip node_modules and .next directories
+      if (file !== "node_modules" && file !== ".next" && file !== ".git") {
+        findImports(filePath, results)
       }
-    } else if (stat.isFile() && (file.endsWith(".ts") || file.endsWith(".tsx"))) {
-      callback(filePath)
+    } else if (file.endsWith(".ts") || file.endsWith(".tsx") || file.endsWith(".js") || file.endsWith(".jsx")) {
+      try {
+        const content = readFileSync(filePath, "utf8")
+        if (content.includes("fake-api") || content.includes("lib/fake-api")) {
+          results.push(`${filePath}: Contains fake-api import`)
+
+          // Show the specific lines
+          const lines = content.split("\n")
+          lines.forEach((line, index) => {
+            if (line.includes("fake-api")) {
+              results.push(`  Line ${index + 1}: ${line.trim()}`)
+            }
+          })
+        }
+      } catch (error) {
+        // Skip files that can't be read
+      }
     }
-  })
+  }
+
+  return results
 }
 
-// Diretório raiz do projeto
-const rootDir = process.cwd()
-
-console.log("Procurando por importações de @/lib/fake-api...")
-
-const filesWithImport: string[] = []
-
-// Percorrer todos os arquivos .ts e .tsx
-walkDir(rootDir, (filePath) => {
-  if (checkFileForImport(filePath)) {
-    filesWithImport.push(filePath)
-  }
-})
-
-if (filesWithImport.length > 0) {
-  console.log("\nArquivos que contêm importações de @/lib/fake-api:")
-  filesWithImport.forEach((file) => {
-    console.log(`- ${path.relative(rootDir, file)}`)
-  })
-  console.log(`\nTotal: ${filesWithImport.length} arquivo(s)`)
+const results = findImports(".")
+if (results.length > 0) {
+  console.log("Files with fake-api imports:")
+  results.forEach((result) => console.log(result))
 } else {
-  console.log("Nenhuma importação de @/lib/fake-api encontrada.")
+  console.log("No fake-api imports found!")
 }
