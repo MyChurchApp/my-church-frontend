@@ -1,157 +1,345 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
-import { cn } from "@/lib/utils"
+import { useRouter, usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   Home,
   Users,
   Calendar,
   DollarSign,
   MessageSquare,
-  BookOpen,
   Settings,
   LogOut,
-  BarChart3,
+  ChevronLeft,
+  ChevronRight,
+  Menu,
+  X,
+  Package,
   Heart,
-  Building2,
-  UserCheck,
+  Book,
 } from "lucide-react"
-import { getUserRole, logout } from "@/lib/auth-utils"
+import { getUserData, logout } from "@/lib/auth-utils"
 
-const navigation = [
-  {
-    name: "Dashboard",
-    href: "/dashboard",
-    icon: Home,
-    roles: ["Admin", "Pastor", "Leader", "Member"],
-  },
-  {
-    name: "Membros",
-    href: "/dashboard/membros",
-    icon: Users,
-    roles: ["Admin", "Pastor", "Leader", "Member"],
-  },
-  {
-    name: "Eventos",
-    href: "/dashboard/eventos",
-    icon: Calendar,
-    roles: ["Admin", "Pastor", "Leader", "Member"],
-  },
-  {
-    name: "Financeiro",
-    href: "/dashboard/financeiro",
-    icon: DollarSign,
-    roles: ["Admin", "Pastor", "Leader"],
-  },
-  {
-    name: "Doações",
-    href: "/dashboard/doacoes",
-    icon: Heart,
-    roles: ["Admin", "Pastor", "Leader"],
-  },
-  {
-    name: "Comunicação",
-    href: "/dashboard/comunicacao",
-    icon: MessageSquare,
-    roles: ["Admin", "Pastor", "Leader", "Member"],
-  },
-  {
-    name: "Culto",
-    href: "/dashboard/culto",
-    icon: BookOpen,
-    roles: ["Admin", "Pastor", "Leader", "Member"],
-  },
-  {
-    name: "Relatórios",
-    href: "/dashboard/relatorios",
-    icon: BarChart3,
-    roles: ["Admin", "Pastor", "Leader"],
-  },
-  {
-    name: "Igreja",
-    href: "/dashboard/igreja",
-    icon: Building2,
-    roles: ["Admin", "Pastor"],
-  },
-  {
-    name: "Configurações",
-    href: "/dashboard/configuracoes",
-    icon: Settings,
-    roles: ["Admin"],
-  },
-]
+interface SidebarProps {
+  className?: string
+}
 
-export function Sidebar() {
-  const pathname = usePathname()
+interface MenuItem {
+  icon: any
+  label: string
+  href: string
+  accessLevel: "admin" | "member"
+  subItems?: {
+    label: string
+    href: string
+  }[]
+}
+
+export function Sidebar({ className = "" }: SidebarProps) {
+  const [isCollapsed, setIsCollapsed] = useState(false)
+  const [isMobileOpen, setIsMobileOpen] = useState(false)
+  const [expandedMenus, setExpandedMenus] = useState<string[]>([])
+  const [user, setUser] = useState<any>(null)
+  const [churchData, setChurchData] = useState<any>(null)
+
   const router = useRouter()
-  const userRole = getUserRole()
+  const pathname = usePathname()
+
+  useEffect(() => {
+    // Obter dados do usuário
+    const userData = getUserData()
+    if (userData) {
+      setUser(userData)
+    }
+
+    // Dados da igreja (estático por enquanto)
+    setChurchData({
+      id: "1",
+      name: "MyChurch",
+      logo: "/mychurch-logo.png",
+    })
+  }, [])
+
+  // Close mobile menu when route changes
+  useEffect(() => {
+    setIsMobileOpen(false)
+  }, [pathname])
+
+  // Prevent body scroll when mobile menu is open
+  useEffect(() => {
+    if (isMobileOpen) {
+      const scrollY = window.scrollY
+      document.body.style.position = "fixed"
+      document.body.style.top = `-${scrollY}px`
+      document.body.style.width = "100%"
+      document.body.style.overflow = "hidden"
+    } else {
+      const scrollY = document.body.style.top
+      document.body.style.position = ""
+      document.body.style.top = ""
+      document.body.style.width = ""
+      document.body.style.overflow = ""
+      if (scrollY) {
+        window.scrollTo(0, Number.parseInt(scrollY || "0") * -1)
+      }
+    }
+
+    return () => {
+      document.body.style.position = ""
+      document.body.style.top = ""
+      document.body.style.width = ""
+      document.body.style.overflow = ""
+    }
+  }, [isMobileOpen])
 
   const handleLogout = () => {
     logout()
   }
 
-  // Filtrar navegação baseada no papel do usuário
-  const filteredNavigation = navigation.filter((item) => item.roles.includes(userRole))
+  const allMenuItems: MenuItem[] = [
+    { icon: Home, label: "Início", href: "/dashboard", accessLevel: "member" },
+    { icon: Users, label: "Membros", href: "/dashboard/membros", accessLevel: "member" },
+    { icon: Calendar, label: "Eventos", href: "/dashboard/eventos", accessLevel: "member" },
+    {
+      icon: Book,
+      label: "Culto",
+      href: "/dashboard/culto",
+      accessLevel: "member",
+      subItems: [
+        { label: "Acompanhar Culto", href: "/dashboard/culto" },
+        { label: "Gestão de Culto", href: "/dashboard/culto/gestao" },
+      ],
+    },
+    {
+      icon: Heart,
+      label: "Doações",
+      href: "/dashboard/doacoes",
+      accessLevel: "member",
+      subItems: [
+        { label: "Ofertar", href: "/dashboard/doacoes" },
+        { label: "Histórico", href: "/dashboard/doacoes/historico" },
+      ],
+    },
+    {
+      icon: MessageSquare,
+      label: "Comunicação",
+      href: "/dashboard/comunicacao",
+      accessLevel: "admin",
+      subItems: [
+        { label: "Nova Publicação", href: "/dashboard/comunicacao/nova-publicacao" },
+        { label: "WhatsApp", href: "/dashboard/comunicacao/whatsapp" },
+      ],
+    },
+    // Financeiro com submenu apenas para admins
+    ...(user?.accessLevel === "admin"
+      ? [
+          {
+            icon: DollarSign,
+            label: "Financeiro",
+            href: "/dashboard/financeiro",
+            accessLevel: "admin" as const,
+            subItems: [
+              { label: "Fluxo de Caixa", href: "/dashboard/financeiro" },
+              { label: "Transferir Doações", href: "/dashboard/financeiro/ofertas-realizadas" },
+            ],
+          },
+        ]
+      : [
+          {
+            icon: DollarSign,
+            label: "Financeiro",
+            href: "/dashboard/financeiro",
+            accessLevel: "admin" as const,
+          },
+        ]),
+    { icon: Package, label: "Ativos", href: "/dashboard/ativos", accessLevel: "admin" },
+    { icon: Settings, label: "Configurações", href: "/dashboard/configuracoes", accessLevel: "admin" },
+  ]
 
-  return (
-    <div className="flex h-full w-64 flex-col bg-white border-r border-gray-200">
-      {/* Logo */}
-      <div className="flex h-16 items-center px-6 border-b border-gray-200">
-        <Link href="/dashboard" className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded bg-blue-600">
-            <Building2 className="h-5 w-5 text-white" />
-          </div>
-          <span className="text-lg font-semibold text-gray-900">MyChurch</span>
-        </Link>
+  // Filtrar itens baseado no nível de acesso do usuário
+  const menuItems = allMenuItems.filter((item) => {
+    if (!user) return false
+    if (user.accessLevel === "admin") return true
+    return item.accessLevel === "member"
+  })
+
+  const toggleSubmenu = (href: string) => {
+    setExpandedMenus((prev) => (prev.includes(href) ? prev.filter((item) => item !== href) : [...prev, href]))
+  }
+
+  const isActiveRoute = (href: string, subItems?: any[]) => {
+    if (href === "/dashboard") {
+      return pathname === "/dashboard"
+    }
+    if (subItems) {
+      return pathname.startsWith(href) || subItems.some((sub) => pathname.startsWith(sub.href))
+    }
+    return pathname.startsWith(href)
+  }
+
+  const SidebarContent = () => (
+    <div className="flex flex-col h-full">
+      {/* Header */}
+      <div className="p-4 border-b border-gray-200">
+        <div className="flex items-center justify-between">
+          {!isCollapsed && (
+            <div className="text-lg font-bold text-gray-900 truncate">{churchData?.name || "MyChurch"}</div>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="ml-auto hidden md:flex"
+          >
+            {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => setIsMobileOpen(false)} className="ml-auto md:hidden">
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
-      {/* Navigation */}
-      <ScrollArea className="flex-1 px-3 py-4">
-        <nav className="space-y-1">
-          {filteredNavigation.map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(item.href + "/")
-            return (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={cn(
-                  "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                  isActive ? "bg-blue-50 text-blue-700" : "text-gray-700 hover:bg-gray-50 hover:text-gray-900",
-                )}
-              >
-                <item.icon className="h-4 w-4" />
-                {item.name}
-              </Link>
-            )
-          })}
-        </nav>
-      </ScrollArea>
-
-      {/* User Section */}
-      <div className="border-t border-gray-200 p-4">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100">
-            <UserCheck className="h-4 w-4 text-blue-600" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-900 truncate">Usuário</p>
-            <p className="text-xs text-gray-500 truncate">{userRole}</p>
+      {/* User Info */}
+      {!isCollapsed && user && (
+        <div className="p-4 border-b border-gray-200 bg-gray-50">
+          <div className="text-sm">
+            <p className="font-medium text-gray-900">{user.name}</p>
+            <p className="text-gray-600">{user.role}</p>
+            <span
+              className={`inline-block px-2 py-1 text-xs rounded-full mt-1 ${
+                user.accessLevel === "admin" ? "bg-blue-100 text-blue-800" : "bg-green-100 text-green-800"
+              }`}
+            >
+              {user.accessLevel === "admin" ? "Administrador" : "Membro"}
+            </span>
           </div>
         </div>
+      )}
 
+      {/* Navigation */}
+      <nav className="flex-1 p-4">
+        <ul className="space-y-2">
+          {menuItems.map((item) => (
+            <li key={item.href}>
+              <div>
+                {item.subItems ? (
+                  // Item com submenu
+                  <div>
+                    <button
+                      onClick={() => toggleSubmenu(item.href)}
+                      className={`flex items-center justify-between w-full gap-3 px-3 py-2 rounded-md transition-colors ${
+                        isActiveRoute(item.href, item.subItems)
+                          ? "text-white shadow-md"
+                          : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                      }`}
+                      style={isActiveRoute(item.href, item.subItems) ? { backgroundColor: "#89f0e6" } : {}}
+                    >
+                      <div className="flex items-center gap-3">
+                        <item.icon className="h-5 w-5 flex-shrink-0" />
+                        {!isCollapsed && <span className="font-medium">{item.label}</span>}
+                      </div>
+                      {!isCollapsed && (
+                        <ChevronRight
+                          className={`h-4 w-4 transition-transform ${
+                            expandedMenus.includes(item.href) ? "rotate-90" : ""
+                          }`}
+                        />
+                      )}
+                    </button>
+
+                    {/* Submenus */}
+                    {!isCollapsed && expandedMenus.includes(item.href) && (
+                      <ul className="ml-8 mt-2 space-y-1">
+                        {item.subItems.map((subItem) => (
+                          <li key={subItem.href}>
+                            <Link
+                              href={subItem.href}
+                              className={`block px-3 py-2 rounded-md text-sm transition-colors ${
+                                pathname.startsWith(subItem.href)
+                                  ? "bg-teal-100 text-teal-800"
+                                  : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                              }`}
+                            >
+                              {subItem.label}
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                ) : (
+                  // Item normal sem submenu
+                  <Link
+                    href={item.href}
+                    className={`flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${
+                      isActiveRoute(item.href)
+                        ? "text-white shadow-md"
+                        : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                    }`}
+                    style={isActiveRoute(item.href) ? { backgroundColor: "#89f0e6" } : {}}
+                  >
+                    <item.icon className="h-5 w-5 flex-shrink-0" />
+                    {!isCollapsed && <span className="font-medium">{item.label}</span>}
+                  </Link>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      </nav>
+
+      {/* Footer */}
+      <div className="p-4 border-t border-gray-200">
         <Button
           variant="ghost"
-          size="sm"
           onClick={handleLogout}
-          className="w-full justify-start text-gray-700 hover:text-gray-900 hover:bg-gray-50"
+          className={`w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 ${
+            isCollapsed ? "px-2" : "px-3"
+          }`}
         >
-          <LogOut className="h-4 w-4 mr-2" />
-          Sair
+          <LogOut className="h-5 w-5 flex-shrink-0" />
+          {!isCollapsed && <span className="ml-3">Sair</span>}
         </Button>
       </div>
     </div>
+  )
+
+  return (
+    <>
+      {/* Mobile Menu Button */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="md:hidden fixed top-4 left-4 z-50 bg-white shadow-md"
+        onClick={() => setIsMobileOpen(true)}
+      >
+        <Menu className="h-5 w-5" />
+      </Button>
+
+      {/* Desktop Sidebar */}
+      <div
+        className={`hidden md:block bg-white border-r border-gray-200 transition-all duration-300 ${
+          isCollapsed ? "w-16" : "w-64"
+        } ${className}`}
+      >
+        <SidebarContent />
+      </div>
+
+      {/* Mobile Overlay */}
+      {isMobileOpen && (
+        <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setIsMobileOpen(false)} />
+      )}
+
+      {/* Mobile Sidebar */}
+      <div
+        className={`fixed top-0 left-0 h-full w-64 bg-white z-50 transform transition-transform duration-300 md:hidden ${
+          isMobileOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <SidebarContent />
+      </div>
+    </>
   )
 }

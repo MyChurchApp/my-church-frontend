@@ -8,17 +8,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Users, Plus, Search, Filter, UserCheck, UserX, ChevronLeft, ChevronRight, Loader2 } from "lucide-react"
-import {
-  getMembersFromAPI,
-  createMemberAPI,
-  updateMemberAPI,
-  deleteMemberAPI,
-  convertApiMemberToLocal,
-  convertLocalMemberToApi,
-  type ApiMember,
-} from "@/lib/api"
-import { toast } from "@/hooks/use-toast"
-import { MemberRegistrationModal } from "@/components/member-registration-modal"
+import { getMembersFromAPI, type ApiMember } from "@/lib/api"
 import { getUserRole, isAuthenticated } from "@/lib/auth-utils"
 
 export default function MembrosPage() {
@@ -29,9 +19,6 @@ export default function MembrosPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [editingMember, setEditingMember] = useState<any>(null)
 
   // Paginação
   const [currentPage, setCurrentPage] = useState(1)
@@ -91,94 +78,6 @@ export default function MembrosPage() {
     setFilteredMembers(filtered)
   }, [members, searchTerm, statusFilter])
 
-  const handleCreateMember = async (memberData: any) => {
-    try {
-      setSubmitting(true)
-      const apiData = convertLocalMemberToApi(memberData)
-      await createMemberAPI(apiData)
-
-      toast({
-        title: "Sucesso",
-        description: "Membro criado com sucesso!",
-      })
-
-      await loadMembers()
-      setIsModalOpen(false)
-    } catch (error) {
-      console.error("Erro ao criar membro:", error)
-      toast({
-        title: "Erro",
-        description: "Erro ao criar membro. Tente novamente.",
-        variant: "destructive",
-      })
-      throw error
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  const handleEditMember = async (memberData: any) => {
-    if (!editingMember) return
-
-    try {
-      setSubmitting(true)
-      const apiData = convertLocalMemberToApi(memberData)
-      await updateMemberAPI(editingMember.id, apiData)
-
-      toast({
-        title: "Sucesso",
-        description: "Membro atualizado com sucesso!",
-      })
-
-      await loadMembers()
-      setIsModalOpen(false)
-      setEditingMember(null)
-    } catch (error) {
-      console.error("Erro ao editar membro:", error)
-      toast({
-        title: "Erro",
-        description: "Erro ao editar membro. Tente novamente.",
-        variant: "destructive",
-      })
-      throw error
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  const handleDeleteMember = async (memberId: number) => {
-    if (!confirm("Tem certeza que deseja excluir este membro?")) return
-
-    try {
-      await deleteMemberAPI(memberId)
-
-      toast({
-        title: "Sucesso",
-        description: "Membro excluído com sucesso!",
-      })
-
-      await loadMembers()
-    } catch (error) {
-      console.error("Erro ao deletar membro:", error)
-      toast({
-        title: "Erro",
-        description: "Erro ao deletar membro. Tente novamente.",
-        variant: "destructive",
-      })
-    }
-  }
-
-  const openEditModal = (member: ApiMember) => {
-    const convertedMember = convertApiMemberToLocal(member)
-    setEditingMember({ ...convertedMember, id: member.id })
-    setIsModalOpen(true)
-  }
-
-  const closeModal = () => {
-    setIsModalOpen(false)
-    setEditingMember(null)
-  }
-
   const activeMembers = filteredMembers.filter((member) => member.isActive)
   const inactiveMembers = filteredMembers.filter((member) => !member.isActive)
 
@@ -225,7 +124,7 @@ export default function MembrosPage() {
           <p className="text-gray-600">Gerencie os membros da sua igreja</p>
         </div>
         {isAdmin && (
-          <Button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2">
+          <Button className="flex items-center gap-2">
             <Plus className="h-4 w-4" />
             Novo Membro
           </Button>
@@ -324,7 +223,7 @@ export default function MembrosPage() {
                   : "Comece adicionando o primeiro membro da sua igreja"}
             </p>
             {isAdmin && !searchTerm && !error && (
-              <Button onClick={() => setIsModalOpen(true)}>
+              <Button>
                 <Plus className="h-4 w-4 mr-2" />
                 Adicionar Primeiro Membro
               </Button>
@@ -373,15 +272,10 @@ export default function MembrosPage() {
 
                 {isAdmin && (
                   <div className="flex gap-2 mt-4">
-                    <Button variant="outline" size="sm" onClick={() => openEditModal(member)} className="flex-1">
+                    <Button variant="outline" size="sm" className="flex-1">
                       Editar
                     </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDeleteMember(member.id)}
-                      className="text-red-600 hover:text-red-700"
-                    >
+                    <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
                       Excluir
                     </Button>
                   </div>
@@ -420,15 +314,6 @@ export default function MembrosPage() {
           </Button>
         </div>
       )}
-
-      {/* Modal */}
-      <MemberRegistrationModal
-        isOpen={isModalOpen}
-        onClose={closeModal}
-        onSubmit={editingMember ? handleEditMember : handleCreateMember}
-        initialData={editingMember}
-        isEditing={!!editingMember}
-      />
     </div>
   )
 }
