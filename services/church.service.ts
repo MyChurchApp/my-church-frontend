@@ -20,6 +20,16 @@ export interface Church {
   email?: string
 }
 
+// Interface para estatísticas da igreja
+export interface ChurchStats {
+  membersCount: number
+  eventsCount: number
+  donationsTotal: number
+  attendanceRate: number
+}
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://demoapp.top1soft.com.br/api"
+
 // Função para obter dados da igreja
 export const getChurchData = async (): Promise<Church> => {
   try {
@@ -57,7 +67,7 @@ export const getChurchData = async (): Promise<Church> => {
     }
 
     // Fazer a requisição para a API
-    const response = await authFetch(`https://demoapp.top1soft.com.br/api/Church/${churchId}`)
+    const response = await authFetch(`${API_BASE_URL}/Church/${churchId}`)
 
     if (!response.ok) {
       throw new Error(`Erro ao obter dados da igreja: ${response.status}`)
@@ -93,5 +103,53 @@ export const getChurchData = async (): Promise<Church> => {
       pastor: "",
       email: "",
     }
+  }
+}
+
+// Função para obter estatísticas da igreja
+export const getChurchStats = async (): Promise<ChurchStats> => {
+  try {
+    // Tentar buscar estatísticas reais da API
+    const response = await authFetch(`${API_BASE_URL}/Church/stats`)
+
+    if (!response.ok) {
+      throw new Error(`Erro ao obter estatísticas: ${response.status}`)
+    }
+
+    const data = await response.json()
+    return data
+  } catch (error) {
+    console.error("Erro ao obter estatísticas da igreja:", error)
+
+    // Retornar estatísticas vazias em caso de erro
+    return {
+      membersCount: 0,
+      eventsCount: 0,
+      donationsTotal: 0,
+      attendanceRate: 0,
+    }
+  }
+}
+
+// Função para atualizar dados da igreja
+export const updateChurchData = async (churchData: Partial<Church>): Promise<Church> => {
+  try {
+    const response = await authFetch(`${API_BASE_URL}/Church/${churchData.id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(churchData),
+    })
+
+    if (!response.ok) {
+      throw new Error(`Erro ao atualizar dados da igreja: ${response.status}`)
+    }
+
+    const data = await response.json()
+    return data
+  } catch (error) {
+    console.error("Erro ao atualizar dados da igreja:", error)
+    throw error
   }
 }

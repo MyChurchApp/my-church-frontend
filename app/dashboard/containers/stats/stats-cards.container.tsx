@@ -21,6 +21,7 @@ export function StatsCardsContainer() {
         setStats(churchStats)
       } catch (error) {
         console.error("Erro ao carregar estatísticas:", error)
+        // Manter valores zerados em caso de erro
       } finally {
         setLoading(false)
       }

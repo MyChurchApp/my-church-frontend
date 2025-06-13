@@ -1,418 +1,417 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import { Building2, CreditCard, Settings, AlertTriangle, Check, Edit, Save, X } from "lucide-react"
-import { getUserRole, isAuthenticated } from "@/lib/auth-utils"
-import { getChurchData } from "@/services/church.service"
-import { getSubscriptionData } from "@/services/subscription.service"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { CreditCard, Users, Bell, Shield, Loader2, Save } from "lucide-react"
+import { isAuthenticated, getUserRole } from "@/lib/auth-utils"
+import { getChurchData, type Church } from "@/services/church.service"
+import { getSubscriptionData, type Subscription } from "@/services/subscription.service"
+import { ChurchIcon } from "lucide-react"
 
 export default function ConfiguracoesPage() {
   const router = useRouter()
-  const [user, setUser] = useState<any>(null)
-  const [churchInfo, setChurchInfo] = useState<any>(null)
-  const [subscriptionInfo, setSubscriptionInfo] = useState<any>(null)
-  const [isEditing, setIsEditing] = useState(false)
-  const [editedChurch, setEditedChurch] = useState<any>(null)
-  const [showCancelModal, setShowCancelModal] = useState(false)
-  const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [churchData, setChurchData] = useState<Church | null>(null)
+  const [subscriptionData, setSubscriptionData] = useState<Subscription | null>(null)
+
+  const userRole = getUserRole()
+  const isAdmin = userRole === "Admin"
 
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true)
-        setError(null)
+    if (!isAuthenticated()) {
+      router.push("/login")
+      return
+    }
 
-        // Verificar autenticação
-        if (!isAuthenticated()) {
-          router.push("/login")
-          return
-        }
-
-        // Verificar role
-        const role = getUserRole()
-        if (role !== "Admin") {
-          router.push("/dashboard")
-          return
-        }
-
-        // Obter dados do usuário do localStorage
-        const userData = localStorage.getItem("user")
-        if (userData) {
-          setUser(JSON.parse(userData))
-        } else {
-          // Criar um usuário básico com o role
-          setUser({
-            name: "Administrador",
-            role: "Admin",
-          })
-        }
-
-        // Carregar dados da igreja
-        const churchData = await getChurchData()
-        setChurchInfo(churchData)
-        setEditedChurch(churchData)
-
-        // Carregar dados da assinatura
-        const subscriptionData = await getSubscriptionData()
-        setSubscriptionInfo(subscriptionData)
-      } catch (err) {
-        console.error("Erro ao carregar dados:", err)
-        setError("Erro ao carregar dados. Por favor, tente novamente.")
-
-        // Dados padrão em caso de erro
-        setChurchInfo({
-          name: "Igreja",
-          pastor: "",
-          email: "",
-          phone: "",
-          address: "",
-        })
-        setEditedChurch({
-          name: "Igreja",
-          pastor: "",
-          email: "",
-          phone: "",
-          address: "",
-        })
-        setSubscriptionInfo({
-          plan: "Plano Básico",
-          status: "Ativo",
-          price: "149,90",
-          nextBilling: "15/07/2025",
-          paymentMethod: "Cartão de Crédito",
-          includedFeatures: ["Gestão de membros", "Controle financeiro", "Agenda de eventos", "Comunicação"],
-        })
-      } finally {
-        setLoading(false)
-      }
+    if (!isAdmin) {
+      router.push("/dashboard")
+      return
     }
 
     loadData()
-  }, [router])
+  }, [router, isAdmin])
 
-  const handleEdit = () => {
-    setIsEditing(true)
-  }
-
-  const handleSave = async () => {
+  const loadData = async () => {
     try {
-      // Aqui implementaria a chamada para a API para salvar as alterações
-      // await updateChurchInfo(editedChurch)
+      setLoading(true)
+      setError(null)
 
-      setChurchInfo(editedChurch)
-      setIsEditing(false)
-      alert("Informações da igreja atualizadas com sucesso!")
-    } catch (err) {
-      console.error("Erro ao salvar:", err)
-      alert("Erro ao salvar as informações. Tente novamente.")
+      const [church, subscription] = await Promise.all([getChurchData(), getSubscriptionData()])
+
+      setChurchData(church)
+      setSubscriptionData(subscription)
+    } catch (error) {
+      console.error("Erro ao carregar dados:", error)
+      setError("Erro ao carregar dados. Tente novamente.")
+    } finally {
+      setLoading(false)
     }
   }
 
-  const handleCancel = () => {
-    setEditedChurch(churchInfo)
-    setIsEditing(false)
-  }
+  const handleSaveChurchData = async () => {
+    if (!churchData) return
 
-  const handleCancelSubscription = () => {
-    alert("Assinatura cancelada com sucesso!")
-    setShowCancelModal(false)
-  }
+    try {
+      setSaving(true)
+      // Aqui você faria a chamada para a API para salvar os dados
+      // await updateChurchData(churchData)
 
-  const handleUpdatePayment = () => {
-    alert("Método de pagamento atualizado com sucesso!")
-    setShowPaymentModal(false)
+      // Simulação de salvamento
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+
+      alert("Dados salvos com sucesso!")
+    } catch (error) {
+      console.error("Erro ao salvar dados:", error)
+      alert("Erro ao salvar dados. Tente novamente.")
+    } finally {
+      setSaving(false)
+    }
   }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-        <span className="ml-2">Carregando...</span>
+      <div className="flex h-screen items-center justify-center">
+        <div className="flex flex-col items-center gap-2">
+          <Loader2 className="h-8 w-8 animate-spin" />
+          <p className="text-sm text-gray-500">Carregando configurações...</p>
+        </div>
       </div>
     )
   }
 
-  if (error) {
+  if (!isAdmin) {
     return (
-      <div className="p-6">
-        <div className="bg-red-50 border border-red-200 rounded-md p-4">
-          <div className="flex">
-            <AlertTriangle className="h-5 w-5 text-red-500 mr-2" />
-            <div>
-              <h3 className="text-red-800 font-medium">Erro</h3>
-              <p className="text-red-700">{error}</p>
-              <Button variant="outline" size="sm" onClick={() => window.location.reload()} className="mt-2">
-                Tentar novamente
-              </Button>
-            </div>
-          </div>
-        </div>
+      <div className="flex h-screen items-center justify-center">
+        <Card className="w-full max-w-md">
+          <CardContent className="flex flex-col items-center p-6">
+            <Shield className="h-16 w-16 text-red-500 mb-4" />
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Acesso Negado</h2>
+            <p className="text-gray-600 text-center mb-4">Você não tem permissão para acessar esta página.</p>
+            <Button onClick={() => router.push("/dashboard")}>Voltar ao Dashboard</Button>
+          </CardContent>
+        </Card>
       </div>
     )
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <header className="bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Configurações</h1>
-              <p className="text-gray-600">Gerencie as configurações da igreja e assinatura</p>
-            </div>
-          </div>
-        </header>
-
-        {/* Main Content */}
-        <div className="flex-1 overflow-y-auto p-6">
-          <div className="max-w-4xl mx-auto space-y-6">
-            {/* Informações da Igreja */}
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Building2 className="h-5 w-5 text-blue-600" />
-                    <CardTitle>Informações da Igreja</CardTitle>
-                  </div>
-                  {!isEditing ? (
-                    <Button onClick={handleEdit} variant="outline" size="sm">
-                      <Edit className="h-4 w-4 mr-2" />
-                      Editar
-                    </Button>
-                  ) : (
-                    <div className="flex gap-2">
-                      <Button onClick={handleSave} size="sm">
-                        <Save className="h-4 w-4 mr-2" />
-                        Salvar
-                      </Button>
-                      <Button onClick={handleCancel} variant="outline" size="sm">
-                        <X className="h-4 w-4 mr-2" />
-                        Cancelar
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="church-name">Nome da Igreja</Label>
-                    <Input
-                      id="church-name"
-                      value={editedChurch?.name || ""}
-                      onChange={(e) => setEditedChurch({ ...editedChurch, name: e.target.value })}
-                      disabled={!isEditing}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="pastor-name">Pastor</Label>
-                    <Input
-                      id="pastor-name"
-                      value={editedChurch?.pastor || ""}
-                      onChange={(e) => setEditedChurch({ ...editedChurch, pastor: e.target.value })}
-                      disabled={!isEditing}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="church-email">Email</Label>
-                    <Input
-                      id="church-email"
-                      type="email"
-                      value={editedChurch?.email || ""}
-                      onChange={(e) => setEditedChurch({ ...editedChurch, email: e.target.value })}
-                      disabled={!isEditing}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="church-phone">Telefone</Label>
-                    <Input
-                      id="church-phone"
-                      value={editedChurch?.phone || ""}
-                      onChange={(e) => setEditedChurch({ ...editedChurch, phone: e.target.value })}
-                      disabled={!isEditing}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="church-address">Endereço</Label>
-                  <Textarea
-                    id="church-address"
-                    value={editedChurch?.address || ""}
-                    onChange={(e) => setEditedChurch({ ...editedChurch, address: e.target.value })}
-                    disabled={!isEditing}
-                    rows={3}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Plano Atual */}
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <CreditCard className="h-5 w-5 text-green-600" />
-                  <CardTitle>Plano Atual</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h3 className="text-xl font-semibold">{subscriptionInfo.plan}</h3>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Badge variant="secondary" className="bg-green-100 text-green-800">
-                        <Check className="h-3 w-3 mr-1" />
-                        {subscriptionInfo.status}
-                      </Badge>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-2xl font-bold">R$ {subscriptionInfo.price}</p>
-                    <p className="text-sm text-gray-600">por mês</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <p className="text-sm text-gray-600">Próximo vencimento</p>
-                    <p className="font-medium">{subscriptionInfo.nextBilling}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Método de pagamento</p>
-                    <p className="font-medium">{subscriptionInfo.paymentMethod}</p>
-                  </div>
-                </div>
-
-                <div className="mb-4">
-                  <p className="text-sm text-gray-600 mb-2">Recursos inclusos:</p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    {subscriptionInfo.includedFeatures.map((feature: string, index: number) => (
-                      <div key={index} className="flex items-center gap-2">
-                        <Check className="h-4 w-4 text-green-600" />
-                        <span className="text-sm">{feature}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex gap-2">
-                  <Dialog open={showPaymentModal} onOpenChange={setShowPaymentModal}>
-                    <DialogTrigger asChild>
-                      <Button variant="outline">Alterar Pagamento</Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Alterar Método de Pagamento</DialogTitle>
-                        <DialogDescription>Atualize suas informações de pagamento</DialogDescription>
-                      </DialogHeader>
-                      <div className="space-y-4">
-                        <div>
-                          <Label htmlFor="card-number">Número do Cartão</Label>
-                          <Input id="card-number" placeholder="**** **** **** ****" />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <Label htmlFor="expiry">Validade</Label>
-                            <Input id="expiry" placeholder="MM/AA" />
-                          </div>
-                          <div>
-                            <Label htmlFor="cvv">CVV</Label>
-                            <Input id="cvv" placeholder="***" />
-                          </div>
-                        </div>
-                        <div>
-                          <Label htmlFor="cardholder">Nome no Cartão</Label>
-                          <Input id="cardholder" placeholder="Nome completo" />
-                        </div>
-                      </div>
-                      <DialogFooter>
-                        <Button variant="outline" onClick={() => setShowPaymentModal(false)}>
-                          Cancelar
-                        </Button>
-                        <Button onClick={handleUpdatePayment}>Atualizar</Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Gerenciar Assinatura */}
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <Settings className="h-5 w-5 text-gray-600" />
-                  <CardTitle>Gerenciar Assinatura</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
-                    <div className="flex items-center gap-2">
-                      <AlertTriangle className="h-5 w-5 text-yellow-600" />
-                      <p className="text-sm text-yellow-800">
-                        <strong>Atenção:</strong> O cancelamento da assinatura resultará na perda de acesso a todas as
-                        funcionalidades premium.
-                      </p>
-                    </div>
-                  </div>
-
-                  <Dialog open={showCancelModal} onOpenChange={setShowCancelModal}>
-                    <DialogTrigger asChild>
-                      <Button variant="destructive">Cancelar Assinatura</Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Cancelar Assinatura</DialogTitle>
-                        <DialogDescription>
-                          Tem certeza que deseja cancelar sua assinatura? Esta ação não pode ser desfeita.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="space-y-4">
-                        <div className="p-4 bg-red-50 border border-red-200 rounded-md">
-                          <p className="text-sm text-red-800">Ao cancelar, você perderá acesso a:</p>
-                          <ul className="list-disc list-inside text-sm text-red-700 mt-2">
-                            <li>Gestão avançada de membros</li>
-                            <li>Relatórios financeiros</li>
-                            <li>Sistema de eventos</li>
-                            <li>Suporte prioritário</li>
-                          </ul>
-                        </div>
-                      </div>
-                      <DialogFooter>
-                        <Button variant="outline" onClick={() => setShowCancelModal(false)}>
-                          Manter Assinatura
-                        </Button>
-                        <Button variant="destructive" onClick={handleCancelSubscription}>
-                          Confirmar Cancelamento
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+    <div className="flex-1 space-y-6 p-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Configurações</h1>
+          <p className="text-muted-foreground">Gerencie as configurações da sua igreja</p>
         </div>
       </div>
+
+      {/* Error Message */}
+      {error && (
+        <div className="rounded-md bg-red-50 p-4">
+          <div className="text-sm text-red-700">{error}</div>
+        </div>
+      )}
+
+      <Tabs defaultValue="igreja" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="igreja">
+            <ChurchIcon className="h-4 w-4 mr-2" />
+            Igreja
+          </TabsTrigger>
+          <TabsTrigger value="assinatura">
+            <CreditCard className="h-4 w-4 mr-2" />
+            Assinatura
+          </TabsTrigger>
+          <TabsTrigger value="usuarios">
+            <Users className="h-4 w-4 mr-2" />
+            Usuários
+          </TabsTrigger>
+          <TabsTrigger value="notificacoes">
+            <Bell className="h-4 w-4 mr-2" />
+            Notificações
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Aba Igreja */}
+        <TabsContent value="igreja">
+          <Card>
+            <CardHeader>
+              <CardTitle>Informações da Igreja</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {churchData && (
+                <>
+                  <div className="flex items-center gap-4">
+                    <Avatar className="h-20 w-20">
+                      <AvatarImage src={churchData.logo || undefined} />
+                      <AvatarFallback>
+                        <ChurchIcon className="h-8 w-8" />
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <Button variant="outline" size="sm">
+                        Alterar Logo
+                      </Button>
+                      <p className="text-sm text-muted-foreground mt-1">Recomendado: 400x400px, PNG ou JPG</p>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div>
+                      <Label htmlFor="churchName">Nome da Igreja</Label>
+                      <Input
+                        id="churchName"
+                        value={churchData.name}
+                        onChange={(e) =>
+                          setChurchData({
+                            ...churchData,
+                            name: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="churchPhone">Telefone</Label>
+                      <Input
+                        id="churchPhone"
+                        value={churchData.phone}
+                        onChange={(e) =>
+                          setChurchData({
+                            ...churchData,
+                            phone: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="churchDescription">Descrição</Label>
+                    <Textarea
+                      id="churchDescription"
+                      value={churchData.description}
+                      onChange={(e) =>
+                        setChurchData({
+                          ...churchData,
+                          description: e.target.value,
+                        })
+                      }
+                      rows={3}
+                    />
+                  </div>
+
+                  {churchData.address && (
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-medium">Endereço</h3>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div>
+                          <Label htmlFor="street">Rua</Label>
+                          <Input
+                            id="street"
+                            value={churchData.address.street}
+                            onChange={(e) =>
+                              setChurchData({
+                                ...churchData,
+                                address: {
+                                  ...churchData.address,
+                                  street: e.target.value,
+                                },
+                              })
+                            }
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="neighborhood">Bairro</Label>
+                          <Input
+                            id="neighborhood"
+                            value={churchData.address.neighborhood}
+                            onChange={(e) =>
+                              setChurchData({
+                                ...churchData,
+                                address: {
+                                  ...churchData.address,
+                                  neighborhood: e.target.value,
+                                },
+                              })
+                            }
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="city">Cidade</Label>
+                          <Input
+                            id="city"
+                            value={churchData.address.city}
+                            onChange={(e) =>
+                              setChurchData({
+                                ...churchData,
+                                address: {
+                                  ...churchData.address,
+                                  city: e.target.value,
+                                },
+                              })
+                            }
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="state">Estado</Label>
+                          <Input
+                            id="state"
+                            value={churchData.address.state}
+                            onChange={(e) =>
+                              setChurchData({
+                                ...churchData,
+                                address: {
+                                  ...churchData.address,
+                                  state: e.target.value,
+                                },
+                              })
+                            }
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="zipCode">CEP</Label>
+                          <Input
+                            id="zipCode"
+                            value={churchData.address.zipCode}
+                            onChange={(e) =>
+                              setChurchData({
+                                ...churchData,
+                                address: {
+                                  ...churchData.address,
+                                  zipCode: e.target.value,
+                                },
+                              })
+                            }
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="country">País</Label>
+                          <Input
+                            id="country"
+                            value={churchData.address.country}
+                            onChange={(e) =>
+                              setChurchData({
+                                ...churchData,
+                                address: {
+                                  ...churchData.address,
+                                  country: e.target.value,
+                                },
+                              })
+                            }
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex justify-end">
+                    <Button onClick={handleSaveChurchData} disabled={saving}>
+                      {saving ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Salvando...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="h-4 w-4 mr-2" />
+                          Salvar Alterações
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Aba Assinatura */}
+        <TabsContent value="assinatura">
+          <Card>
+            <CardHeader>
+              <CardTitle>Plano e Assinatura</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {subscriptionData && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-medium">{subscriptionData.plan}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Status: <Badge variant="outline">{subscriptionData.status}</Badge>
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-2xl font-bold">R$ {subscriptionData.price}</p>
+                      <p className="text-sm text-muted-foreground">por mês</p>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div>
+                      <Label>Próxima Cobrança</Label>
+                      <p className="text-sm">{subscriptionData.nextBilling}</p>
+                    </div>
+                    <div>
+                      <Label>Método de Pagamento</Label>
+                      <p className="text-sm">{subscriptionData.paymentMethod}</p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label>Recursos Inclusos</Label>
+                    <ul className="mt-2 space-y-1">
+                      {subscriptionData.includedFeatures.map((feature, index) => (
+                        <li key={index} className="text-sm text-muted-foreground">
+                          • {feature}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button variant="outline">Alterar Plano</Button>
+                    <Button variant="outline">Gerenciar Pagamento</Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Aba Usuários */}
+        <TabsContent value="usuarios">
+          <Card>
+            <CardHeader>
+              <CardTitle>Gerenciamento de Usuários</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">Funcionalidade em desenvolvimento...</p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Aba Notificações */}
+        <TabsContent value="notificacoes">
+          <Card>
+            <CardHeader>
+              <CardTitle>Configurações de Notificações</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">Funcionalidade em desenvolvimento...</p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

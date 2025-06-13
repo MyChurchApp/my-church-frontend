@@ -5,19 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useRouter } from "next/navigation"
 import { isAuthenticated } from "@/lib/auth-utils"
-import { getChurchStats } from "@/services/church.service"
 import { StatsCardsContainer } from "./containers/stats/stats-cards.container"
 import { FeedSectionContainer } from "./containers/feed/feed-section.container"
 
 export default function DashboardPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
-  const [stats, setStats] = useState({
-    membersCount: 0,
-    eventsCount: 0,
-    donationsTotal: 0,
-    attendanceRate: 0,
-  })
 
   useEffect(() => {
     // Verificar autenticação
@@ -26,20 +19,16 @@ export default function DashboardPage() {
       return
     }
 
-    // Carregar estatísticas
-    const loadStats = async () => {
-      try {
-        const churchStats = await getChurchStats()
-        setStats(churchStats)
-      } catch (error) {
-        console.error("Erro ao carregar estatísticas:", error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    loadStats()
+    setLoading(false)
   }, [router])
+
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex-1 space-y-6 p-6">
