@@ -4,8 +4,15 @@ import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { RefreshCw, Send, Edit, Trash2, User } from "lucide-react"
-import { formatTimeAgo, canEditOrDeletePost, type FeedItem } from "@/services/feed.service"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { RefreshCw, Send, Edit, Trash2, User, Clock, AlertCircle } from "lucide-react"
+import {
+  formatTimeAgo,
+  canEditOrDeletePost,
+  getTimeLeftForEdit,
+  isRecentPost,
+  type FeedItem,
+} from "@/services/feed.service"
 
 interface FeedSectionProps {
   feedItems: FeedItem[]
@@ -35,6 +42,7 @@ export function FeedSection({
   const [editContent, setEditContent] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
+  const [actionError, setActionError] = useState<string | null>(null)
 
   // Obter ID do usuário atual
   const getCurrentUserId = (): string => {
@@ -57,10 +65,12 @@ export function FeedSection({
 
     try {
       setSubmitting(true)
+      setActionError(null)
       await onCreatePost(newPostContent.trim())
       setNewPostContent("")
     } catch (error) {
       console.error("Erro ao criar post:", error)
+      setActionError(error instanceof Error ? error.message : "Erro ao criar post")
     } finally {
       setSubmitting(false)
     }
@@ -69,6 +79,7 @@ export function FeedSection({
   const handleEditPost = (post: FeedItem) => {
     setEditingPost(post.id)
     setEditContent(post.content)
+    setActionError(null)
   }
 
   const handleSaveEdit = async () => {
@@ -76,11 +87,13 @@ export function FeedSection({
 
     try {
       setSubmitting(true)
+      setActionError(null)
       await onUpdatePost(editingPost, editContent.trim())
       setEditingPost(null)
       setEditContent("")
     } catch (error) {
       console.error("Erro ao editar post:", error)
+      setActionError(error instanceof Error ? error.message : "Erro ao editar post")
     } finally {
       setSubmitting(false)
     }
@@ -90,9 +103,11 @@ export function FeedSection({
     if (!confirm("Tem certeza que deseja deletar este post?")) return
 
     try {
+      setActionError(null)
       await onDeletePost(postId)
     } catch (error) {
       console.error("Erro ao deletar post:", error)
+      setActionError(error instanceof Error ? error.message : "Erro ao deletar post")
     }
   }
 
@@ -121,8 +136,11 @@ export function FeedSection({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-center py-8">
-            <p className="text-red-600 mb-4">{error}</p>
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+          <div className="text-center mt-4">
             <Button onClick={onRefresh} variant="outline">
               Tentar Novamente
             </Button>
@@ -143,6 +161,14 @@ export function FeedSection({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Exibir erro de ação se houver */}
+        {actionError && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{actionError}</AlertDescription>
+          </Alert>
+        )}
+
         {/* Criar novo post */}
         <div className="space-y-2">
           <Textarea
@@ -185,77 +211,95 @@ export function FeedSection({
           </div>
         ) : (
           <div className="space-y-4">
-            {feedItems.map((post) => (
-              <div key={post.id} className="border rounded-lg p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                      {post.member?.photo ? (
-                        <img
-                          src={post.member.photo || "/placeholder.svg"}
-                          alt={post.member.name}
-                          className="w-8 h-8 rounded-full object-cover"
-                        />
-                      ) : (
-                        <User className="h-4 w-4 text-blue-600" />
-                      )}
-                    </div>
-                    <div>
-                      <p className="font-medium text-sm">{post.member?.name || "Usuário"}</p>
-                      <p className="text-xs text-gray-500">{formatTimeAgo(post.created)}</p>
-                    </div>
-                  </div>
+            {feedItems.map((post) => {
+              const canEdit = canEditOrDeletePost(post, currentUserId)
+              const timeLeft = getTimeLeftForEdit(post.created)
+              const isRecent = isRecentPost(post.created)
 
-                  {canEditOrDeletePost(post, currentUserId) && (
-                    <div className="flex items-center space-x-1">
-                      <Button variant="ghost" size="sm" onClick={() => handleEditPost(post)}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => handleDeletePost(post.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+              return (
+                <div key={post.id} className="border rounded-lg p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                        {post.member?.photo ? (
+                          <img
+                            src={post.member.photo || "/placeholder.svg"}
+                            alt={post.member.name}
+                            className="w-8 h-8 rounded-full object-cover"
+                          />
+                        ) : (
+                          <User className="h-4 w-4 text-blue-600" />
+                        )}
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">{post.member?.name || "Usuário"}</p>
+                        <div className="flex items-center space-x-2 text-xs text-gray-500">
+                          <span>{formatTimeAgo(post.created)}</span>
+                          {post.memberId.toString() === currentUserId && isRecent && (
+                            <div className="flex items-center space-x-1">
+                              <Clock className="h-3 w-3" />
+                              <span>{timeLeft}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  )}
-                </div>
 
-                {editingPost === post.id ? (
-                  <div className="space-y-2">
-                    <Textarea
-                      value={editContent}
-                      onChange={(e) => setEditContent(e.target.value)}
-                      className="min-h-[80px]"
-                    />
-                    <div className="flex justify-end space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setEditingPost(null)
-                          setEditContent("")
-                        }}
-                      >
-                        Cancelar
-                      </Button>
-                      <Button size="sm" onClick={handleSaveEdit} disabled={!editContent.trim() || submitting}>
-                        {submitting ? "Salvando..." : "Salvar"}
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-sm">
-                    <p className="whitespace-pre-wrap">{post.content}</p>
-                    {post.updated && (
-                      <p className="text-xs text-gray-400 mt-2">Editado em {formatTimeAgo(post.updated)}</p>
+                    {canEdit && (
+                      <div className="flex items-center space-x-1">
+                        <Button variant="ghost" size="sm" onClick={() => handleEditPost(post)}>
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleDeletePost(post.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     )}
                   </div>
-                )}
 
-                {/* Estatísticas do post */}
-                <div className="flex items-center justify-between text-xs text-gray-500 pt-2 border-t">
-                  <span>{post.likesCount} curtidas</span>
+                  {editingPost === post.id ? (
+                    <div className="space-y-2">
+                      <Textarea
+                        value={editContent}
+                        onChange={(e) => setEditContent(e.target.value)}
+                        className="min-h-[80px]"
+                      />
+                      <div className="flex justify-end space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setEditingPost(null)
+                            setEditContent("")
+                            setActionError(null)
+                          }}
+                        >
+                          Cancelar
+                        </Button>
+                        <Button size="sm" onClick={handleSaveEdit} disabled={!editContent.trim() || submitting}>
+                          {submitting ? "Salvando..." : "Salvar"}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-sm">
+                      <p className="whitespace-pre-wrap">{post.content}</p>
+                      {post.updated && (
+                        <p className="text-xs text-gray-400 mt-2">Editado em {formatTimeAgo(post.updated)}</p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Estatísticas do post */}
+                  <div className="flex items-center justify-between text-xs text-gray-500 pt-2 border-t">
+                    <span>{post.likesCount} curtidas</span>
+                    {post.memberId.toString() === currentUserId && !isRecent && (
+                      <span className="text-orange-600">Não pode mais ser editado</span>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
 
             {/* Botão carregar mais */}
             {hasMore && (

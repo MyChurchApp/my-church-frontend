@@ -1,4 +1,4 @@
-import { authFetch, authFetchJson } from "@/lib/auth-fetch"
+import { authFetch } from "@/lib/auth-fetch"
 
 // Interfaces para o Feed
 export interface FeedMember {
@@ -56,7 +56,37 @@ export interface UpdateFeedPostRequest {
   content: string
 }
 
+// Interface para erros da API
+export interface ApiError {
+  errors: {
+    [key: string]: string[]
+  }
+}
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://demoapp.top1soft.com.br/api"
+
+// Função helper para extrair mensagens de erro da API
+const extractErrorMessage = async (response: Response): Promise<string> => {
+  try {
+    const errorData: ApiError = await response.json()
+
+    if (errorData.errors) {
+      // Extrair todas as mensagens de erro
+      const allErrors: string[] = []
+      Object.values(errorData.errors).forEach((errorArray) => {
+        allErrors.push(...errorArray)
+      })
+
+      if (allErrors.length > 0) {
+        return allErrors.join(". ")
+      }
+    }
+
+    return `Erro ${response.status}: ${response.statusText}`
+  } catch (error) {
+    return `Erro ${response.status}: ${response.statusText}`
+  }
+}
 
 // Função para buscar o feed
 export const getFeed = async (pageNumber = 1, pageSize = 10): Promise<FeedResponse> => {
@@ -68,7 +98,9 @@ export const getFeed = async (pageNumber = 1, pageSize = 10): Promise<FeedRespon
       if (response.status === 401) {
         throw new Error("Não autorizado. Faça login novamente.")
       }
-      throw new Error(`Erro ao buscar feed: ${response.status}`)
+
+      const errorMessage = await extractErrorMessage(response)
+      throw new Error(errorMessage)
     }
 
     const data: FeedResponse = await response.json()
@@ -82,13 +114,26 @@ export const getFeed = async (pageNumber = 1, pageSize = 10): Promise<FeedRespon
 // Função para criar um novo post
 export const createFeedPost = async (content: string): Promise<number> => {
   try {
-    const response = await authFetchJson(`${API_BASE_URL}/Feed`, {
+    const response = await authFetch(`${API_BASE_URL}/Feed`, {
       method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({ content }),
     })
 
+    if (!response.ok) {
+      if (response.status === 401) {
+        throw new Error("Não autorizado. Faça login novamente.")
+      }
+
+      const errorMessage = await extractErrorMessage(response)
+      throw new Error(errorMessage)
+    }
+
     // A API retorna o ID do post criado
-    return response as number
+    const postId = await response.json()
+    return postId as number
   } catch (error) {
     console.error("Erro ao criar post:", error)
     throw error
@@ -98,10 +143,22 @@ export const createFeedPost = async (content: string): Promise<number> => {
 // Função para atualizar um post
 export const updateFeedPost = async (postId: number, content: string): Promise<void> => {
   try {
-    await authFetchJson(`${API_BASE_URL}/Feed/${postId}`, {
+    const response = await authFetch(`${API_BASE_URL}/Feed/${postId}`, {
       method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({ content }),
     })
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        throw new Error("Não autorizado. Faça login novamente.")
+      }
+
+      const errorMessage = await extractErrorMessage(response)
+      throw new Error(errorMessage)
+    }
   } catch (error) {
     console.error("Erro ao atualizar post:", error)
     throw error
@@ -119,7 +176,9 @@ export const deleteFeedPost = async (postId: number): Promise<void> => {
       if (response.status === 401) {
         throw new Error("Não autorizado. Faça login novamente.")
       }
-      throw new Error(`Erro ao deletar post: ${response.status}`)
+
+      const errorMessage = await extractErrorMessage(response)
+      throw new Error(errorMessage)
     }
   } catch (error) {
     console.error("Erro ao deletar post:", error)
@@ -136,7 +195,9 @@ export const getFeedPost = async (postId: number): Promise<FeedItem> => {
       if (response.status === 401) {
         throw new Error("Não autorizado. Faça login novamente.")
       }
-      throw new Error(`Erro ao buscar post: ${response.status}`)
+
+      const errorMessage = await extractErrorMessage(response)
+      throw new Error(errorMessage)
     }
 
     const data: FeedItem = await response.json()
@@ -177,13 +238,14 @@ export const formatTimeAgo = (dateString: string): string => {
 export const canEditOrDeletePost = (post: FeedItem, currentUserId: string): boolean => {
   // Verificar se é o autor do post
   if (post.memberId.toString() === currentUserId) {
-    return true
+    // Verificar se o post foi criado há menos de 2 horas
+    return isRecentPost(post.created, 2)
   }
 
-  // Verificar se é admin (pode editar qualquer post)
+  // Verificar se é admin (pode editar qualquer post dentro do prazo)
   const userRole = localStorage.getItem("userRole")
   if (userRole === "Admin") {
-    return true
+    return isRecentPost(post.created, 2)
   }
 
   return false
@@ -197,6 +259,28 @@ export const isRecentPost = (createdDate: string, hoursLimit = 2): boolean => {
   const hoursInMs = hoursLimit * 60 * 60 * 1000
 
   return timeDiff < hoursInMs
+}
+
+// Função para obter o tempo restante para edição/exclusão
+export const getTimeLeftForEdit = (createdDate: string, hoursLimit = 2): string => {
+  const postTime = new Date(createdDate).getTime()
+  const now = new Date().getTime()
+  const timeDiff = now - postTime
+  const hoursInMs = hoursLimit * 60 * 60 * 1000
+  const timeLeft = hoursInMs - timeDiff
+
+  if (timeLeft <= 0) {
+    return "Tempo esgotado"
+  }
+
+  const hoursLeft = Math.floor(timeLeft / (60 * 60 * 1000))
+  const minutesLeft = Math.floor((timeLeft % (60 * 60 * 1000)) / (60 * 1000))
+
+  if (hoursLeft > 0) {
+    return `${hoursLeft}h ${minutesLeft}min restantes`
+  } else {
+    return `${minutesLeft}min restantes`
+  }
 }
 
 // Função para obter estatísticas do feed
