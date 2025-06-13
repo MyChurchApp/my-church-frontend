@@ -48,6 +48,14 @@ export interface WorshipService {
   presencesCount: number
 }
 
+export interface PaginatedResponse<T> {
+  items: T[]
+  pageNumber: number
+  pageSize: number
+  totalCount: number
+  totalPages: number
+}
+
 export enum WorshipStatus {
   NotStarted = 0,
   InProgress = 1,
@@ -58,14 +66,37 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://demoapp.top1soft.com
 
 export const worshipService = {
   /**
-   * Obtém cultos por status
-   * @param status 0=não iniciados, 1=iniciados, 2=finalizados
+   * Lista cultos com filtros
+   * @param params Parâmetros de filtro
    */
-  async getWorshipByStatus(status: WorshipStatus): Promise<WorshipService[]> {
-    console.log(`🔍 Buscando cultos com status: ${status}`)
+  async listWorshipServices(params: {
+    status?: WorshipStatus
+    title?: string
+    theme?: string
+    startTime?: string
+    endTime?: string
+    onlyPast?: boolean
+    page?: number
+    pageSize?: number
+  }): Promise<PaginatedResponse<WorshipService>> {
+    console.log(`🔍 Listando cultos com filtros:`, params)
+
+    // Construir query string
+    const queryParams = new URLSearchParams()
+    if (params.status !== undefined) queryParams.append("Status", params.status.toString())
+    if (params.title) queryParams.append("Title", params.title)
+    if (params.theme) queryParams.append("Theme", params.theme)
+    if (params.startTime) queryParams.append("StartTime", params.startTime)
+    if (params.endTime) queryParams.append("EndTime", params.endTime)
+    if (params.onlyPast !== undefined) queryParams.append("OnlyPast", params.onlyPast.toString())
+    if (params.page !== undefined) queryParams.append("Page", params.page.toString())
+    if (params.pageSize !== undefined) queryParams.append("PageSize", params.pageSize.toString())
+
+    const url = `${API_URL}/api/Event/worship${queryParams.toString() ? `?${queryParams.toString()}` : ""}`
+    console.log(`🌐 URL da requisição: ${url}`)
 
     try {
-      const response = await authFetch(`${API_URL}/api/Event/worship/${status}`, {
+      const response = await authFetch(url, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -73,14 +104,40 @@ export const worshipService = {
       })
 
       if (!response.ok) {
-        throw new Error(`Erro ao buscar cultos: ${response.status} ${response.statusText}`)
+        throw new Error(`Erro ao listar cultos: ${response.status} ${response.statusText}`)
       }
 
       const data = await response.json()
-      console.log(`✅ Cultos obtidos com sucesso. Total: ${Array.isArray(data) ? data.length : 0}`)
-      return Array.isArray(data) ? data : [data]
+      console.log(`✅ Cultos obtidos com sucesso. Total: ${data.totalCount || 0}`)
+
+      // Verificar se a resposta já está no formato esperado ou se é um array
+      if (Array.isArray(data)) {
+        // Se for um array, assumimos que é o primeiro item que contém a paginação
+        return data[0] || { items: [], pageNumber: 0, pageSize: 0, totalCount: 0, totalPages: 0 }
+      }
+
+      return data
     } catch (error) {
-      console.error("❌ Erro ao buscar cultos:", error)
+      console.error("❌ Erro ao listar cultos:", error)
+      throw error
+    }
+  },
+
+  /**
+   * Obtém cultos por status
+   * @param status 0=não iniciados, 1=iniciados, 2=finalizados
+   */
+  async getWorshipByStatus(status: WorshipStatus): Promise<WorshipService[]> {
+    console.log(`🔍 Buscando cultos com status: ${status}`)
+
+    try {
+      const response = await this.listWorshipServices({
+        status,
+        pageSize: 50, // Buscar uma quantidade razoável de cultos
+      })
+      return response.items || []
+    } catch (error) {
+      console.error("❌ Erro ao buscar cultos por status:", error)
       throw error
     }
   },
@@ -93,7 +150,7 @@ export const worshipService = {
     console.log(`🔍 Buscando detalhes do culto ID: ${id}`)
 
     try {
-      const response = await authFetch(`${API_URL}/api/Event/worship/details/${id}`, {
+      const response = await authFetch(`${API_URL}/api/Event/worship/${id}`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
