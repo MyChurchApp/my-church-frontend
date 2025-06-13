@@ -87,7 +87,16 @@ export function Sidebar({ className = "" }: SidebarProps) {
     { icon: Home, label: "Início", href: "/dashboard", accessLevel: "member" },
     { icon: Users, label: "Membros", href: "/dashboard/membros", accessLevel: "member" },
     { icon: Calendar, label: "Eventos", href: "/dashboard/eventos", accessLevel: "member" },
-    { icon: Book, label: "Leitura Bíblica", href: "/dashboard/leitura-biblica", accessLevel: "member" },
+    {
+      icon: Book,
+      label: "Culto",
+      href: "/dashboard/culto",
+      accessLevel: "member",
+      subItems: [
+        { label: "Acompanhar Culto", href: "/dashboard/culto" },
+        { label: "Gestão de Culto", href: "/dashboard/culto/gestao" },
+      ],
+    },
     {
       icon: Heart,
       label: "Doações",
