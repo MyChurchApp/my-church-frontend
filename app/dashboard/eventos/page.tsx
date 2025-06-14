@@ -65,15 +65,37 @@ interface EventFormData {
   recurrence: string
 }
 
+// Hook para detectar tamanho da tela
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const checkIsMobile = () => {
+      setIsMobile(window.innerWidth < 768) // md breakpoint
+    }
+
+    // Check inicial
+    checkIsMobile()
+
+    // Listener para mudanças de tamanho
+    window.addEventListener("resize", checkIsMobile)
+
+    return () => window.removeEventListener("resize", checkIsMobile)
+  }, [])
+
+  return isMobile
+}
+
 export default function EventosPage() {
   const router = useRouter()
   const { toast } = useToast()
+  const isMobile = useIsMobile()
   const [events, setEvents] = useState<CalendarEventResponse[]>([])
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [viewMode, setViewMode] = useState<"calendar" | "list">("calendar")
+  const [desktopViewMode, setDesktopViewMode] = useState<"calendar" | "list">("calendar")
   const [showEventModal, setShowEventModal] = useState(false)
   const [editingEvent, setEditingEvent] = useState<EventResponse | null>(null)
   const [expandedEvent, setExpandedEvent] = useState<number | null>(null)
@@ -91,6 +113,9 @@ export default function EventosPage() {
     recurrence: "once",
   })
   const [submitting, setSubmitting] = useState(false)
+
+  // Determinar o modo de visualização baseado no tamanho da tela
+  const viewMode = isMobile ? "list" : desktopViewMode
 
   const userRole = getUserRole()
   const canManageEvents = userRole === "Admin" || userRole === "Pastor"
@@ -218,7 +243,7 @@ export default function EventosPage() {
     }
   }
 
-  // Gerar dias do mês para o calendário mobile
+  // Gerar dias do mês para o calendário
   const generateCalendarDays = () => {
     const year = currentDate.getFullYear()
     const month = currentDate.getMonth()
@@ -348,57 +373,76 @@ export default function EventosPage() {
 
   return (
     <div className="flex-1 space-y-4 p-4">
-      {/* Header Mobile */}
+      {/* Header */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold tracking-tight">Eventos</h1>
+          <h1 className="text-xl md:text-2xl font-bold tracking-tight">{isMobile ? "Eventos" : "Agenda de Eventos"}</h1>
           {canManageEvents && (
-            <Button onClick={handleCreateEvent} size="sm">
-              <Plus className="h-4 w-4" />
+            <Button onClick={handleCreateEvent} size={isMobile ? "sm" : "default"}>
+              <Plus className="h-4 w-4 mr-0 md:mr-2" />
+              <span className="hidden md:inline">Novo Evento</span>
             </Button>
           )}
         </div>
 
-        {/* View Toggle */}
+        {/* Navigation and View Toggle */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => navigateMonth("prev")}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <h2 className="text-lg font-semibold min-w-[140px] text-center">
-              {MONTHS[currentDate.getMonth()].slice(0, 3)} {currentDate.getFullYear()}
+              {isMobile
+                ? `${MONTHS[currentDate.getMonth()].slice(0, 3)} ${currentDate.getFullYear()}`
+                : `${MONTHS[currentDate.getMonth()]} ${currentDate.getFullYear()}`}
             </h2>
             <Button variant="outline" size="sm" onClick={() => navigateMonth("next")}>
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
 
-          <div className="flex gap-1">
-            <Button
-              variant={viewMode === "calendar" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setViewMode("calendar")}
-            >
-              <Grid3X3 className="h-4 w-4" />
-            </Button>
-            <Button variant={viewMode === "list" ? "default" : "outline"} size="sm" onClick={() => setViewMode("list")}>
-              <List className="h-4 w-4" />
-            </Button>
-          </div>
+          {/* View Toggle - apenas no desktop */}
+          {!isMobile && (
+            <div className="flex gap-1">
+              <Button
+                variant={desktopViewMode === "calendar" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setDesktopViewMode("calendar")}
+              >
+                <Grid3X3 className="h-4 w-4 mr-2" />
+                Calendário
+              </Button>
+              <Button
+                variant={desktopViewMode === "list" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setDesktopViewMode("list")}
+              >
+                <List className="h-4 w-4 mr-2" />
+                Lista
+              </Button>
+            </div>
+          )}
         </div>
+
+        {/* Indicador de visualização no mobile */}
+        {isMobile && (
+          <div className="text-sm text-gray-500 flex items-center gap-2">
+            <List className="h-4 w-4" />
+            Visualização em lista (mobile)
+          </div>
+        )}
       </div>
 
       {viewMode === "calendar" ? (
-        /* Calendar View Mobile */
+        /* Calendar View - apenas desktop */
         <Card>
-          <CardContent className="p-2">
-            {/* Calendar Grid Mobile */}
-            <div className="grid grid-cols-7 gap-1">
+          <CardContent className="p-4">
+            {/* Calendar Grid */}
+            <div className="grid grid-cols-7 gap-2">
               {/* Days of week header */}
-              {DAYS_OF_WEEK.map((day, index) => (
-                <div key={day} className="p-2 text-center text-xs font-medium text-gray-500">
-                  <span className="sm:hidden">{day}</span>
-                  <span className="hidden sm:inline">{DAYS_OF_WEEK_FULL[index]}</span>
+              {DAYS_OF_WEEK_FULL.map((day) => (
+                <div key={day} className="p-3 text-center text-sm font-medium text-gray-500">
+                  {day}
                 </div>
               ))}
 
@@ -412,31 +456,36 @@ export default function EventosPage() {
                   <div
                     key={index}
                     className={`
-                      min-h-[60px] sm:min-h-[80px] p-1 border border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors
+                      min-h-[120px] p-3 border border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors rounded-lg
                       ${!isCurrentMonthDay ? "text-gray-300 bg-gray-50" : ""}
                       ${isTodayDate ? "bg-blue-50 border-blue-200" : ""}
                       ${selectedDate?.toDateString() === date.toDateString() ? "ring-2 ring-blue-500" : ""}
                     `}
                     onClick={() => setSelectedDate(date)}
+                    onDoubleClick={() => canManageEvents && handleCreateEvent()}
                   >
-                    <div className={`text-xs font-medium mb-1 ${isTodayDate ? "text-blue-600" : ""}`}>
+                    <div className={`text-sm font-medium mb-2 ${isTodayDate ? "text-blue-600" : ""}`}>
                       {date.getDate()}
                     </div>
                     <div className="space-y-1">
-                      {dayEvents.slice(0, 1).map((event, eventIndex) => (
+                      {dayEvents.slice(0, 3).map((event, eventIndex) => (
                         <div
                           key={eventIndex}
-                          className="text-[10px] sm:text-xs p-1 bg-blue-100 text-blue-800 rounded truncate"
+                          className="text-xs p-2 bg-blue-100 text-blue-800 rounded truncate hover:bg-blue-200 transition-colors"
                           title={event.title}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            canManageEvents && handleEditEvent(event.id)
+                          }}
                         >
                           <div className="flex items-center gap-1">
-                            {event.isRecurring && <Repeat className="h-2 w-2 sm:h-3 sm:w-3" />}
+                            {event.isRecurring && <Repeat className="h-3 w-3" />}
                             <span className="truncate">{event.title}</span>
                           </div>
                         </div>
                       ))}
-                      {dayEvents.length > 1 && (
-                        <div className="text-[10px] text-gray-500 font-medium">+{dayEvents.length - 1}</div>
+                      {dayEvents.length > 3 && (
+                        <div className="text-xs text-gray-500 font-medium">+{dayEvents.length - 3} mais</div>
                       )}
                     </div>
                   </div>
@@ -446,7 +495,7 @@ export default function EventosPage() {
           </CardContent>
         </Card>
       ) : (
-        /* List View Mobile */
+        /* List View - mobile e desktop */
         <div className="space-y-3">
           {monthEvents.length > 0 ? (
             monthEvents.map(({ date, event, occurrence }, index) => (
@@ -468,7 +517,7 @@ export default function EventosPage() {
 
                       <h3 className="font-medium text-lg mb-1 truncate">{event.title}</h3>
 
-                      <div className="flex items-center gap-4 text-sm text-gray-500 mb-2">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-gray-500 mb-2">
                         <div className="flex items-center gap-1">
                           <Clock className="h-4 w-4" />
                           {formatTime(occurrence.start)} - {formatTime(occurrence.end)}
@@ -538,8 +587,8 @@ export default function EventosPage() {
         </div>
       )}
 
-      {/* Selected Date Events Mobile */}
-      {selectedDate && viewMode === "calendar" && (
+      {/* Selected Date Events - apenas para desktop com calendário */}
+      {selectedDate && viewMode === "calendar" && !isMobile && (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-lg flex items-center gap-2">
@@ -557,18 +606,20 @@ export default function EventosPage() {
                 {getEventsForDate(selectedDate).map((event) => (
                   <div
                     key={event.id}
-                    className="flex items-start justify-between p-3 border rounded-lg hover:bg-gray-50 transition-colors"
+                    className="flex items-start justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
                   >
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-medium truncate">{event.title}</h3>
+                      <div className="flex items-center gap-2 mb-2">
+                        <h3 className="font-medium">{event.title}</h3>
                         {event.isRecurring && (
                           <Badge variant="outline" className="text-xs">
-                            <Repeat className="h-3 w-3" />
+                            <Repeat className="h-3 w-3 mr-1" />
+                            Recorrente
                           </Badge>
                         )}
                       </div>
-                      <div className="flex flex-col gap-1 text-sm text-gray-500">
+                      {event.description && <p className="text-sm text-gray-600 mb-2">{event.description}</p>}
+                      <div className="flex items-center gap-4 text-sm text-gray-500">
                         {event.occurrences[0] && (
                           <div className="flex items-center gap-1">
                             <Clock className="h-4 w-4" />
@@ -578,13 +629,13 @@ export default function EventosPage() {
                         {event.location && (
                           <div className="flex items-center gap-1">
                             <MapPin className="h-4 w-4" />
-                            <span className="truncate">{event.location}</span>
+                            {event.location}
                           </div>
                         )}
                       </div>
                     </div>
                     {canManageEvents && (
-                      <div className="flex gap-1 ml-2">
+                      <div className="flex gap-2">
                         <Button variant="outline" size="sm" onClick={() => handleEditEvent(event.id)}>
                           <Edit className="h-4 w-4" />
                         </Button>
@@ -611,9 +662,9 @@ export default function EventosPage() {
         </Card>
       )}
 
-      {/* Event Modal Mobile */}
+      {/* Event Modal */}
       <Dialog open={showEventModal} onOpenChange={setShowEventModal}>
-        <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] overflow-y-auto md:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="text-lg">{editingEvent ? "Editar Evento" : "Novo Evento"}</DialogTitle>
           </DialogHeader>
@@ -634,7 +685,7 @@ export default function EventosPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
                   <Label htmlFor="eventType" className="text-sm">
                     Tipo
