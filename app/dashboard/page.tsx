@@ -60,6 +60,28 @@ export default function DashboardPage() {
     loadBirthdays()
   }, [])
 
+  // Função para gerar mensagem de aniversário melhorada
+  const getBirthdayMessage = (member: BirthdayMember) => {
+    if (member.isToday) {
+      return `🎉 HOJE É ANIVERSÁRIO! Fazendo ${member.ageWillTurn} anos`
+    } else if (member.daysUntilBirthday > 0) {
+      const days = member.daysUntilBirthday
+      if (days === 1) {
+        return `🎈 Falta 1 dia para o aniversário (${member.ageWillTurn} anos)`
+      } else {
+        return `🎁 Faltam ${days} dias para o aniversário (${member.ageWillTurn} anos)`
+      }
+    } else {
+      // Para aniversários que já passaram (caso apareçam na lista da semana)
+      const daysPassed = Math.abs(member.daysUntilBirthday)
+      if (daysPassed === 1) {
+        return `Foi aniversário há 1 dia (fez ${member.ageWillTurn} anos)`
+      } else {
+        return `Foi aniversário há ${daysPassed} dias (fez ${member.ageWillTurn} anos)`
+      }
+    }
+  }
+
   return (
     <div className="p-6">
       <div className="mb-8">
@@ -188,10 +210,12 @@ export default function DashboardPage() {
                       </Avatar>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900 truncate">{member.name}</p>
-                        <p className="text-xs text-gray-500">{member.birthdayMessage}</p>
+                        <p className={`text-xs ${member.isToday ? "text-red-600 font-semibold" : "text-gray-500"}`}>
+                          {getBirthdayMessage(member)}
+                        </p>
                         {member.isToday && (
-                          <Badge variant="secondary" className="mt-1 text-xs">
-                            🎉 Hoje!
+                          <Badge variant="secondary" className="mt-1 text-xs bg-red-100 text-red-800">
+                            🎂 Aniversário Hoje!
                           </Badge>
                         )}
                       </div>
