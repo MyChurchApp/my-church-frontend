@@ -343,7 +343,15 @@ function EditMemberModal({
 }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [formData, setFormData] = useState(() => MembersEditService.convertApiDataToForm(member))
+  const [formData, setFormData] = useState(() => {
+    const converted = MembersEditService.convertApiDataToForm(member)
+    // Garantir valores padrão para evitar strings vazias
+    return {
+      ...converted,
+      maritalStatus: converted.maritalStatus || "0",
+      ministry: converted.ministry || "0",
+    }
+  })
 
   const maritalStatusOptions = MembersEditService.getMaritalStatusOptions()
   const ministryOptions = MembersEditService.getMinistryOptions()
@@ -455,7 +463,7 @@ function EditMemberModal({
               <div>
                 <label className="block text-sm font-medium mb-1">Estado Civil</label>
                 <Select
-                  value={formData.maritalStatus}
+                  value={formData.maritalStatus || "0"}
                   onValueChange={(value) => handleInputChange("maritalStatus", value)}
                 >
                   <SelectTrigger>
@@ -472,7 +480,10 @@ function EditMemberModal({
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Ministério</label>
-                <Select value={formData.ministry} onValueChange={(value) => handleInputChange("ministry", value)}>
+                <Select
+                  value={formData.ministry || "0"}
+                  onValueChange={(value) => handleInputChange("ministry", value)}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione..." />
                   </SelectTrigger>

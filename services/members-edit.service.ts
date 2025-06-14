@@ -1,46 +1,6 @@
-import { authFetchJson } from "@/lib/auth-fetch"
-import type { ApiMember } from "@/lib/api"
+import { authFetch } from "@/lib/auth-fetch"
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://demoapp.top1soft.com.br/api"
-
-// Enum para tipos de documento
-export enum DocumentType {
-  CPF = 1,
-  RG = 2,
-  TituloEleitor = 3,
-  CNH = 4,
-  CertidaoNascimento = 5,
-  Outros = 99,
-}
-
-// Enum para estado civil
-export enum MaritalStatus {
-  Solteiro = 0,
-  Casado = 1,
-  Divorciado = 2,
-  Viuvo = 3,
-  UniaoEstavel = 4,
-}
-
-// Enum para ministério
-export enum Ministry {
-  Nenhum = 0,
-  Louvor = 1,
-  Ensino = 2,
-  Evangelismo = 3,
-  Diaconia = 4,
-  Juventude = 5,
-  Infantil = 6,
-  Intercessao = 7,
-  Midia = 8,
-  Recepcao = 9,
-  Limpeza = 10,
-  Seguranca = 11,
-  Outros = 99,
-}
-
-// Interface para dados de edição do membro
-export interface MemberEditData {
+export interface MemberFormData {
   name: string
   email: string
   phone: string
@@ -48,57 +8,101 @@ export interface MemberEditData {
   isBaptized: boolean
   baptizedDate: string
   isTither: boolean
-  maritalStatus: MaritalStatus
+  maritalStatus: string
   memberSince: string
-  ministry: Ministry
+  ministry: string
+  isActive: boolean
+  notes: string
+  photo: string
+  cpf: string
+  rg: string
+}
+
+export interface MemberApiData {
+  name: string
+  email: string
+  phone: string
+  birthDate: string | null
+  isBaptized: boolean
+  baptizedDate: string | null
+  isTither: boolean
+  maritalStatus: number
+  memberSince: string | null
+  ministry: number
   isActive: boolean
   notes: string
   photo: string
   documents: Array<{
-    type: DocumentType
+    type: number
     number: string
   }>
 }
 
 export class MembersEditService {
-  // Função para atualizar um membro
-  static async updateMember(memberId: number, memberData: MemberEditData): Promise<ApiMember> {
-    try {
-      const response = await authFetchJson(`${API_BASE_URL}/Member/${memberId}`, {
-        method: "PUT",
-        body: JSON.stringify(memberData),
-      })
+  private static readonly API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://demoapp.top1soft.com.br"
 
-      return response as ApiMember
-    } catch (error) {
-      console.error("Erro ao atualizar membro:", error)
-      throw error
+  static async updateMember(memberId: number, data: MemberApiData): Promise<any> {
+    const response = await authFetch(`${this.API_BASE_URL}/api/Member/${memberId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(`Erro ao atualizar membro: ${response.status} - ${errorText}`)
+    }
+
+    return response.json()
+  }
+
+  static convertApiDataToForm(member: any): MemberFormData {
+    // Extrair CPF e RG dos documentos
+    const cpfDoc = member.document?.find((doc: any) => doc.type === 1)
+    const rgDoc = member.document?.find((doc: any) => doc.type === 2)
+
+    return {
+      name: member.name || "",
+      email: member.email || "",
+      phone: member.phone || "",
+      birthDate: member.birthDate ? member.birthDate.split("T")[0] : "",
+      isBaptized: member.isBaptized || false,
+      baptizedDate: member.baptizedDate ? member.baptizedDate.split("T")[0] : "",
+      isTither: member.isTither || false,
+      maritalStatus: this.getMaritalStatusValue(member.maritalStatus),
+      memberSince: member.memberSince ? member.memberSince.split("T")[0] : "",
+      ministry: this.getMinistryValue(member.ministry),
+      isActive: member.isActive !== undefined ? member.isActive : true,
+      notes: member.notes || "",
+      photo: member.photo || "",
+      cpf: cpfDoc?.number || "",
+      rg: rgDoc?.number || "",
     }
   }
 
-  // Função para converter dados do formulário para o formato da API
-  static convertFormDataToApi(formData: any, existingDocuments: any[] = []): MemberEditData {
-    // Processar documentos
-    const documents = []
+  static convertFormDataToApi(formData: MemberFormData, existingDocuments: any[] = []): MemberApiData {
+    const documents: Array<{ type: number; number: string }> = []
 
-    // CPF
-    if (formData.cpf && formData.cpf.trim()) {
+    // Adicionar CPF se preenchido
+    if (formData.cpf.trim()) {
       documents.push({
-        type: DocumentType.CPF,
+        type: 1, // CPF
         number: formData.cpf.replace(/\D/g, ""), // Remove formatação
       })
     }
 
-    // RG
-    if (formData.rg && formData.rg.trim()) {
+    // Adicionar RG se preenchido
+    if (formData.rg.trim()) {
       documents.push({
-        type: DocumentType.RG,
-        number: formData.rg.trim(),
+        type: 2, // RG
+        number: formData.rg.replace(/\D/g, ""), // Remove formatação
       })
     }
 
     // Se não há novos documentos, manter os existentes
-    if (documents.length === 0 && existingDocuments.length > 0) {
+    if (documents.length === 0 && existingDocuments?.length > 0) {
       existingDocuments.forEach((doc) => {
         documents.push({
           type: doc.type,
@@ -108,140 +112,91 @@ export class MembersEditService {
     }
 
     return {
-      name: formData.name?.trim() || "",
-      email: formData.email?.trim() || "",
-      phone: formData.phone?.trim() || "",
-      birthDate: formData.birthDate ? `${formData.birthDate}T00:00:00.000Z` : "1990-01-01T00:00:00.000Z",
-      isBaptized: Boolean(formData.isBaptized),
-      baptizedDate: formData.baptizedDate ? `${formData.baptizedDate}T00:00:00.000Z` : "2023-01-01T00:00:00.000Z",
-      isTither: Boolean(formData.isTither),
-      maritalStatus: this.parseMaritalStatus(formData.maritalStatus),
-      memberSince: formData.memberSince ? `${formData.memberSince}T00:00:00.000Z` : "2020-01-01T00:00:00.000Z",
-      ministry: this.parseMinistry(formData.ministry),
-      isActive: formData.isActive !== undefined ? Boolean(formData.isActive) : true,
-      notes: formData.notes?.trim() || "",
-      photo: formData.photo || "",
-      documents: documents,
+      name: formData.name,
+      email: formData.email,
+      phone: formData.phone,
+      birthDate: formData.birthDate ? new Date(formData.birthDate).toISOString() : null,
+      isBaptized: formData.isBaptized,
+      baptizedDate: formData.baptizedDate ? new Date(formData.baptizedDate).toISOString() : null,
+      isTither: formData.isTither,
+      maritalStatus: Number.parseInt(formData.maritalStatus) || 0,
+      memberSince: formData.memberSince ? new Date(formData.memberSince).toISOString() : null,
+      ministry: Number.parseInt(formData.ministry) || 0,
+      isActive: formData.isActive,
+      notes: formData.notes,
+      photo: formData.photo,
+      documents,
     }
   }
 
-  // Função para converter dados da API para o formulário
-  static convertApiDataToForm(apiMember: ApiMember) {
-    const documents = apiMember.document || []
-    const cpfDocument = documents.find((doc: any) => doc.type === DocumentType.CPF)
-    const rgDocument = documents.find((doc: any) => doc.type === DocumentType.RG)
-
-    return {
-      name: apiMember.name || "",
-      email: apiMember.email || "",
-      phone: apiMember.phone || "",
-      cpf: cpfDocument?.number ? this.formatCPF(cpfDocument.number) : "",
-      rg: rgDocument?.number || "",
-      birthDate: apiMember.birthDate ? apiMember.birthDate.split("T")[0] : "",
-      isBaptized: Boolean(apiMember.isBaptized),
-      baptizedDate: apiMember.baptizedDate ? apiMember.baptizedDate.split("T")[0] : "",
-      isTither: Boolean(apiMember.isTither),
-      maritalStatus: apiMember.maritalStatus || "",
-      memberSince: apiMember.memberSince ? apiMember.memberSince.split("T")[0] : "",
-      ministry: apiMember.ministry || "",
-      isActive: Boolean(apiMember.isActive),
-      notes: apiMember.notes || "",
-      photo: apiMember.photo || "",
-    }
-  }
-
-  // Função para formatar CPF
-  static formatCPF(cpf: string): string {
-    const numbers = cpf.replace(/\D/g, "")
-    if (numbers.length === 11) {
-      return numbers.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")
-    }
-    return cpf
-  }
-
-  // Função para parsear estado civil
-  private static parseMaritalStatus(status: string): MaritalStatus {
-    switch (status?.toLowerCase()) {
-      case "casado":
-      case "casada":
-        return MaritalStatus.Casado
-      case "divorciado":
-      case "divorciada":
-        return MaritalStatus.Divorciado
-      case "viuvo":
-      case "viuva":
-        return MaritalStatus.Viuvo
-      case "uniao estavel":
-      case "união estável":
-        return MaritalStatus.UniaoEstavel
-      default:
-        return MaritalStatus.Solteiro
-    }
-  }
-
-  // Função para parsear ministério
-  private static parseMinistry(ministry: string): Ministry {
-    switch (ministry?.toLowerCase()) {
-      case "louvor":
-        return Ministry.Louvor
-      case "ensino":
-        return Ministry.Ensino
-      case "evangelismo":
-        return Ministry.Evangelismo
-      case "diaconia":
-        return Ministry.Diaconia
-      case "juventude":
-        return Ministry.Juventude
-      case "infantil":
-        return Ministry.Infantil
-      case "intercessao":
-      case "intercessão":
-        return Ministry.Intercessao
-      case "midia":
-      case "mídia":
-        return Ministry.Midia
-      case "recepcao":
-      case "recepção":
-        return Ministry.Recepcao
-      case "limpeza":
-        return Ministry.Limpeza
-      case "seguranca":
-      case "segurança":
-        return Ministry.Seguranca
-      case "outros":
-        return Ministry.Outros
-      default:
-        return Ministry.Nenhum
-    }
-  }
-
-  // Função para obter opções de estado civil
   static getMaritalStatusOptions() {
     return [
-      { value: "solteiro", label: "Solteiro(a)" },
-      { value: "casado", label: "Casado(a)" },
-      { value: "divorciado", label: "Divorciado(a)" },
-      { value: "viuvo", label: "Viúvo(a)" },
-      { value: "uniao estavel", label: "União Estável" },
+      { value: "0", label: "Solteiro(a)" },
+      { value: "1", label: "Casado(a)" },
+      { value: "2", label: "Divorciado(a)" },
+      { value: "3", label: "Viúvo(a)" },
+      { value: "4", label: "União Estável" },
     ]
   }
 
-  // Função para obter opções de ministério
   static getMinistryOptions() {
     return [
-      { value: "", label: "Nenhum" },
-      { value: "louvor", label: "Louvor" },
-      { value: "ensino", label: "Ensino" },
-      { value: "evangelismo", label: "Evangelismo" },
-      { value: "diaconia", label: "Diaconia" },
-      { value: "juventude", label: "Juventude" },
-      { value: "infantil", label: "Infantil" },
-      { value: "intercessao", label: "Intercessão" },
-      { value: "midia", label: "Mídia" },
-      { value: "recepcao", label: "Recepção" },
-      { value: "limpeza", label: "Limpeza" },
-      { value: "seguranca", label: "Segurança" },
-      { value: "outros", label: "Outros" },
+      { value: "0", label: "Nenhum" },
+      { value: "1", label: "Louvor" },
+      { value: "2", label: "Ensino" },
+      { value: "3", label: "Evangelismo" },
+      { value: "4", label: "Intercessão" },
+      { value: "5", label: "Diaconia" },
+      { value: "6", label: "Infantil" },
+      { value: "7", label: "Jovens" },
+      { value: "8", label: "Casais" },
+      { value: "9", label: "Idosos" },
+      { value: "10", label: "Administração" },
     ]
+  }
+
+  private static getMaritalStatusValue(status: any): string {
+    if (typeof status === "number") {
+      return status.toString()
+    }
+    if (typeof status === "string") {
+      // Mapear strings para números se necessário
+      const statusMap: { [key: string]: string } = {
+        Solteiro: "0",
+        Solteira: "0",
+        Casado: "1",
+        Casada: "1",
+        Divorciado: "2",
+        Divorciada: "2",
+        Viúvo: "3",
+        Viúva: "3",
+        "União Estável": "4",
+      }
+      return statusMap[status] || "0"
+    }
+    return "0"
+  }
+
+  private static getMinistryValue(ministry: any): string {
+    if (typeof ministry === "number") {
+      return ministry.toString()
+    }
+    if (typeof ministry === "string") {
+      // Mapear strings para números se necessário
+      const ministryMap: { [key: string]: string } = {
+        Louvor: "1",
+        Ensino: "2",
+        Evangelismo: "3",
+        Intercessão: "4",
+        Diaconia: "5",
+        Infantil: "6",
+        Jovens: "7",
+        Casais: "8",
+        Idosos: "9",
+        Administração: "10",
+      }
+      return ministryMap[ministry] || "0"
+    }
+    return "0"
   }
 }
