@@ -59,11 +59,11 @@ export interface BirthdayMember {
   phone: string
   photo: string | null
   birthDate: string
-  ageWillTurn: number // Idade que fará no aniversário
+  ageWillTurn: number
   birthdayThisYear: Date
   daysUntilBirthday: number
   isToday: boolean
-  birthdayMessage: string // "fará X anos hoje", "fará X anos amanhã", "fará X anos daqui X dias"
+  birthdayMessage: string
 }
 
 export class MembersService {
@@ -83,7 +83,6 @@ export class MembersService {
         return false
       }
 
-
       const response = await fetch(`${this.BASE_URL}/Member/birthdays?filterType=${BirthdayFilterType.Week}`, {
         method: "GET",
         headers: {
@@ -91,7 +90,6 @@ export class MembersService {
           Authorization: `Bearer ${token}`,
         },
       })
-
 
       if (response.status === 404) {
         console.warn("Endpoint de aniversários não encontrado (404)")
@@ -123,7 +121,6 @@ export class MembersService {
         throw new Error("Token de autenticação não encontrado")
       }
 
-
       const response = await fetch(`${this.BASE_URL}/Member/birthdays?filterType=${filterType}`, {
         method: "GET",
         headers: {
@@ -131,7 +128,6 @@ export class MembersService {
           Authorization: `Bearer ${token}`,
         },
       })
-
 
       if (response.status === 404) {
         console.warn("Endpoint de aniversários não encontrado")
@@ -149,7 +145,6 @@ export class MembersService {
       }
 
       const data: ApiBirthdayMember[] = await response.json()
-
       return data
     } catch (error) {
       console.error("Erro ao buscar aniversários:", error)
@@ -206,19 +201,11 @@ export class MembersService {
     const birthdayThisYear = new Date(currentYear, birthMonth, birthDay)
     birthdayThisYear.setHours(0, 0, 0, 0)
 
-    // Verificar se o aniversário já passou este ano
-    let targetBirthdayDate = birthdayThisYear
-    let ageWillTurn = currentYear - birthDate.getFullYear()
+    // Calcular idade que fará neste aniversário
+    const ageWillTurn = currentYear - birthDate.getFullYear()
 
-    // Se o aniversário já passou este ano, considerar o próximo ano
-    if (birthdayThisYear < today) {
-      targetBirthdayDate = new Date(currentYear + 1, birthMonth, birthDay)
-      targetBirthdayDate.setHours(0, 0, 0, 0)
-      ageWillTurn = currentYear + 1 - birthDate.getFullYear()
-    }
-
-    // Calcular dias até o aniversário
-    const timeDiff = targetBirthdayDate.getTime() - today.getTime()
+    // Calcular diferença em dias
+    const timeDiff = birthdayThisYear.getTime() - today.getTime()
     const daysUntilBirthday = Math.ceil(timeDiff / (1000 * 60 * 60 * 24))
 
     // Verificar se é hoje
@@ -235,35 +222,27 @@ export class MembersService {
       photo: apiMember.photo,
       birthDate: apiMember.birthDate,
       ageWillTurn: ageWillTurn,
-      birthdayThisYear: targetBirthdayDate,
+      birthdayThisYear: birthdayThisYear,
       daysUntilBirthday: daysUntilBirthday,
       isToday: isToday,
       birthdayMessage: birthdayMessage,
     }
   }
 
-  // Função para calcular idade que fará no aniversário
-  private static calculateAgeWillTurn(birthDateString: string, birthdayDate: Date): number {
-    const birthDate = new Date(birthDateString)
-    return birthdayDate.getFullYear() - birthDate.getFullYear()
-  }
-
   // Função para gerar mensagem de aniversário
   private static generateBirthdayMessage(ageWillTurn: number, daysUntilBirthday: number, isToday: boolean): string {
     if (isToday) {
-      return `está fazendo ${ageWillTurn} anos hoje! 🎉🎂`
+      return `🎉 HOJE É ANIVERSÁRIO! Fazendo ${ageWillTurn} anos`
     } else if (daysUntilBirthday === 1) {
-      return `fará ${ageWillTurn} anos amanhã 🎈`
-    } else if (daysUntilBirthday <= 7) {
-      return `fará ${ageWillTurn} anos daqui ${daysUntilBirthday} dias 🎁`
-    } else if (daysUntilBirthday <= 30) {
-      return `fará ${ageWillTurn} anos daqui ${daysUntilBirthday} dias`
+      return `🎈 Falta 1 dia para o aniversário (${ageWillTurn} anos)`
+    } else if (daysUntilBirthday > 1) {
+      return `🎁 Faltam ${daysUntilBirthday} dias para o aniversário (${ageWillTurn} anos)`
+    } else if (daysUntilBirthday === -1) {
+      return `Foi aniversário há 1 dia (fez ${ageWillTurn} anos)`
     } else {
-      // Para aniversários muito distantes, mostrar o mês
-      const targetDate = new Date()
-      targetDate.setDate(targetDate.getDate() + daysUntilBirthday)
-      const monthName = targetDate.toLocaleDateString("pt-BR", { month: "long" })
-      return `fará ${ageWillTurn} anos em ${monthName}`
+      // Para aniversários que passaram há mais dias
+      const daysPassed = Math.abs(daysUntilBirthday)
+      return `Foi aniversário há ${daysPassed} dias (fez ${ageWillTurn} anos)`
     }
   }
 
@@ -354,7 +333,6 @@ export class MembersService {
       if (!token) {
         throw new Error("Token de autenticação não encontrado")
       }
-
 
       const response = await fetch(`${this.BASE_URL}/Member/${memberId}`, {
         method: "PUT",
