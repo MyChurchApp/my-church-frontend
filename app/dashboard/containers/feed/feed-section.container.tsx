@@ -7,8 +7,7 @@ import {
   createFeedPost,
   updateFeedPost,
   deleteFeedPost,
-  likeFeedPost,
-  unlikeFeedPost,
+  toggleLikeFeedPost,
   isPostLikedByUser,
   type FeedItem,
   type FeedResponse,
@@ -131,17 +130,15 @@ export function FeedSectionContainer() {
     }))
 
     try {
-      if (isCurrentlyLiked) {
-        await unlikeFeedPost(postId) // Já remove do localStorage
-      } else {
-        await likeFeedPost(postId) // Já adiciona ao localStorage
-      }
+      // Usar a função inteligente de toggle que detecta automaticamente o estado
+      const result = await toggleLikeFeedPost(postId)
 
-      // Atualizar o estado final
+      // Atualizar o estado final com base no resultado da API
       setLikeStates((prev) => ({
         ...prev,
         [postId]: {
-          ...prev[postId],
+          isLiked: result.isLiked,
+          likesCount: (currentState?.likesCount || 0) + (result.isLiked ? 1 : -1),
           loading: false,
         },
       }))

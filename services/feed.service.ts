@@ -166,6 +166,24 @@ const extractErrorMessage = async (response: Response): Promise<string> => {
   }
 }
 
+// Função para verificar se o erro é "já curtiu este post"
+const isAlreadyLikedError = async (response: Response): Promise<boolean> => {
+  try {
+    const errorData: ApiError = await response.json()
+
+    if (errorData.errors && errorData.errors.FeedLike) {
+      const feedLikeErrors = errorData.errors.FeedLike
+      return feedLikeErrors.some(
+        (error) => error.includes("já curtiu este post") || error.includes("already liked this post"),
+      )
+    }
+
+    return false
+  } catch (error) {
+    return false
+  }
+}
+
 // Função para buscar o feed
 export const getFeed = async (pageNumber = 1, pageSize = 10): Promise<FeedResponse> => {
   try {
@@ -280,6 +298,19 @@ export const likeFeedPost = async (postId: number): Promise<void> => {
         throw new Error("Não autorizado. Faça login novamente.")
       }
 
+      // Se for erro 400 e a mensagem for "já curtiu este post",
+      // automaticamente chama a função de unlike
+      if (response.status === 400) {
+        const responseClone = response.clone()
+        const isAlreadyLiked = await isAlreadyLikedError(responseClone)
+
+        if (isAlreadyLiked) {
+          console.log("Post já estava curtido, removendo like automaticamente...")
+          await unlikeFeedPost(postId)
+          return
+        }
+      }
+
       const errorMessage = await extractErrorMessage(response)
       throw new Error(errorMessage)
     }
@@ -312,6 +343,49 @@ export const unlikeFeedPost = async (postId: number): Promise<void> => {
     removeLikeFromStorage(postId)
   } catch (error) {
     console.error("Erro ao descurtir post:", error)
+    throw error
+  }
+}
+
+// Função inteligente para toggle de like (detecta automaticamente o estado)
+export const toggleLikeFeedPost = async (postId: number): Promise<{ isLiked: boolean }> => {
+  try {
+    // Primeiro tenta curtir
+    const response = await authFetch(`${API_BASE_URL}/Feed/${postId}/like`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: "",
+    })
+
+    if (response.ok) {
+      // Sucesso ao curtir
+      addLikeToStorage(postId)
+      return { isLiked: true }
+    }
+
+    if (response.status === 401) {
+      throw new Error("Não autorizado. Faça login novamente.")
+    }
+
+    // Se for erro 400, verifica se é "já curtiu este post"
+    if (response.status === 400) {
+      const responseClone = response.clone()
+      const isAlreadyLiked = await isAlreadyLikedError(responseClone)
+
+      if (isAlreadyLiked) {
+        // Post já estava curtido, remove o like
+        await unlikeFeedPost(postId)
+        return { isLiked: false }
+      }
+    }
+
+    // Outros erros
+    const errorMessage = await extractErrorMessage(response)
+    throw new Error(errorMessage)
+  } catch (error) {
+    console.error("Erro ao fazer toggle do like:", error)
     throw error
   }
 }
