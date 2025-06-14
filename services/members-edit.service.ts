@@ -39,10 +39,10 @@ export interface MemberApiData {
 }
 
 export class MembersEditService {
-  private static readonly API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://demoapp.top1soft.com.br"
+  private static readonly API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://demoapp.top1soft.com.br/api"
 
   static async updateMember(memberId: number, data: MemberApiData): Promise<any> {
-    const response = await authFetch(`${this.API_BASE_URL}/api/Member/${memberId}`, {
+    const response = await authFetch(`${this.API_BASE_URL}/Member/${memberId}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
