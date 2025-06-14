@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -7,9 +9,10 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Users, Plus, Search, Filter, UserCheck, UserX, ChevronLeft, ChevronRight, Loader2 } from "lucide-react"
+import { Users, Search, Filter, UserCheck, UserX, ChevronLeft, ChevronRight, Loader2, Edit, Trash2 } from "lucide-react"
 import { getMembersFromAPI, type ApiMember } from "@/lib/api"
 import { getUserRole, isAuthenticated } from "@/lib/auth-utils"
+import ValidatedMemberModal from "@/components/validated-member-modal"
 
 export default function MembrosPage() {
   const router = useRouter()
@@ -19,6 +22,8 @@ export default function MembrosPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [editingMember, setEditingMember] = useState<ApiMember | null>(null)
+  const [showEditModal, setShowEditModal] = useState(false)
 
   // Paginação
   const [currentPage, setCurrentPage] = useState(1)
@@ -52,7 +57,7 @@ export default function MembrosPage() {
       setTotalCount(response.totalCount)
     } catch (error: any) {
       console.error("Erro ao carregar membros:", error)
-      setError("Erro ao carregar membros. Tente novamente.")
+      setError("Erro ao carregar membros. Verifique sua conexão e tente novamente.")
       setMembers([])
       setFilteredMembers([])
     } finally {
@@ -83,6 +88,17 @@ export default function MembrosPage() {
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page)
+  }
+
+  const handleEditMember = (member: ApiMember) => {
+    setEditingMember(member)
+    setShowEditModal(true)
+  }
+
+  const handleMemberUpdated = () => {
+    setShowEditModal(false)
+    setEditingMember(null)
+    loadMembers() // Recarregar lista após edição
   }
 
   const getInitials = (name: string) => {
@@ -123,12 +139,7 @@ export default function MembrosPage() {
           <h1 className="text-2xl font-bold text-gray-900">Membros</h1>
           <p className="text-gray-600">Gerencie os membros da sua igreja</p>
         </div>
-        {isAdmin && (
-          <Button className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            Novo Membro
-          </Button>
-        )}
+        {isAdmin && <ValidatedMemberModal onMemberCreated={loadMembers} />}
       </div>
 
       {/* Stats Cards */}
@@ -204,30 +215,17 @@ export default function MembrosPage() {
       )}
 
       {/* Members Grid */}
-      {filteredMembers.length === 0 ? (
+      {filteredMembers.length === 0 && !error ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Users className="h-12 w-12 text-gray-400 mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              {error
-                ? "Erro ao carregar membros"
-                : searchTerm
-                  ? "Nenhum membro encontrado"
-                  : "Nenhum membro cadastrado"}
+              {searchTerm ? "Nenhum membro encontrado" : "Nenhum membro cadastrado"}
             </h3>
             <p className="text-gray-600 mb-4">
-              {error
-                ? "Verifique sua conexão e tente novamente"
-                : searchTerm
-                  ? "Tente ajustar os termos de busca"
-                  : "Comece adicionando o primeiro membro da sua igreja"}
+              {searchTerm ? "Tente ajustar os termos de busca" : "Comece adicionando o primeiro membro da sua igreja"}
             </p>
-            {isAdmin && !searchTerm && !error && (
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Adicionar Primeiro Membro
-              </Button>
-            )}
+            {isAdmin && !searchTerm && <ValidatedMemberModal onMemberCreated={loadMembers} />}
           </CardContent>
         </Card>
       ) : (
@@ -272,11 +270,12 @@ export default function MembrosPage() {
 
                 {isAdmin && (
                   <div className="flex gap-2 mt-4">
-                    <Button variant="outline" size="sm" className="flex-1">
+                    <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEditMember(member)}>
+                      <Edit className="h-4 w-4 mr-1" />
                       Editar
                     </Button>
                     <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
-                      Excluir
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 )}
@@ -314,6 +313,209 @@ export default function MembrosPage() {
           </Button>
         </div>
       )}
+
+      {/* Modal de Edição */}
+      {showEditModal && editingMember && (
+        <EditMemberModal
+          member={editingMember}
+          isOpen={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          onMemberUpdated={handleMemberUpdated}
+        />
+      )}
+    </div>
+  )
+}
+
+// Componente Modal de Edição
+function EditMemberModal({
+  member,
+  isOpen,
+  onClose,
+  onMemberUpdated,
+}: {
+  member: ApiMember
+  isOpen: boolean
+  onClose: () => void
+  onMemberUpdated: () => void
+}) {
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [formData, setFormData] = useState({
+    name: member.name || "",
+    email: member.email || "",
+    phone: member.phone || "",
+    birthDate: member.birthDate ? member.birthDate.split("T")[0] : "",
+    maritalStatus: member.maritalStatus || "",
+    ministry: member.ministry || "",
+    isBaptized: member.isBaptized || false,
+    baptizedDate: member.baptizedDate ? member.baptizedDate.split("T")[0] : "",
+    isTither: member.isTither || false,
+    isActive: member.isActive || true,
+    notes: member.notes || "",
+  })
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
+
+    try {
+      // Aqui você implementaria a chamada para a API de atualização
+      // const updatedMember = await updateMemberAPI(member.id, formData)
+
+      // Por enquanto, simular sucesso
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+
+      onMemberUpdated()
+    } catch (error: any) {
+      setError(error.message || "Erro ao atualizar membro")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (!isOpen) return null
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold">Editar Membro</h2>
+          <Button variant="ghost" size="sm" onClick={onClose}>
+            ✕
+          </Button>
+        </div>
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-md p-3 mb-4">
+            <p className="text-red-700 text-sm">{error}</p>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Nome</label>
+              <Input
+                value={formData.name}
+                onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Email</label>
+              <Input
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
+                required
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Telefone</label>
+              <Input
+                value={formData.phone}
+                onChange={(e) => setFormData((prev) => ({ ...prev, phone: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Data de Nascimento</label>
+              <Input
+                type="date"
+                value={formData.birthDate}
+                onChange={(e) => setFormData((prev) => ({ ...prev, birthDate: e.target.value }))}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Estado Civil</label>
+              <Input
+                value={formData.maritalStatus}
+                onChange={(e) => setFormData((prev) => ({ ...prev, maritalStatus: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Ministério</label>
+              <Input
+                value={formData.ministry}
+                onChange={(e) => setFormData((prev) => ({ ...prev, ministry: e.target.value }))}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={formData.isBaptized}
+                onChange={(e) => setFormData((prev) => ({ ...prev, isBaptized: e.target.checked }))}
+              />
+              <span className="text-sm">Batizado</span>
+            </label>
+
+            {formData.isBaptized && (
+              <div>
+                <label className="block text-sm font-medium mb-1">Data de Batismo</label>
+                <Input
+                  type="date"
+                  value={formData.baptizedDate}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, baptizedDate: e.target.value }))}
+                />
+              </div>
+            )}
+
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={formData.isTither}
+                onChange={(e) => setFormData((prev) => ({ ...prev, isTither: e.target.checked }))}
+              />
+              <span className="text-sm">Dizimista</span>
+            </label>
+
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={formData.isActive}
+                onChange={(e) => setFormData((prev) => ({ ...prev, isActive: e.target.checked }))}
+              />
+              <span className="text-sm">Membro Ativo</span>
+            </label>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Observações</label>
+            <textarea
+              className="w-full p-2 border rounded-md"
+              rows={3}
+              value={formData.notes}
+              onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value }))}
+            />
+          </div>
+
+          <div className="flex gap-2 pt-4">
+            <Button type="submit" disabled={loading} className="flex-1">
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Salvando...
+                </>
+              ) : (
+                "Salvar Alterações"
+              )}
+            </Button>
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancelar
+            </Button>
+          </div>
+        </form>
+      </div>
     </div>
   )
 }
