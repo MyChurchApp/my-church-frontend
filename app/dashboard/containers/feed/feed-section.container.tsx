@@ -9,6 +9,7 @@ import {
   deleteFeedPost,
   likeFeedPost,
   unlikeFeedPost,
+  isPostLikedByUser,
   type FeedItem,
   type FeedResponse,
 } from "@/services/feed.service"
@@ -43,12 +44,12 @@ export function FeedSectionContainer() {
       setTotalPages(feedData.totalPages)
       setHasMore(feedData.pageNumber < feedData.totalPages)
 
-      // Inicializar estados de like para novos posts
+      // Inicializar estados de like para novos posts usando localStorage
       const newLikeStates: Record<number, { isLiked: boolean; likesCount: number; loading: boolean }> = {}
       feedData.items.forEach((item) => {
         if (!likeStates[item.id]) {
           newLikeStates[item.id] = {
-            isLiked: false, // A API não retorna se o usuário atual curtiu
+            isLiked: isPostLikedByUser(item.id), // Verificar no localStorage
             likesCount: item.likesCount,
             loading: false,
           }
@@ -131,9 +132,9 @@ export function FeedSectionContainer() {
 
     try {
       if (isCurrentlyLiked) {
-        await unlikeFeedPost(postId)
+        await unlikeFeedPost(postId) // Já remove do localStorage
       } else {
-        await likeFeedPost(postId)
+        await likeFeedPost(postId) // Já adiciona ao localStorage
       }
 
       // Atualizar o estado final
@@ -145,7 +146,7 @@ export function FeedSectionContainer() {
         },
       }))
 
-      // Recarregar feed para obter dados atualizados
+      // Recarregar feed para obter dados atualizados da API
       await loadFeed(1, false)
     } catch (error) {
       // Reverter estado em caso de erro

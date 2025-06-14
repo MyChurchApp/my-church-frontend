@@ -74,6 +74,75 @@ export interface ApiError {
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://demoapp.top1soft.com.br/api"
 
+// Função para obter ID do usuário atual
+const getCurrentUserId = (): string => {
+  if (typeof window === "undefined") return ""
+
+  const token = localStorage.getItem("authToken")
+  if (!token) return ""
+
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]))
+    return payload.nameid || payload.sub || payload.id || ""
+  } catch (error) {
+    console.error("Erro ao decodificar token:", error)
+    return ""
+  }
+}
+
+// Funções para gerenciar likes no localStorage
+const LIKES_STORAGE_KEY = "feed_likes"
+
+export const getUserLikes = (): Set<number> => {
+  if (typeof window === "undefined") return new Set()
+
+  const userId = getCurrentUserId()
+  if (!userId) return new Set()
+
+  try {
+    const stored = localStorage.getItem(`${LIKES_STORAGE_KEY}_${userId}`)
+    if (stored) {
+      const likedPosts = JSON.parse(stored)
+      return new Set(likedPosts)
+    }
+  } catch (error) {
+    console.error("Erro ao carregar likes do localStorage:", error)
+  }
+
+  return new Set()
+}
+
+export const saveUserLikes = (likedPosts: Set<number>): void => {
+  if (typeof window === "undefined") return
+
+  const userId = getCurrentUserId()
+  if (!userId) return
+
+  try {
+    const likesArray = Array.from(likedPosts)
+    localStorage.setItem(`${LIKES_STORAGE_KEY}_${userId}`, JSON.stringify(likesArray))
+  } catch (error) {
+    console.error("Erro ao salvar likes no localStorage:", error)
+  }
+}
+
+export const addLikeToStorage = (postId: number): void => {
+  const userLikes = getUserLikes()
+  userLikes.add(postId)
+  saveUserLikes(userLikes)
+}
+
+export const removeLikeFromStorage = (postId: number): void => {
+  const userLikes = getUserLikes()
+  userLikes.delete(postId)
+  saveUserLikes(userLikes)
+}
+
+export const isPostLikedByUser = (postId: number): boolean => {
+  const userLikes = getUserLikes()
+  return userLikes.has(postId)
+}
+
 // Função helper para extrair mensagens de erro da API
 const extractErrorMessage = async (response: Response): Promise<string> => {
   try {
@@ -214,6 +283,9 @@ export const likeFeedPost = async (postId: number): Promise<void> => {
       const errorMessage = await extractErrorMessage(response)
       throw new Error(errorMessage)
     }
+
+    // Salvar no localStorage que o usuário curtiu este post
+    addLikeToStorage(postId)
   } catch (error) {
     console.error("Erro ao curtir post:", error)
     throw error
@@ -235,6 +307,9 @@ export const unlikeFeedPost = async (postId: number): Promise<void> => {
       const errorMessage = await extractErrorMessage(response)
       throw new Error(errorMessage)
     }
+
+    // Remover do localStorage que o usuário curtiu este post
+    removeLikeFromStorage(postId)
   } catch (error) {
     console.error("Erro ao descurtir post:", error)
     throw error
