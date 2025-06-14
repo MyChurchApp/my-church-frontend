@@ -26,11 +26,16 @@ import {
   Calendar,
   Users,
   Repeat,
+  List,
+  Grid3X3,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react"
 import { eventsService, type CalendarEventResponse, type EventResponse } from "@/services/events.service"
 import { isAuthenticated, getUserRole } from "@/lib/auth-utils"
 
-const DAYS_OF_WEEK = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"]
+const DAYS_OF_WEEK = ["D", "S", "T", "Q", "Q", "S", "S"]
+const DAYS_OF_WEEK_FULL = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"]
 const MONTHS = [
   "Janeiro",
   "Fevereiro",
@@ -68,9 +73,10 @@ export default function EventosPage() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [viewMode, setViewMode] = useState<"month" | "week" | "day">("month")
+  const [viewMode, setViewMode] = useState<"calendar" | "list">("calendar")
   const [showEventModal, setShowEventModal] = useState(false)
   const [editingEvent, setEditingEvent] = useState<EventResponse | null>(null)
+  const [expandedEvent, setExpandedEvent] = useState<number | null>(null)
   const [formData, setFormData] = useState<EventFormData>({
     title: "",
     description: "",
@@ -212,7 +218,7 @@ export default function EventosPage() {
     }
   }
 
-  // Gerar dias do mês para o calendário
+  // Gerar dias do mês para o calendário mobile
   const generateCalendarDays = () => {
     const year = currentDate.getFullYear()
     const month = currentDate.getMonth()
@@ -248,6 +254,25 @@ export default function EventosPage() {
     )
   }
 
+  // Obter todos os eventos do mês atual ordenados por data
+  const getAllEventsThisMonth = () => {
+    const monthEvents: Array<{ date: Date; event: CalendarEventResponse; occurrence: any }> = []
+
+    events.forEach((event) => {
+      event.occurrences.forEach((occurrence) => {
+        const occurrenceDate = new Date(occurrence.start)
+        if (
+          occurrenceDate.getMonth() === currentDate.getMonth() &&
+          occurrenceDate.getFullYear() === currentDate.getFullYear()
+        ) {
+          monthEvents.push({ date: occurrenceDate, event, occurrence })
+        }
+      })
+    })
+
+    return monthEvents.sort((a, b) => a.date.getTime() - b.date.getTime())
+  }
+
   // Navegar entre meses
   const navigateMonth = (direction: "prev" | "next") => {
     const newDate = new Date(currentDate)
@@ -281,9 +306,24 @@ export default function EventosPage() {
     })
   }
 
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+    })
+  }
+
+  const formatFullDate = (date: Date) => {
+    return date.toLocaleDateString("pt-BR", {
+      weekday: "short",
+      day: "2-digit",
+      month: "short",
+    })
+  }
+
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center">
+      <div className="flex h-screen items-center justify-center p-4">
         <div className="flex flex-col items-center gap-2">
           <Loader2 className="h-8 w-8 animate-spin" />
           <p className="text-sm text-gray-500">Carregando eventos...</p>
@@ -294,7 +334,7 @@ export default function EventosPage() {
 
   if (error) {
     return (
-      <div className="flex h-screen items-center justify-center">
+      <div className="flex h-screen items-center justify-center p-4">
         <div className="text-center">
           <p className="text-red-600 mb-4">{error}</p>
           <Button onClick={loadEvents}>Tentar Novamente</Button>
@@ -304,141 +344,120 @@ export default function EventosPage() {
   }
 
   const calendarDays = generateCalendarDays()
+  const monthEvents = getAllEventsThisMonth()
 
   return (
-    <div className="flex-1 space-y-6 p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Agenda de Eventos</h1>
-          <p className="text-muted-foreground">Gerencie os eventos da sua igreja</p>
+    <div className="flex-1 space-y-4 p-4">
+      {/* Header Mobile */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-bold tracking-tight">Eventos</h1>
+          {canManageEvents && (
+            <Button onClick={handleCreateEvent} size="sm">
+              <Plus className="h-4 w-4" />
+            </Button>
+          )}
         </div>
-        {canManageEvents && (
-          <Button onClick={handleCreateEvent}>
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Evento
-          </Button>
-        )}
+
+        {/* View Toggle */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => navigateMonth("prev")}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <h2 className="text-lg font-semibold min-w-[140px] text-center">
+              {MONTHS[currentDate.getMonth()].slice(0, 3)} {currentDate.getFullYear()}
+            </h2>
+            <Button variant="outline" size="sm" onClick={() => navigateMonth("next")}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <div className="flex gap-1">
+            <Button
+              variant={viewMode === "calendar" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setViewMode("calendar")}
+            >
+              <Grid3X3 className="h-4 w-4" />
+            </Button>
+            <Button variant={viewMode === "list" ? "default" : "outline"} size="sm" onClick={() => setViewMode("list")}>
+              <List className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
       </div>
 
-      {/* Calendar Header */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button variant="outline" size="sm" onClick={() => navigateMonth("prev")}>
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <h2 className="text-xl font-semibold">
-                {MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}
-              </h2>
-              <Button variant="outline" size="sm" onClick={() => navigateMonth("next")}>
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant={viewMode === "month" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setViewMode("month")}
-              >
-                Mês
-              </Button>
-              <Button
-                variant={viewMode === "week" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setViewMode("week")}
-              >
-                Semana
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {/* Calendar Grid */}
-          <div className="grid grid-cols-7 gap-1">
-            {/* Days of week header */}
-            {DAYS_OF_WEEK.map((day) => (
-              <div key={day} className="p-2 text-center text-sm font-medium text-gray-500">
-                {day}
-              </div>
-            ))}
-
-            {/* Calendar days */}
-            {calendarDays.map((date, index) => {
-              const dayEvents = getEventsForDate(date)
-              const isCurrentMonthDay = isCurrentMonth(date)
-              const isTodayDate = isToday(date)
-
-              return (
-                <div
-                  key={index}
-                  className={`
-                    min-h-[120px] p-2 border border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors
-                    ${!isCurrentMonthDay ? "text-gray-300 bg-gray-50" : ""}
-                    ${isTodayDate ? "bg-blue-50 border-blue-200" : ""}
-                    ${selectedDate?.toDateString() === date.toDateString() ? "ring-2 ring-blue-500" : ""}
-                  `}
-                  onClick={() => setSelectedDate(date)}
-                  onDoubleClick={() => canManageEvents && handleCreateEvent()}
-                >
-                  <div className={`text-sm font-medium mb-2 ${isTodayDate ? "text-blue-600" : ""}`}>
-                    {date.getDate()}
-                  </div>
-                  <div className="space-y-1">
-                    {dayEvents.slice(0, 2).map((event, eventIndex) => (
-                      <div
-                        key={eventIndex}
-                        className="text-xs p-1 bg-blue-100 text-blue-800 rounded truncate hover:bg-blue-200 transition-colors"
-                        title={event.title}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          canManageEvents && handleEditEvent(event.id)
-                        }}
-                      >
-                        <div className="flex items-center gap-1">
-                          {event.isRecurring && <Repeat className="h-3 w-3" />}
-                          <span className="truncate">{event.title}</span>
-                        </div>
-                      </div>
-                    ))}
-                    {dayEvents.length > 2 && (
-                      <div className="text-xs text-gray-500 font-medium">+{dayEvents.length - 2} mais</div>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Selected Date Events */}
-      {selectedDate && (
+      {viewMode === "calendar" ? (
+        /* Calendar View Mobile */
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              Eventos de{" "}
-              {selectedDate.toLocaleDateString("pt-BR", {
-                weekday: "long",
-                day: "numeric",
-                month: "long",
-                year: "numeric",
-              })}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {getEventsForDate(selectedDate).length > 0 ? (
-              <div className="space-y-4">
-                {getEventsForDate(selectedDate).map((event) => (
+          <CardContent className="p-2">
+            {/* Calendar Grid Mobile */}
+            <div className="grid grid-cols-7 gap-1">
+              {/* Days of week header */}
+              {DAYS_OF_WEEK.map((day, index) => (
+                <div key={day} className="p-2 text-center text-xs font-medium text-gray-500">
+                  <span className="sm:hidden">{day}</span>
+                  <span className="hidden sm:inline">{DAYS_OF_WEEK_FULL[index]}</span>
+                </div>
+              ))}
+
+              {/* Calendar days */}
+              {calendarDays.map((date, index) => {
+                const dayEvents = getEventsForDate(date)
+                const isCurrentMonthDay = isCurrentMonth(date)
+                const isTodayDate = isToday(date)
+
+                return (
                   <div
-                    key={event.id}
-                    className="flex items-start justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+                    key={index}
+                    className={`
+                      min-h-[60px] sm:min-h-[80px] p-1 border border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors
+                      ${!isCurrentMonthDay ? "text-gray-300 bg-gray-50" : ""}
+                      ${isTodayDate ? "bg-blue-50 border-blue-200" : ""}
+                      ${selectedDate?.toDateString() === date.toDateString() ? "ring-2 ring-blue-500" : ""}
+                    `}
+                    onClick={() => setSelectedDate(date)}
                   >
-                    <div className="flex-1">
+                    <div className={`text-xs font-medium mb-1 ${isTodayDate ? "text-blue-600" : ""}`}>
+                      {date.getDate()}
+                    </div>
+                    <div className="space-y-1">
+                      {dayEvents.slice(0, 1).map((event, eventIndex) => (
+                        <div
+                          key={eventIndex}
+                          className="text-[10px] sm:text-xs p-1 bg-blue-100 text-blue-800 rounded truncate"
+                          title={event.title}
+                        >
+                          <div className="flex items-center gap-1">
+                            {event.isRecurring && <Repeat className="h-2 w-2 sm:h-3 sm:w-3" />}
+                            <span className="truncate">{event.title}</span>
+                          </div>
+                        </div>
+                      ))}
+                      {dayEvents.length > 1 && (
+                        <div className="text-[10px] text-gray-500 font-medium">+{dayEvents.length - 1}</div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        /* List View Mobile */
+        <div className="space-y-3">
+          {monthEvents.length > 0 ? (
+            monthEvents.map(({ date, event, occurrence }, index) => (
+              <Card key={`${event.id}-${index}`} className="overflow-hidden">
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-2">
-                        <h3 className="font-medium">{event.title}</h3>
+                        <div className="text-sm font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                          {formatFullDate(date)}
+                        </div>
                         {event.isRecurring && (
                           <Badge variant="outline" className="text-xs">
                             <Repeat className="h-3 w-3 mr-1" />
@@ -446,8 +465,110 @@ export default function EventosPage() {
                           </Badge>
                         )}
                       </div>
-                      {event.description && <p className="text-sm text-gray-600 mb-2">{event.description}</p>}
-                      <div className="flex items-center gap-4 text-sm text-gray-500">
+
+                      <h3 className="font-medium text-lg mb-1 truncate">{event.title}</h3>
+
+                      <div className="flex items-center gap-4 text-sm text-gray-500 mb-2">
+                        <div className="flex items-center gap-1">
+                          <Clock className="h-4 w-4" />
+                          {formatTime(occurrence.start)} - {formatTime(occurrence.end)}
+                        </div>
+                        {event.location && (
+                          <div className="flex items-center gap-1">
+                            <MapPin className="h-4 w-4" />
+                            <span className="truncate">{event.location}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {event.description && expandedEvent === event.id && (
+                        <p className="text-sm text-gray-600 mb-2">{event.description}</p>
+                      )}
+
+                      {event.description && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setExpandedEvent(expandedEvent === event.id ? null : event.id)}
+                          className="p-0 h-auto text-blue-600"
+                        >
+                          {expandedEvent === event.id ? (
+                            <>
+                              <ChevronUp className="h-4 w-4 mr-1" />
+                              Menos detalhes
+                            </>
+                          ) : (
+                            <>
+                              <ChevronDown className="h-4 w-4 mr-1" />
+                              Mais detalhes
+                            </>
+                          )}
+                        </Button>
+                      )}
+                    </div>
+
+                    {canManageEvents && (
+                      <div className="flex flex-col gap-2 ml-2">
+                        <Button variant="outline" size="sm" onClick={() => handleEditEvent(event.id)}>
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => handleDeleteEvent(event.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          ) : (
+            <Card>
+              <CardContent className="p-8 text-center">
+                <Calendar className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500 mb-4">Nenhum evento este mês</p>
+                {canManageEvents && (
+                  <Button onClick={handleCreateEvent} variant="outline">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Criar Evento
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {/* Selected Date Events Mobile */}
+      {selectedDate && viewMode === "calendar" && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              {selectedDate.toLocaleDateString("pt-BR", {
+                day: "2-digit",
+                month: "long",
+                year: "numeric",
+              })}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {getEventsForDate(selectedDate).length > 0 ? (
+              <div className="space-y-3">
+                {getEventsForDate(selectedDate).map((event) => (
+                  <div
+                    key={event.id}
+                    className="flex items-start justify-between p-3 border rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-medium truncate">{event.title}</h3>
+                        {event.isRecurring && (
+                          <Badge variant="outline" className="text-xs">
+                            <Repeat className="h-3 w-3" />
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex flex-col gap-1 text-sm text-gray-500">
                         {event.occurrences[0] && (
                           <div className="flex items-center gap-1">
                             <Clock className="h-4 w-4" />
@@ -457,13 +578,13 @@ export default function EventosPage() {
                         {event.location && (
                           <div className="flex items-center gap-1">
                             <MapPin className="h-4 w-4" />
-                            {event.location}
+                            <span className="truncate">{event.location}</span>
                           </div>
                         )}
                       </div>
                     </div>
                     {canManageEvents && (
-                      <div className="flex gap-2">
+                      <div className="flex gap-1 ml-2">
                         <Button variant="outline" size="sm" onClick={() => handleEditEvent(event.id)}>
                           <Edit className="h-4 w-4" />
                         </Button>
@@ -476,11 +597,10 @@ export default function EventosPage() {
                 ))}
               </div>
             ) : (
-              <div className="text-center py-8">
-                <Calendar className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500 mb-4">Nenhum evento nesta data.</p>
+              <div className="text-center py-6">
+                <p className="text-gray-500 mb-4">Nenhum evento nesta data</p>
                 {canManageEvents && (
-                  <Button onClick={handleCreateEvent} variant="outline">
+                  <Button onClick={handleCreateEvent} variant="outline" size="sm">
                     <Plus className="h-4 w-4 mr-2" />
                     Criar Evento
                   </Button>
@@ -491,37 +611,40 @@ export default function EventosPage() {
         </Card>
       )}
 
-      {/* Event Modal */}
+      {/* Event Modal Mobile */}
       <Dialog open={showEventModal} onOpenChange={setShowEventModal}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingEvent ? "Editar Evento" : "Novo Evento"}</DialogTitle>
+            <DialogTitle className="text-lg">{editingEvent ? "Editar Evento" : "Novo Evento"}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmitEvent} className="space-y-6">
+          <form onSubmit={handleSubmitEvent} className="space-y-4">
             {/* Informações Básicas */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Informações Básicas</h3>
+            <div className="space-y-3">
+              <div>
+                <Label htmlFor="title" className="text-sm">
+                  Título *
+                </Label>
+                <Input
+                  id="title"
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  placeholder="Nome do evento"
+                  required
+                  className="mt-1"
+                />
+              </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
-                  <Label htmlFor="title">Título *</Label>
-                  <Input
-                    id="title"
-                    value={formData.title}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    placeholder="Nome do evento"
-                    required
-                  />
-                </div>
-
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label htmlFor="eventType">Tipo de Evento</Label>
+                  <Label htmlFor="eventType" className="text-sm">
+                    Tipo
+                  </Label>
                   <Select
                     value={formData.eventType}
                     onValueChange={(value) => setFormData({ ...formData, eventType: value })}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o tipo" />
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Tipo" />
                     </SelectTrigger>
                     <SelectContent>
                       {eventsService.getEventTypeOptions().map((option) => (
@@ -534,100 +657,121 @@ export default function EventosPage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="location">Local</Label>
+                  <Label htmlFor="location" className="text-sm">
+                    Local
+                  </Label>
                   <Input
                     id="location"
                     value={formData.location}
                     onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                    placeholder="Local do evento"
+                    placeholder="Local"
+                    className="mt-1"
                   />
                 </div>
               </div>
 
               <div>
-                <Label htmlFor="description">Descrição</Label>
+                <Label htmlFor="description" className="text-sm">
+                  Descrição
+                </Label>
                 <Textarea
                   id="description"
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   placeholder="Descrição do evento"
-                  rows={3}
+                  rows={2}
+                  className="mt-1"
                 />
               </div>
 
               {formData.eventType === "0" && (
                 <div>
-                  <Label htmlFor="worshipTheme">Tema do Culto</Label>
+                  <Label htmlFor="worshipTheme" className="text-sm">
+                    Tema do Culto
+                  </Label>
                   <Input
                     id="worshipTheme"
                     value={formData.worshipTheme}
                     onChange={(e) => setFormData({ ...formData, worshipTheme: e.target.value })}
                     placeholder="Tema do culto"
+                    className="mt-1"
                   />
                 </div>
               )}
             </div>
 
             {/* Data e Hora */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Data e Hora</h3>
+            <div className="space-y-3">
+              <h3 className="font-medium">Data e Hora</h3>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label htmlFor="date">Data de Início *</Label>
+                  <Label htmlFor="date" className="text-sm">
+                    Data *
+                  </Label>
                   <Input
                     id="date"
                     type="date"
                     value={formData.date}
                     onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                     required
+                    className="mt-1"
                   />
                 </div>
 
                 <div>
-                  <Label htmlFor="time">Hora de Início *</Label>
+                  <Label htmlFor="time" className="text-sm">
+                    Hora *
+                  </Label>
                   <Input
                     id="time"
                     type="time"
                     value={formData.time}
                     onChange={(e) => setFormData({ ...formData, time: e.target.value })}
                     required
+                    className="mt-1"
                   />
                 </div>
 
                 <div>
-                  <Label htmlFor="finishDate">Data de Término</Label>
+                  <Label htmlFor="finishDate" className="text-sm">
+                    Fim
+                  </Label>
                   <Input
                     id="finishDate"
                     type="date"
                     value={formData.finishDate}
                     onChange={(e) => setFormData({ ...formData, finishDate: e.target.value })}
+                    className="mt-1"
                   />
                 </div>
 
                 <div>
-                  <Label htmlFor="finishTime">Hora de Término</Label>
+                  <Label htmlFor="finishTime" className="text-sm">
+                    Hora Fim
+                  </Label>
                   <Input
                     id="finishTime"
                     type="time"
                     value={formData.finishTime}
                     onChange={(e) => setFormData({ ...formData, finishTime: e.target.value })}
+                    className="mt-1"
                   />
                 </div>
               </div>
             </div>
 
             {/* Recorrência */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Recorrência</h3>
-
+            <div className="space-y-3">
               <div>
-                <Label htmlFor="recurrence">Repetir</Label>
+                <Label htmlFor="recurrence" className="text-sm">
+                  Repetir
+                </Label>
                 <Select
                   value={formData.recurrence}
                   onValueChange={(value) => setFormData({ ...formData, recurrence: value })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="mt-1">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -642,37 +786,41 @@ export default function EventosPage() {
             </div>
 
             {/* Opções */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Opções</h3>
-
+            <div className="space-y-3">
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="requiresParticipantList"
                   checked={formData.requiresParticipantList}
                   onCheckedChange={(checked) => setFormData({ ...formData, requiresParticipantList: !!checked })}
                 />
-                <Label htmlFor="requiresParticipantList" className="flex items-center gap-2">
+                <Label htmlFor="requiresParticipantList" className="text-sm flex items-center gap-2">
                   <Users className="h-4 w-4" />
-                  Requer lista de participantes
+                  Lista de participantes
                 </Label>
               </div>
             </div>
 
             {/* Botões */}
-            <div className="flex justify-end gap-3 pt-4 border-t">
-              <Button type="button" variant="outline" onClick={() => setShowEventModal(false)} disabled={submitting}>
+            <div className="flex gap-3 pt-4 border-t">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowEventModal(false)}
+                disabled={submitting}
+                className="flex-1"
+              >
                 Cancelar
               </Button>
-              <Button type="submit" disabled={submitting}>
+              <Button type="submit" disabled={submitting} className="flex-1">
                 {submitting ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    {editingEvent ? "Atualizando..." : "Criando..."}
+                    {editingEvent ? "Salvando..." : "Criando..."}
                   </>
                 ) : editingEvent ? (
-                  "Atualizar Evento"
+                  "Salvar"
                 ) : (
-                  "Criar Evento"
+                  "Criar"
                 )}
               </Button>
             </div>
