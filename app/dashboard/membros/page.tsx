@@ -13,6 +13,8 @@ import { Users, Search, Filter, UserCheck, UserX, ChevronLeft, ChevronRight, Loa
 import { getMembersFromAPI, type ApiMember } from "@/lib/api"
 import { getUserRole, isAuthenticated } from "@/lib/auth-utils"
 import ValidatedMemberModal from "@/components/validated-member-modal"
+import { MembersEditService } from "@/services/members-edit.service"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 export default function MembrosPage() {
   const router = useRouter()
@@ -341,19 +343,10 @@ function EditMemberModal({
 }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [formData, setFormData] = useState({
-    name: member.name || "",
-    email: member.email || "",
-    phone: member.phone || "",
-    birthDate: member.birthDate ? member.birthDate.split("T")[0] : "",
-    maritalStatus: member.maritalStatus || "",
-    ministry: member.ministry || "",
-    isBaptized: member.isBaptized || false,
-    baptizedDate: member.baptizedDate ? member.baptizedDate.split("T")[0] : "",
-    isTither: member.isTither || false,
-    isActive: member.isActive || true,
-    notes: member.notes || "",
-  })
+  const [formData, setFormData] = useState(() => MembersEditService.convertApiDataToForm(member))
+
+  const maritalStatusOptions = MembersEditService.getMaritalStatusOptions()
+  const ministryOptions = MembersEditService.getMinistryOptions()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -361,25 +354,27 @@ function EditMemberModal({
     setError(null)
 
     try {
-      // Aqui você implementaria a chamada para a API de atualização
-      // const updatedMember = await updateMemberAPI(member.id, formData)
-
-      // Por enquanto, simular sucesso
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      const apiData = MembersEditService.convertFormDataToApi(formData, member.document)
+      await MembersEditService.updateMember(member.id, apiData)
 
       onMemberUpdated()
     } catch (error: any) {
-      setError(error.message || "Erro ao atualizar membro")
+      console.error("Erro ao atualizar membro:", error)
+      setError(error.message || "Erro ao atualizar membro. Tente novamente.")
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleInputChange = (field: string, value: any) => {
+    setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
   if (!isOpen) return null
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold">Editar Membro</h2>
           <Button variant="ghost" size="sm" onClick={onClose}>
@@ -393,113 +388,177 @@ function EditMemberModal({
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Nome</label>
-              <Input
-                value={formData.name}
-                onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Email</label>
-              <Input
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
-                required
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Telefone</label>
-              <Input
-                value={formData.phone}
-                onChange={(e) => setFormData((prev) => ({ ...prev, phone: e.target.value }))}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Data de Nascimento</label>
-              <Input
-                type="date"
-                value={formData.birthDate}
-                onChange={(e) => setFormData((prev) => ({ ...prev, birthDate: e.target.value }))}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Estado Civil</label>
-              <Input
-                value={formData.maritalStatus}
-                onChange={(e) => setFormData((prev) => ({ ...prev, maritalStatus: e.target.value }))}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Ministério</label>
-              <Input
-                value={formData.ministry}
-                onChange={(e) => setFormData((prev) => ({ ...prev, ministry: e.target.value }))}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={formData.isBaptized}
-                onChange={(e) => setFormData((prev) => ({ ...prev, isBaptized: e.target.checked }))}
-              />
-              <span className="text-sm">Batizado</span>
-            </label>
-
-            {formData.isBaptized && (
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Informações Pessoais */}
+          <div>
+            <h3 className="text-lg font-medium mb-3">Informações Pessoais</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Data de Batismo</label>
+                <label className="block text-sm font-medium mb-1">Nome *</label>
+                <Input value={formData.name} onChange={(e) => handleInputChange("name", e.target.value)} required />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Email *</label>
                 <Input
-                  type="date"
-                  value={formData.baptizedDate}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, baptizedDate: e.target.value }))}
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => handleInputChange("email", e.target.value)}
+                  required
                 />
               </div>
-            )}
-
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={formData.isTither}
-                onChange={(e) => setFormData((prev) => ({ ...prev, isTither: e.target.checked }))}
-              />
-              <span className="text-sm">Dizimista</span>
-            </label>
-
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={formData.isActive}
-                onChange={(e) => setFormData((prev) => ({ ...prev, isActive: e.target.checked }))}
-              />
-              <span className="text-sm">Membro Ativo</span>
-            </label>
+              <div>
+                <label className="block text-sm font-medium mb-1">Telefone</label>
+                <Input
+                  value={formData.phone}
+                  onChange={(e) => handleInputChange("phone", e.target.value)}
+                  placeholder="(11) 99999-9999"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Data de Nascimento</label>
+                <Input
+                  type="date"
+                  value={formData.birthDate}
+                  onChange={(e) => handleInputChange("birthDate", e.target.value)}
+                />
+              </div>
+            </div>
           </div>
 
+          {/* Documentos */}
+          <div>
+            <h3 className="text-lg font-medium mb-3">Documentos</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">CPF</label>
+                <Input
+                  value={formData.cpf}
+                  onChange={(e) => handleInputChange("cpf", e.target.value)}
+                  placeholder="000.000.000-00"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">RG</label>
+                <Input
+                  value={formData.rg}
+                  onChange={(e) => handleInputChange("rg", e.target.value)}
+                  placeholder="00.000.000-0"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Informações da Igreja */}
+          <div>
+            <h3 className="text-lg font-medium mb-3">Informações da Igreja</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Estado Civil</label>
+                <Select
+                  value={formData.maritalStatus}
+                  onValueChange={(value) => handleInputChange("maritalStatus", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {maritalStatusOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Ministério</label>
+                <Select value={formData.ministry} onValueChange={(value) => handleInputChange("ministry", value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ministryOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Membro desde</label>
+                <Input
+                  type="date"
+                  value={formData.memberSince}
+                  onChange={(e) => handleInputChange("memberSince", e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Status e Configurações */}
+          <div>
+            <h3 className="text-lg font-medium mb-3">Status</h3>
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={formData.isBaptized}
+                    onChange={(e) => handleInputChange("isBaptized", e.target.checked)}
+                    className="rounded"
+                  />
+                  <span className="text-sm">Batizado</span>
+                </label>
+
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={formData.isTither}
+                    onChange={(e) => handleInputChange("isTither", e.target.checked)}
+                    className="rounded"
+                  />
+                  <span className="text-sm">Dizimista</span>
+                </label>
+
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={formData.isActive}
+                    onChange={(e) => handleInputChange("isActive", e.target.checked)}
+                    className="rounded"
+                  />
+                  <span className="text-sm">Membro Ativo</span>
+                </label>
+              </div>
+
+              {formData.isBaptized && (
+                <div className="max-w-xs">
+                  <label className="block text-sm font-medium mb-1">Data de Batismo</label>
+                  <Input
+                    type="date"
+                    value={formData.baptizedDate}
+                    onChange={(e) => handleInputChange("baptizedDate", e.target.value)}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Observações */}
           <div>
             <label className="block text-sm font-medium mb-1">Observações</label>
             <textarea
-              className="w-full p-2 border rounded-md"
-              rows={3}
+              className="w-full p-3 border rounded-md resize-none"
+              rows={4}
               value={formData.notes}
-              onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value }))}
+              onChange={(e) => handleInputChange("notes", e.target.value)}
+              placeholder="Adicione observações sobre o membro..."
             />
           </div>
 
-          <div className="flex gap-2 pt-4">
+          {/* Botões */}
+          <div className="flex gap-3 pt-4 border-t">
             <Button type="submit" disabled={loading} className="flex-1">
               {loading ? (
                 <>
@@ -510,7 +569,7 @@ function EditMemberModal({
                 "Salvar Alterações"
               )}
             </Button>
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
               Cancelar
             </Button>
           </div>
