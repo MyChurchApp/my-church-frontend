@@ -1,13 +1,33 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Checkbox } from "@/components/ui/checkbox"
 import { useToast } from "@/hooks/use-toast"
-import { Clock, MapPin, Plus, Loader2, ChevronLeft, ChevronRight } from "lucide-react"
-import { eventsService, type CalendarEventResponse } from "@/services/events.service"
+import {
+  Clock,
+  MapPin,
+  Plus,
+  Loader2,
+  ChevronLeft,
+  ChevronRight,
+  Edit,
+  Trash2,
+  Calendar,
+  Users,
+  Repeat,
+} from "lucide-react"
+import { eventsService, type CalendarEventResponse, type EventResponse } from "@/services/events.service"
 import { isAuthenticated, getUserRole } from "@/lib/auth-utils"
 
 const DAYS_OF_WEEK = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"]
@@ -26,6 +46,20 @@ const MONTHS = [
   "Dezembro",
 ]
 
+interface EventFormData {
+  title: string
+  description: string
+  date: string
+  time: string
+  finishDate: string
+  finishTime: string
+  location: string
+  eventType: string
+  worshipTheme: string
+  requiresParticipantList: boolean
+  recurrence: string
+}
+
 export default function EventosPage() {
   const router = useRouter()
   const { toast } = useToast()
@@ -35,6 +69,22 @@ export default function EventosPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<"month" | "week" | "day">("month")
+  const [showEventModal, setShowEventModal] = useState(false)
+  const [editingEvent, setEditingEvent] = useState<EventResponse | null>(null)
+  const [formData, setFormData] = useState<EventFormData>({
+    title: "",
+    description: "",
+    date: "",
+    time: "09:00",
+    finishDate: "",
+    finishTime: "10:00",
+    location: "",
+    eventType: "0",
+    worshipTheme: "",
+    requiresParticipantList: false,
+    recurrence: "once",
+  })
+  const [submitting, setSubmitting] = useState(false)
 
   const userRole = getUserRole()
   const canManageEvents = userRole === "Admin" || userRole === "Pastor"
@@ -64,6 +114,101 @@ export default function EventosPage() {
       setEvents([])
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleCreateEvent = () => {
+    setEditingEvent(null)
+    setFormData({
+      title: "",
+      description: "",
+      date: selectedDate ? selectedDate.toISOString().split("T")[0] : "",
+      time: "09:00",
+      finishDate: selectedDate ? selectedDate.toISOString().split("T")[0] : "",
+      finishTime: "10:00",
+      location: "",
+      eventType: "0",
+      worshipTheme: "",
+      requiresParticipantList: false,
+      recurrence: "once",
+    })
+    setShowEventModal(true)
+  }
+
+  const handleEditEvent = async (eventId: number) => {
+    try {
+      const event = await eventsService.getEventById(eventId)
+      setEditingEvent(event)
+      setFormData(eventsService.formatEventFromAPI(event))
+      setShowEventModal(true)
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar dados do evento",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleDeleteEvent = async (eventId: number) => {
+    if (!confirm("Tem certeza que deseja excluir este evento?")) return
+
+    try {
+      await eventsService.deleteEvent(eventId)
+      toast({
+        title: "Sucesso",
+        description: "Evento excluído com sucesso",
+      })
+      loadEvents()
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao excluir evento",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleSubmitEvent = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!formData.title.trim()) {
+      toast({
+        title: "Erro",
+        description: "Título é obrigatório",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      setSubmitting(true)
+      const eventData = eventsService.formatEventForAPI(formData)
+
+      if (editingEvent) {
+        await eventsService.updateEvent(editingEvent.id, { ...eventData, id: editingEvent.id })
+        toast({
+          title: "Sucesso",
+          description: "Evento atualizado com sucesso",
+        })
+      } else {
+        await eventsService.createEvent(eventData)
+        toast({
+          title: "Sucesso",
+          description: "Evento criado com sucesso",
+        })
+      }
+
+      setShowEventModal(false)
+      loadEvents()
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: editingEvent ? "Erro ao atualizar evento" : "Erro ao criar evento",
+        variant: "destructive",
+      })
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -169,7 +314,7 @@ export default function EventosPage() {
           <p className="text-muted-foreground">Gerencie os eventos da sua igreja</p>
         </div>
         {canManageEvents && (
-          <Button>
+          <Button onClick={handleCreateEvent}>
             <Plus className="h-4 w-4 mr-2" />
             Novo Evento
           </Button>
@@ -229,27 +374,37 @@ export default function EventosPage() {
                 <div
                   key={index}
                   className={`
-                    min-h-[100px] p-1 border border-gray-100 cursor-pointer hover:bg-gray-50
+                    min-h-[120px] p-2 border border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors
                     ${!isCurrentMonthDay ? "text-gray-300 bg-gray-50" : ""}
                     ${isTodayDate ? "bg-blue-50 border-blue-200" : ""}
                     ${selectedDate?.toDateString() === date.toDateString() ? "ring-2 ring-blue-500" : ""}
                   `}
                   onClick={() => setSelectedDate(date)}
+                  onDoubleClick={() => canManageEvents && handleCreateEvent()}
                 >
-                  <div className={`text-sm font-medium mb-1 ${isTodayDate ? "text-blue-600" : ""}`}>
+                  <div className={`text-sm font-medium mb-2 ${isTodayDate ? "text-blue-600" : ""}`}>
                     {date.getDate()}
                   </div>
                   <div className="space-y-1">
-                    {dayEvents.slice(0, 3).map((event, eventIndex) => (
+                    {dayEvents.slice(0, 2).map((event, eventIndex) => (
                       <div
                         key={eventIndex}
-                        className="text-xs p-1 bg-blue-100 text-blue-800 rounded truncate"
+                        className="text-xs p-1 bg-blue-100 text-blue-800 rounded truncate hover:bg-blue-200 transition-colors"
                         title={event.title}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          canManageEvents && handleEditEvent(event.id)
+                        }}
                       >
-                        {event.title}
+                        <div className="flex items-center gap-1">
+                          {event.isRecurring && <Repeat className="h-3 w-3" />}
+                          <span className="truncate">{event.title}</span>
+                        </div>
                       </div>
                     ))}
-                    {dayEvents.length > 3 && <div className="text-xs text-gray-500">+{dayEvents.length - 3} mais</div>}
+                    {dayEvents.length > 2 && (
+                      <div className="text-xs text-gray-500 font-medium">+{dayEvents.length - 2} mais</div>
+                    )}
                   </div>
                 </div>
               )
@@ -262,7 +417,8 @@ export default function EventosPage() {
       {selectedDate && (
         <Card>
           <CardHeader>
-            <CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
               Eventos de{" "}
               {selectedDate.toLocaleDateString("pt-BR", {
                 weekday: "long",
@@ -276,11 +432,22 @@ export default function EventosPage() {
             {getEventsForDate(selectedDate).length > 0 ? (
               <div className="space-y-4">
                 {getEventsForDate(selectedDate).map((event) => (
-                  <div key={event.id} className="flex items-start space-x-4 p-4 border rounded-lg">
+                  <div
+                    key={event.id}
+                    className="flex items-start justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+                  >
                     <div className="flex-1">
-                      <h3 className="font-medium">{event.title}</h3>
-                      {event.description && <p className="text-sm text-gray-600 mt-1">{event.description}</p>}
-                      <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+                      <div className="flex items-center gap-2 mb-2">
+                        <h3 className="font-medium">{event.title}</h3>
+                        {event.isRecurring && (
+                          <Badge variant="outline" className="text-xs">
+                            <Repeat className="h-3 w-3 mr-1" />
+                            Recorrente
+                          </Badge>
+                        )}
+                      </div>
+                      {event.description && <p className="text-sm text-gray-600 mb-2">{event.description}</p>}
+                      <div className="flex items-center gap-4 text-sm text-gray-500">
                         {event.occurrences[0] && (
                           <div className="flex items-center gap-1">
                             <Clock className="h-4 w-4" />
@@ -295,16 +462,223 @@ export default function EventosPage() {
                         )}
                       </div>
                     </div>
-                    {event.isRecurring && <Badge variant="outline">Recorrente</Badge>}
+                    {canManageEvents && (
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={() => handleEditEvent(event.id)}>
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => handleDeleteEvent(event.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-gray-500">Nenhum evento nesta data.</p>
+              <div className="text-center py-8">
+                <Calendar className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500 mb-4">Nenhum evento nesta data.</p>
+                {canManageEvents && (
+                  <Button onClick={handleCreateEvent} variant="outline">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Criar Evento
+                  </Button>
+                )}
+              </div>
             )}
           </CardContent>
         </Card>
       )}
+
+      {/* Event Modal */}
+      <Dialog open={showEventModal} onOpenChange={setShowEventModal}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingEvent ? "Editar Evento" : "Novo Evento"}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmitEvent} className="space-y-6">
+            {/* Informações Básicas */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Informações Básicas</h3>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <Label htmlFor="title">Título *</Label>
+                  <Input
+                    id="title"
+                    value={formData.title}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    placeholder="Nome do evento"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="eventType">Tipo de Evento</Label>
+                  <Select
+                    value={formData.eventType}
+                    onValueChange={(value) => setFormData({ ...formData, eventType: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {eventsService.getEventTypeOptions().map((option) => (
+                        <SelectItem key={option.value} value={option.value.toString()}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="location">Local</Label>
+                  <Input
+                    id="location"
+                    value={formData.location}
+                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                    placeholder="Local do evento"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="description">Descrição</Label>
+                <Textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Descrição do evento"
+                  rows={3}
+                />
+              </div>
+
+              {formData.eventType === "0" && (
+                <div>
+                  <Label htmlFor="worshipTheme">Tema do Culto</Label>
+                  <Input
+                    id="worshipTheme"
+                    value={formData.worshipTheme}
+                    onChange={(e) => setFormData({ ...formData, worshipTheme: e.target.value })}
+                    placeholder="Tema do culto"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Data e Hora */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Data e Hora</h3>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="date">Data de Início *</Label>
+                  <Input
+                    id="date"
+                    type="date"
+                    value={formData.date}
+                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="time">Hora de Início *</Label>
+                  <Input
+                    id="time"
+                    type="time"
+                    value={formData.time}
+                    onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="finishDate">Data de Término</Label>
+                  <Input
+                    id="finishDate"
+                    type="date"
+                    value={formData.finishDate}
+                    onChange={(e) => setFormData({ ...formData, finishDate: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="finishTime">Hora de Término</Label>
+                  <Input
+                    id="finishTime"
+                    type="time"
+                    value={formData.finishTime}
+                    onChange={(e) => setFormData({ ...formData, finishTime: e.target.value })}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Recorrência */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Recorrência</h3>
+
+              <div>
+                <Label htmlFor="recurrence">Repetir</Label>
+                <Select
+                  value={formData.recurrence}
+                  onValueChange={(value) => setFormData({ ...formData, recurrence: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="once">Não repetir</SelectItem>
+                    <SelectItem value="weekly">Semanalmente</SelectItem>
+                    <SelectItem value="biweekly">A cada 2 semanas</SelectItem>
+                    <SelectItem value="monthly">Mensalmente</SelectItem>
+                    <SelectItem value="yearly">Anualmente</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Opções */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Opções</h3>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="requiresParticipantList"
+                  checked={formData.requiresParticipantList}
+                  onCheckedChange={(checked) => setFormData({ ...formData, requiresParticipantList: !!checked })}
+                />
+                <Label htmlFor="requiresParticipantList" className="flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  Requer lista de participantes
+                </Label>
+              </div>
+            </div>
+
+            {/* Botões */}
+            <div className="flex justify-end gap-3 pt-4 border-t">
+              <Button type="button" variant="outline" onClick={() => setShowEventModal(false)} disabled={submitting}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={submitting}>
+                {submitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    {editingEvent ? "Atualizando..." : "Criando..."}
+                  </>
+                ) : editingEvent ? (
+                  "Atualizar Evento"
+                ) : (
+                  "Criar Evento"
+                )}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
