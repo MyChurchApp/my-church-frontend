@@ -1,57 +1,52 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Skeleton } from "@/components/ui/skeleton"
+import { useState, useEffect } from "react";
 import {
-  getChurchData,
-  getChurchBasicInfo,
-  checkPlanLimits,
-  formatChurchAddress,
-  type Church,
-} from "@/services/church.service"
-import { Building2, Users, Calendar, Phone, MapPin } from "lucide-react"
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { getChurchData, type Church } from "@/services/church.service";
+import { Building2, Users, Calendar, Phone, MapPin } from "lucide-react";
 
 export default function IgrejaPage() {
-  const [churchData, setChurchData] = useState<Church | null>(null)
-  const [planLimits, setPlanLimits] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [churchData, setChurchData] = useState<Church | null>(null);
+  const [planLimits, setPlanLimits] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const loadChurchData = async () => {
     try {
-      setLoading(true)
-      setError(null)
+      setLoading(true);
+      setError(null);
 
-      console.log("Carregando dados da igreja...")
+      console.log("Carregando dados da igreja...");
 
       // Buscar dados básicos da igreja
-      const basicInfo = await getChurchBasicInfo()
-      console.log("Informações básicas:", basicInfo)
 
       // Buscar dados completos
-      const fullData = await getChurchData()
-      console.log("Dados completos:", fullData)
+      const fullData = await getChurchData();
+      console.log("Dados completos:", fullData);
 
       // Verificar limites do plano
-      const limits = await checkPlanLimits()
-      console.log("Limites do plano:", limits)
 
-      setChurchData(fullData)
-      setPlanLimits(limits)
+      setChurchData(fullData);
     } catch (err) {
-      console.error("Erro ao carregar dados da igreja:", err)
-      setError(err instanceof Error ? err.message : "Erro desconhecido")
+      console.error("Erro ao carregar dados da igreja:", err);
+      setError(err instanceof Error ? err.message : "Erro desconhecido");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
-    loadChurchData()
-  }, [])
+    loadChurchData();
+  }, []);
 
   if (loading) {
     return (
@@ -75,7 +70,7 @@ export default function IgrejaPage() {
           ))}
         </div>
       </div>
-    )
+    );
   }
 
   if (error) {
@@ -83,7 +78,9 @@ export default function IgrejaPage() {
       <div className="container mx-auto p-6">
         <Card className="border-red-200 bg-red-50">
           <CardHeader>
-            <CardTitle className="text-red-800">Erro ao carregar dados</CardTitle>
+            <CardTitle className="text-red-800">
+              Erro ao carregar dados
+            </CardTitle>
             <CardDescription className="text-red-600">{error}</CardDescription>
           </CardHeader>
           <CardContent>
@@ -93,7 +90,7 @@ export default function IgrejaPage() {
           </CardContent>
         </Card>
       </div>
-    )
+    );
   }
 
   if (!churchData) {
@@ -102,11 +99,13 @@ export default function IgrejaPage() {
         <Card>
           <CardHeader>
             <CardTitle>Nenhum dado encontrado</CardTitle>
-            <CardDescription>Não foi possível carregar as informações da igreja.</CardDescription>
+            <CardDescription>
+              Não foi possível carregar as informações da igreja.
+            </CardDescription>
           </CardHeader>
         </Card>
       </div>
-    )
+    );
   }
 
   return (
@@ -114,7 +113,9 @@ export default function IgrejaPage() {
       {/* Header */}
       <div className="space-y-2">
         <h1 className="text-3xl font-bold tracking-tight">{churchData.name}</h1>
-        <p className="text-muted-foreground">Informações e configurações da sua igreja</p>
+        <p className="text-muted-foreground">
+          Informações e configurações da sua igreja
+        </p>
       </div>
 
       {/* Cards principais */}
@@ -139,7 +140,9 @@ export default function IgrejaPage() {
                   <Phone className="h-4 w-4" />
                   Telefone
                 </p>
-                <p className="text-sm text-muted-foreground">{churchData.phone}</p>
+                <p className="text-sm text-muted-foreground">
+                  {churchData.phone}
+                </p>
               </div>
             )}
 
@@ -149,14 +152,15 @@ export default function IgrejaPage() {
                   <MapPin className="h-4 w-4" />
                   Endereço
                 </p>
-                <p className="text-sm text-muted-foreground">{formatChurchAddress(churchData.address)}</p>
               </div>
             )}
 
             {churchData.description && (
               <div>
                 <p className="text-sm font-medium">Descrição</p>
-                <p className="text-sm text-muted-foreground">{churchData.description}</p>
+                <p className="text-sm text-muted-foreground">
+                  {churchData.description}
+                </p>
               </div>
             )}
           </CardContent>
@@ -174,13 +178,17 @@ export default function IgrejaPage() {
             {planLimits?.hasActivePlan ? (
               <>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">{planLimits.planName}</span>
+                  <span className="text-sm font-medium">
+                    {planLimits.planName}
+                  </span>
                   <Badge variant="default">Ativo</Badge>
                 </div>
 
                 <div>
                   <p className="text-sm font-medium">Preço</p>
-                  <p className="text-lg font-bold">R$ {planLimits.planPrice?.toFixed(2) || "0,00"}</p>
+                  <p className="text-lg font-bold">
+                    R$ {planLimits.planPrice?.toFixed(2) || "0,00"}
+                  </p>
                 </div>
 
                 <div className="space-y-2">
@@ -203,7 +211,9 @@ export default function IgrejaPage() {
             ) : (
               <div className="text-center py-4">
                 <Badge variant="destructive">Sem plano ativo</Badge>
-                <p className="text-sm text-muted-foreground mt-2">Contrate um plano para acessar todos os recursos</p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Contrate um plano para acessar todos os recursos
+                </p>
               </div>
             )}
           </CardContent>
@@ -217,29 +227,6 @@ export default function IgrejaPage() {
               Estatísticas
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="text-center">
-                <p className="text-2xl font-bold">{churchData.members?.length || 0}</p>
-                <p className="text-sm text-muted-foreground">Membros</p>
-              </div>
-
-              <div className="text-center">
-                <p className="text-2xl font-bold">{churchData.members?.filter((m) => m.isBaptized).length || 0}</p>
-                <p className="text-sm text-muted-foreground">Batizados</p>
-              </div>
-
-              <div className="text-center">
-                <p className="text-2xl font-bold">{churchData.members?.filter((m) => m.isTither).length || 0}</p>
-                <p className="text-sm text-muted-foreground">Dizimistas</p>
-              </div>
-
-              <div className="text-center">
-                <p className="text-2xl font-bold">{churchData.members?.filter((m) => m.isActive).length || 0}</p>
-                <p className="text-sm text-muted-foreground">Ativos</p>
-              </div>
-            </div>
-          </CardContent>
         </Card>
       </div>
 
@@ -250,11 +237,15 @@ export default function IgrejaPage() {
         </CardHeader>
         <CardContent>
           <details className="text-xs">
-            <summary className="cursor-pointer font-medium mb-2">Ver dados completos da igreja</summary>
-            <pre className="bg-muted p-4 rounded overflow-auto">{JSON.stringify(churchData, null, 2)}</pre>
+            <summary className="cursor-pointer font-medium mb-2">
+              Ver dados completos da igreja
+            </summary>
+            <pre className="bg-muted p-4 rounded overflow-auto">
+              {JSON.stringify(churchData, null, 2)}
+            </pre>
           </details>
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }
