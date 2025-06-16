@@ -1,19 +1,17 @@
+/* app/globals.css - VERSÃO UNIFICADA E CORRIGIDA */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-body {
-  font-family: Arial, Helvetica, sans-serif;
-}
-
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
-}
-
+/*
+================================================================
+  SEÇÃO 1: TEMA PRINCIPAL DA APLICAÇÃO (BASEADO NO SEU SEGUNDO ARQUIVO)
+  Estas são as variáveis para o seu aplicativo (dashboard, etc.)
+================================================================
+*/
 @layer base {
   :root {
+    /* Variáveis do seu tema principal (Shadcn/UI-like) */
     --background: 0 0% 100%;
     --foreground: 0 0% 3.9%;
     --card: 0 0% 100%;
@@ -33,22 +31,20 @@ body {
     --border: 0 0% 89.8%;
     --input: 0 0% 89.8%;
     --ring: 0 0% 3.9%;
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
     --radius: 0.5rem;
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* === NOVAS VARIÁVEIS PREFIXADAS PARA A LANDING PAGE "MYCHURCH" (Light Mode) === */
+    --mc-background: #ffffff;
+    --mc-background-alt: #f9fafb;
+    --mc-text-primary: #111827;
+    --mc-text-secondary: #4b5563;
+    --mc-card-bg: #ffffff;
+    --mc-header-scrolled-bg: rgba(255, 255, 255, 0.85);
+    --mc-border-color: #e5e7eb;
   }
+
   .dark {
+    /* Variáveis do seu tema principal (Shadcn/UI-like) */
     --background: 0 0% 3.9%;
     --foreground: 0 0% 98%;
     --card: 0 0% 3.9%;
@@ -68,27 +64,183 @@ body {
     --border: 0 0% 14.9%;
     --input: 0 0% 14.9%;
     --ring: 0 0% 83.1%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* === NOVAS VARIÁVEIS PREFIXADAS PARA A LANDING PAGE "MYCHURCH" (Dark Mode) === */
+    --mc-background: #0d1117;
+    --mc-background-alt: #161b22;
+    --mc-text-primary: #f0f6fc;
+    --mc-text-secondary: #c9d1d9;
+    --mc-card-bg: #161b22;
+    --mc-header-scrolled-bg: rgba(13, 17, 23, 0.85);
+    --mc-border-color: #30363d;
   }
 }
 
+/*
+================================================================
+  SEÇÃO 2: ESTILOS BASE E MELHORIAS GLOBAIS (MESCLADO DOS DOIS ARQUIVOS)
+================================================================
+*/
 @layer base {
-  * {
-    @apply border-border;
-  }
+  /*
+  RECOMENDAÇÃO CRÍTICA: As regras globais abaixo (`*` e `section`) são muito agressivas
+  e podem quebrar layouts complexos. Elas foram removidas.
+  É melhor aplicar bordas e layout flex em componentes específicos.
+  
+  REMOVIDO: * { @apply border-border; }
+  REMOVIDO: section { @apply flex flex-col items-center; }
+  */
+
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
   }
+
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+/* Transições suaves (do seu primeiro arquivo) */
+* {
+  transition-property: background-color, border-color, color, fill, stroke,
+    transform;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+/* Scrollbar customizado (do seu primeiro arquivo) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #4b5563;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+/*
+================================================================
+  SEÇÃO 3: ESTILOS ESPECÍFICOS E ISOLADOS PARA A LANDING PAGE MYCHURCH
+  Utilizam as variáveis prefixadas com --mc- para não haver conflito.
+================================================================
+*/
+
+.hero-bg {
+  background-image: linear-gradient(
+      45deg,
+      rgba(30, 64, 175, 0.95),
+      rgba(59, 130, 246, 0.95)
+    ),
+    url("https://images.unsplash.com/photo-1470163395405-d2b80e7450ab?q=80&w=2070");
+  background-size: cover;
+  background-position: center;
+}
+
+.header-transparent {
+  background-color: transparent;
+  transition: all 0.3s ease-in-out;
+}
+.header-scrolled {
+  background-color: var(--mc-header-scrolled-bg);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--mc-border-color);
+}
+.header-scrolled .nav-link {
+  color: var(--mc-text-secondary);
+}
+.header-scrolled .nav-link:hover {
+  color: #3b82f6;
+}
+html.dark .header-scrolled .nav-link:hover {
+  color: #60a5fa;
+}
+.header-scrolled .brand-text {
+  color: #3b82f6;
+}
+
+.swiper-container {
+  width: 100%;
+  padding-top: 20px;
+  padding-bottom: 50px;
+}
+.swiper-slide {
+  height: auto;
+  display: flex;
+  justify-content: center;
+  padding: 0 4px;
+}
+.swiper-pagination-bullet-active {
+  background-color: #3b82f6 !important;
+}
+.swiper-button-next,
+.swiper-button-prev {
+  color: #3b82f6 !important;
+  --swiper-navigation-size: 30px;
+}
+html.dark .swiper-button-next,
+html.dark .swiper-button-prev {
+  color: #60a5fa !important;
+}
+
+.plan-badge {
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  background-color: #3b82f6;
+  color: white;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: bold;
+  border-radius: 0 0.75rem 0 0.75rem;
+  z-index: 10;
+}
+
+#launch {
+  background: linear-gradient(45deg, #111827, #1e3a8a, #3730a3);
+  background-size: 400% 400%;
+  animation: gradientBG 15s ease infinite;
+}
+@keyframes gradientBG {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+.countdown-number {
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.3),
+    0 0 20px rgba(96, 165, 250, 0.4);
+}
+
+.faq-answer {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.4s ease-out;
+}
+.faq-item .faq-question i {
+  transition: transform 0.3s ease;
+}
+.faq-item.active .faq-question i {
+  transform: rotate(180deg);
 }
