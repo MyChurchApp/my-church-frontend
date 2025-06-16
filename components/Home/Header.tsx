@@ -59,7 +59,7 @@ const Header = () => {
           <DarkModeToggle isScrolled={isScrolled} />
           <div className="hidden md:flex items-center space-x-3">
             <a
-              href="#"
+              href="/login"
               className={`px-5 py-2 font-semibold rounded-lg transition duration-300 ${
                 isScrolled
                   ? "hover:bg-gray-200 dark:hover:bg-gray-700"
@@ -86,7 +86,6 @@ const Header = () => {
           </button>
         </div>
       </nav>
-      {/* CORREÇÃO: Classe 'hidden' é controlada pelo estado 'isMenuOpen' */}
       <div
         className={`${
           isMenuOpen ? "" : "hidden"
