@@ -1,13 +1,12 @@
-// app/components/Features.tsx
 "use client";
+
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Pagination } from "swiper/modules";
 import "swiper/css";
 import "swiper/css/pagination";
 
-// Dados...
 const featuresData = [
-  {
+  { 
     icon: "fa-users-viewfinder",
     title: "Gestão de Membros",
     desc: "Organize perfis completos, famílias e aniversariantes.",
