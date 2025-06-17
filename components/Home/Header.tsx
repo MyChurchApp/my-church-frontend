@@ -1,20 +1,18 @@
-// app/components/Header.tsx
 "use client";
 import { useState, useEffect } from "react";
 import DarkModeToggle from "./DarkModeToggle";
+import { Church, Menu } from "lucide-react"; // Importando ícones Lucide
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
 
   useEffect(() => {
-    // CORREÇÃO: valor do scroll alterado para 50, como no original
     const handleScroll = () => setIsScrolled(window.scrollY > 50);
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // CORREÇÃO: Fecha o menu ao clicar em um link
   const closeMenu = () => setIsMenuOpen(false);
 
   const headerClasses = `fixed w-full z-30 top-0 ${
@@ -26,11 +24,12 @@ const Header = () => {
       <nav className="container mx-auto px-6 py-4 flex justify-between items-center">
         <a
           href="#"
-          className={`text-2xl font-bold transition-colors duration-300 z-10 ${
+          className={`text-2xl font-bold transition-colors duration-300 z-10 flex items-center ${
             isScrolled ? "brand-text text-blue-600" : "text-white"
           }`}
         >
-          <i className="fas fa-church mr-2"></i>MyChurch
+          <Church className="mr-2 h-6 w-6" /> {/* Usando ícone Lucide */}
+          MyChurch
         </a>
         <div className="hidden md:flex items-center space-x-8">
           <a
@@ -82,7 +81,7 @@ const Header = () => {
             }`}
             onClick={() => setIsMenuOpen(!isMenuOpen)}
           >
-            <i className="fas fa-bars text-2xl"></i>
+            <Menu className="h-6 w-6" /> {/* Usando ícone Lucide */}
           </button>
         </div>
       </nav>

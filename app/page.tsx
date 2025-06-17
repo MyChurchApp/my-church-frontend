@@ -1,25 +1,43 @@
-import FAQ from "@/components/Home/FAQ";
-import Features from "@/components/Home/Features";
-import Header from "@/components/Home/Header";
-import Hero from "@/components/Home/Hero";
-import Launch from "@/components/Home/Launch";
-import NewsFeed from "@/components/Home/NewsFeed";
-import Plans from "@/components/Home/Plans";
-import { Video } from "lucide-react";
+"use client";
 
-export default function Home() {
+import { useEffect } from "react";
+import "swiper/css";
+import "swiper/css/pagination";
+import "swiper/css/navigation";
+import "aos/dist/aos.css";
+import AOS from "aos";
+import HeroSection from "@/components/Home/Hero";
+import CountdownSection from "@/components/Home/Countdown";
+import VideoSection from "@/components/Home/Video";
+import NewsFeedSection from "@/components/Home/NewsFeed";
+import FeaturesSection from "@/components/Home/Features";
+import PlansSection from "@/components/Home/Plans";
+import FAQSection from "@/components/Home/FAQ";
+import PWAInstall from "@/components/pwa-install";
+import Header from "@/components/Home/Header";
+
+export default function HomePage() {
+  useEffect(() => {
+    AOS.init({
+      duration: 800,
+      once: true,
+      offset: 50,
+    });
+  }, []);
+
   return (
-    <>
+    <div className="min-h-screen bg-background text-text-primary dark:bg-background dark:text-text-primary">
+      <PWAInstall />
       <Header />
-      <main>
-        <Hero />
-        <Launch />
-        <Video />
-        <NewsFeed />
-        <Features />
-        <Plans />
-        <FAQ />
+      <main className="scroll-smooth font-sans">
+        <HeroSection />
+        <CountdownSection />
+        <VideoSection />
+        <NewsFeedSection />
+        <FeaturesSection />
+        <PlansSection />
+        <FAQSection />
       </main>
-    </>
+    </div>
   );
 }
