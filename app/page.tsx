@@ -19,7 +19,6 @@ import FAQSection from "@/components/Home/FAQ";
 import VideoSection from "@/components/Home/Video"; // Adicionado para consistência
 import PWAInstall from "@/components/pwa-install";
 import Header from "@/components/Home/Header";
-import Footer from "@/components/Home/Footer"; // Adicionado para consistência
 
 export default function HomePage() {
   useEffect(() => {
@@ -74,7 +73,6 @@ export default function HomePage() {
         <PlansSection />
         <FAQSection />
       </main>
-      <Footer />
     </div>
   );
 }
