@@ -1,89 +1,44 @@
-// app/components/Countdown.tsx
-"use client";
-import { useState, useEffect } from "react";
+'use client';
 
-// Valores iniciais estáticos para garantir que o servidor e o cliente renderizem a mesma coisa
-const INITIAL_TIME = {
-  days: 0,
-  hours: 0,
-  minutes: 0,
-  seconds: 0,
-};
+import { useState, useEffect } from 'react';
 
-const Countdown = () => {
-  // 1. Comece com um estado inicial estático (não dinâmico)
-  const [timeLeft, setTimeLeft] = useState(INITIAL_TIME);
+interface CountdownProps {
+  targetDate: string;
+}
 
-  useEffect(() => {
-    // A data de lançamento
-    const launchDate = +new Date("2025-07-15T00:00:00");
+export function Countdown({ targetDate }: CountdownProps) {
+    const [timeLeft, setTimeLeft] = useState({ days: '00', hours: '00', minutes: '00', seconds: '00' });
+    
+    useEffect(() => {
+        const interval = setInterval(() => {
+            const launchDate = new Date(targetDate).getTime();
+            const now = new Date().getTime();
+            const distance = launchDate - now;
 
-    // 2. O `setInterval` só será criado no cliente, após a primeira renderização
-    const timer = setInterval(() => {
-      const difference = launchDate - +new Date();
-      if (difference > 0) {
-        setTimeLeft({
-          days: Math.floor(difference / (1000 * 60 * 60 * 24)),
-          hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
-          minutes: Math.floor((difference / 1000 / 60) % 60),
-          seconds: Math.floor((difference / 1000) % 60),
-        });
-      } else {
-        // Se a contagem acabou, zera o tempo e para o timer
-        setTimeLeft(INITIAL_TIME);
-        clearInterval(timer);
-      }
-    }, 1000);
+            if (distance < 0) {
+                clearInterval(interval);
+                setTimeLeft({ days: '00', hours: '00', minutes: '00', seconds: '00' });
+                // You could add a "Launched!" state here
+                return;
+            }
 
-    // 3. Função de limpeza: É crucial para parar o `setInterval` quando o componente for desmontado
-    return () => {
-      clearInterval(timer);
-    };
-  }, []); // O array vazio `[]` garante que este efeito rode apenas uma vez, no lado do cliente
+            const format = (num: number) => String(num).padStart(2, '0');
+            setTimeLeft({
+                days: format(Math.floor(distance / (1000 * 60 * 60 * 24))),
+                hours: format(Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))),
+                minutes: format(Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60))),
+                seconds: format(Math.floor((distance % (1000 * 60)) / 1000)),
+            });
+        }, 1000);
+        return () => clearInterval(interval);
+    }, [targetDate]);
 
-  const formatTime = (time: number) => time.toString().padStart(2, "0");
-
-  return (
-    <div
-      id="countdown"
-      className="grid grid-cols-4 gap-2 sm:gap-4 my-8"
-      data-aos="fade-up"
-      data-aos-delay="200"
-    >
-      <div>
-        <span className="countdown-number text-4xl sm:text-6xl font-bold tracking-tighter">
-          {formatTime(timeLeft.days)}
-        </span>
-        <span className="block text-xs text-blue-300 mt-1 uppercase tracking-widest">
-          Dias
-        </span>
-      </div>
-      <div>
-        <span className="countdown-number text-4xl sm:text-6xl font-bold tracking-tighter">
-          {formatTime(timeLeft.hours)}
-        </span>
-        <span className="block text-xs text-blue-300 mt-1 uppercase tracking-widest">
-          Horas
-        </span>
-      </div>
-      <div>
-        <span className="countdown-number text-4xl sm:text-6xl font-bold tracking-tighter">
-          {formatTime(timeLeft.minutes)}
-        </span>
-        <span className="block text-xs text-blue-300 mt-1 uppercase tracking-widest">
-          Min
-        </span>
-      </div>
-      <div>
-        <span className="countdown-number text-4xl sm:text-6xl font-bold tracking-tighter">
-          {formatTime(timeLeft.seconds)}
-        </span>
-        <span className="block text-xs text-blue-300 mt-1 uppercase tracking-widest">
-          Seg
-        </span>
-      </div>
-    </div>
-  );
-};
-
-export default Countdown;
+    return (
+        <div className="grid grid-cols-4 gap-2 sm:gap-4 my-8" data-aos="fade-up" data-aos-delay="200">
+            <div><span className="countdown-number text-4xl sm:text-6xl font-bold tracking-tighter">{timeLeft.days}</span><span className="block text-xs text-blue-300 mt-1 uppercase tracking-widest">Dias</span></div>
+            <div><span className="countdown-number text-4xl sm:text-6xl font-bold tracking-tighter">{timeLeft.hours}</span><span className="block text-xs text-blue-300 mt-1 uppercase tracking-widest">Horas</span></div>
+            <div><span className="countdown-number text-4xl sm:text-6xl font-bold tracking-tighter">{timeLeft.minutes}</span><span className="block text-xs text-blue-300 mt-1 uppercase tracking-widest">Min</span></div>
+            <div><span className="countdown-number text-4xl sm:text-6xl font-bold tracking-tighter">{timeLeft.seconds}</span><span className="block text-xs text-blue-300 mt-1 uppercase tracking-widest">Seg</span></div>
+        </div>
+    );
+}
