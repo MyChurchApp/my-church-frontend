@@ -8,7 +8,6 @@ import "aos/dist/aos.css";
 import AOS from "aos";
 import HeroSection from "@/components/Home/Hero";
 import CountdownSection from "@/components/Home/Countdown";
-import VideoSection from "@/components/Home/Video";
 import NewsFeedSection from "@/components/Home/NewsFeed";
 import FeaturesSection from "@/components/Home/Features";
 import PlansSection from "@/components/Home/Plans";
@@ -32,7 +31,6 @@ export default function HomePage() {
       <main className="scroll-smooth font-sans">
         <HeroSection />
         <CountdownSection />
-        <VideoSection />
         <NewsFeedSection />
         <FeaturesSection />
         <PlansSection />
