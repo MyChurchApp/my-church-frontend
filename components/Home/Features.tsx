@@ -26,6 +26,7 @@ const colorClasses: { [key: string]: string } = {
   amber: "bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-300",
 };
 
+// Componente agora exportado como default, como é a convenção
 export default function FeaturesSection() {
   return (
     <section id="features" className="py-20 sm:py-24 bg-background-alt dark:bg-background">
@@ -39,7 +40,7 @@ export default function FeaturesSection() {
           </p>
         </div>
         <div className="relative" data-aos="fade-up">
-          {/* O componente Swiper agora envolve diretamente os SwiperSlides, sem a div .swiper-wrapper extra */}
+          {/* O componente Swiper agora envolve diretamente os SwiperSlides */}
           <Swiper
             modules={[Pagination]}
             loop={false}
@@ -55,13 +56,13 @@ export default function FeaturesSection() {
             {featureData.map((feature) => {
               const Icon = feature.icon;
               return (
-                <SwiperSlide key={feature.title} className="h-auto pb-12">
+                <SwiperSlide key={feature.title} className="h-full pb-12">
                   <div className="bg-card p-6 rounded-xl border flex flex-col w-full h-full text-center items-center transition-transform duration-300 hover:scale-105 hover:shadow-lg">
                     <div className={`${colorClasses[feature.color]} rounded-full w-16 h-16 flex items-center justify-center mb-4`}>
                       <Icon className="w-8 h-8" />
                     </div>
                     <h3 className="text-lg font-bold text-primary mb-2">{feature.title}</h3>
-                    <p className="text-secondary text-sm flex-grow">{feature.desc}</p>
+                    <p className="text-muted-foreground text-sm flex-grow">{feature.desc}</p>
                   </div>
                 </SwiperSlide>
               );
