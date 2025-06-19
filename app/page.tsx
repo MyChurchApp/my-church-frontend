@@ -6,17 +6,12 @@ import "swiper/css/pagination";
 import "swiper/css/navigation";
 import "aos/dist/aos.css";
 import AOS from "aos";
-import Swiper from "swiper";
-import { Navigation, Pagination } from 'swiper/modules';
-
-
 import HeroSection from "@/components/Home/Hero";
 import CountdownSection from "@/components/Home/Launch";
 import NewsFeedSection from "@/components/Home/NewsFeed";
 import FeaturesSection from "@/components/Home/Features";
 import PlansSection from "@/components/Home/Plans";
 import FAQSection from "@/components/Home/FAQ";
-import VideoSection from "@/components/Home/Video"; // Adicionado para consistência
 import PWAInstall from "@/components/pwa-install";
 import Header from "@/components/Home/Header";
 
@@ -27,8 +22,8 @@ export default function HomePage() {
       once: true,
       offset: 50,
     });
-
-    // É crucial inicializar o Swiper aqui no useEffect para garantir que o DOM está pronto
+  }, []);
+// É crucial inicializar o Swiper aqui no useEffect para garantir que o DOM está pronto
     new Swiper('.features-swiper', {
         modules: [Pagination],
         loop: false,
@@ -59,7 +54,6 @@ export default function HomePage() {
     });
 
   }, []);
-
   return (
     <div className="min-h-screen bg-background text-text-primary dark:bg-background dark:text-text-primary">
       <PWAInstall />
@@ -67,7 +61,6 @@ export default function HomePage() {
       <main className="scroll-smooth font-sans">
         <HeroSection />
         <CountdownSection />
-        <VideoSection />
         <NewsFeedSection />
         <FeaturesSection />
         <PlansSection />
