@@ -56,8 +56,10 @@ export default function FeaturesSection() {
             {featureData.map((feature) => {
               const Icon = feature.icon;
               return (
+                // A classe `self-stretch` é a chave para a correção.
+                // Ela força o slide a esticar verticalmente.
                 <SwiperSlide key={feature.title} className="self-stretch pb-12">
-                  {/* self-stretch no slide e h-full no card garantem a mesma altura */}
+                  {/* h-full no card garante que ele ocupe todo o espaço do slide esticado */}
                   <div className="bg-card p-6 rounded-xl border flex flex-col w-full h-full text-center items-center transition-transform duration-300 hover:scale-105 hover:shadow-lg">
                     <div className={`${colorClasses[feature.color]} rounded-full w-16 h-16 flex items-center justify-center mb-4 flex-shrink-0`}>
                       <Icon className="w-8 h-8" />
