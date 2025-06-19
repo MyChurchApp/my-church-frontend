@@ -16,10 +16,20 @@ interface CountdownProps {
 
 // Exportação padrão para garantir compatibilidade com o Next.js
 export default function Countdown({ targetDate }: CountdownProps) {
+  const [isMounted, setIsMounted] = useState(false);
   const [timeLeft, setTimeLeft] = useState(INITIAL_TIME);
 
   useEffect(() => {
-    // A lógica da contagem só corre no lado do cliente, que é a prática correta
+    // Este efeito corre apenas uma vez no cliente para assinalar que está montado
+    setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    // Este efeito só corre depois de o componente estar montado no cliente
+    if (!isMounted) {
+      return;
+    }
+
     const launchDate = new Date(targetDate).getTime();
 
     const timer = setInterval(() => {
@@ -45,7 +55,7 @@ export default function Countdown({ targetDate }: CountdownProps) {
 
     // Função de limpeza para parar o timer de forma segura
     return () => clearInterval(timer);
-  }, [targetDate]); // A dependência garante que o efeito reinicia se a data alvo mudar
+  }, [isMounted, targetDate]); // A dependência em `isMounted` é a chave da correção
 
   return (
     <div

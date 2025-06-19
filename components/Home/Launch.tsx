@@ -1,12 +1,14 @@
 'use client';
+
 import AOS from 'aos';
 import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import Countdown from './Countdown'; // Corrigido para importação padrão
+import Countdown from './Countdown'; // Importação padrão corrigida
 
 export function Launch() {
   useEffect(() => {
+    // Inicializa a biblioteca de animação apenas no cliente
     AOS.init({
       duration: 800,
       once: true,
@@ -23,7 +25,7 @@ export function Launch() {
             Lançamento Oficial: 15 de Julho de 2025
           </p>
           
-          {/* O componente Countdown é chamado aqui */}
+          {/* O componente Countdown é chamado aqui, passando a data alvo */}
           <Countdown targetDate="2025-07-15T00:00:00" />
           
           <p className="text-blue-200 mb-4 mt-12" data-aos="fade-up" data-aos-delay="300">
