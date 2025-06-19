@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from 'react';
 
-// Props para definir a data alvo a partir do componente pai
+// Props to define the target date from the parent component
 interface CountdownProps {
   targetDate: string;
 }
 
-// O estado inicial estático é crucial para evitar erros de hidratação no Next.js
+// The static initial state is crucial to avoid hydration errors in Next.js
 const DYNAMIC_INITIAL_STATE = {
   days: '00',
   hours: '00',
@@ -15,11 +15,12 @@ const DYNAMIC_INITIAL_STATE = {
   seconds: '00',
 };
 
-export function Countdown({ targetDate }: CountdownProps) {
+// Changed to a default export to fix the build error
+export default function Countdown({ targetDate }: CountdownProps) {
   const [timeLeft, setTimeLeft] = useState(DYNAMIC_INITIAL_STATE);
 
   useEffect(() => {
-    // Esta lógica só corre no lado do cliente
+    // This logic only runs on the client side
     const launchDate = new Date(targetDate).getTime();
 
     const timer = setInterval(() => {
@@ -27,7 +28,7 @@ export function Countdown({ targetDate }: CountdownProps) {
       const difference = launchDate - now;
 
       if (difference > 0) {
-        // Formata os números para terem sempre dois dígitos (ex: 09)
+        // Formats numbers to always have two digits (e.g., 09)
         const format = (num: number) => num.toString().padStart(2, '0');
         
         setTimeLeft({
@@ -37,15 +38,15 @@ export function Countdown({ targetDate }: CountdownProps) {
           seconds: format(Math.floor((difference / 1000) % 60)),
         });
       } else {
-        // Quando o tempo acaba
+        // When time is up
         setTimeLeft({ days: '00', hours: '00', minutes: '00', seconds: '00' });
         clearInterval(timer);
       }
     }, 1000);
 
-    // Função de limpeza para parar o timer quando o componente é desmontado
+    // Cleanup function to stop the interval when the component is unmounted
     return () => clearInterval(timer);
-  }, [targetDate]); // A dependência garante que o efeito reinicia se a data alvo mudar
+  }, [targetDate]); // The dependency array ensures the effect restarts if the target date changes
 
   return (
     <div
