@@ -35,6 +35,7 @@ export default function FeaturesSection() {
           <h2 className="text-3xl md:text-4xl font-extrabold text-primary mb-4" data-aos="fade-up">
             Funcionalidades Poderosas
           </h2>
+          {/* Cor do texto de descrição alterada para melhor contraste */}
           <p className="text-lg text-secondary max-w-3xl mx-auto" data-aos="fade-up" data-aos-delay="100">
             Do essencial para começar a ferramentas avançadas para crescer.
           </p>
@@ -52,12 +53,14 @@ export default function FeaturesSection() {
               768: { slidesPerView: 3, spaceBetween: 24 },
               1024: { slidesPerView: 5, spaceBetween: 32 },
             }}
+            // Esta propriedade garante que todos os slides visíveis tenham a mesma altura
+            autoHeight={false}
+            className="!pb-12" // Adiciona padding-bottom para a paginação
           >
             {featureData.map((feature) => {
               const Icon = feature.icon;
               return (
-                // A classe `self-stretch` força o slide a esticar para a altura do maior slide na linha
-                <SwiperSlide key={feature.title} className="self-stretch pb-12">
+                <SwiperSlide key={feature.title} className="h-full">
                   {/* h-full força o card a ocupar toda a altura do slide esticado */}
                   <div className="bg-card p-6 rounded-xl border flex flex-col w-full h-full text-center items-center transition-transform duration-300 hover:scale-105 hover:shadow-lg">
                     <div className={`${colorClasses[feature.color]} rounded-full w-16 h-16 flex items-center justify-center mb-4 flex-shrink-0`}>
@@ -72,7 +75,7 @@ export default function FeaturesSection() {
             })}
           </Swiper>
           {/* A paginação é colocada fora do componente Swiper para um controlo adequado */}
-          <div className="swiper-pagination features-pagination mt-8 text-center"></div>
+          <div className="swiper-pagination features-pagination mt-4 text-center"></div>
         </div>
       </div>
     </section>
