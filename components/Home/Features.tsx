@@ -35,7 +35,7 @@ export default function FeaturesSection() {
           <h2 className="text-3xl md:text-4xl font-extrabold text-primary mb-4" data-aos="fade-up">
             Funcionalidades Poderosas
           </h2>
-          <p className="text-lg text-secondary max-w-3xl mx-auto" data-aos="fade-up" data-aos-delay="100">
+          <p className="text-lg font-bold text-secondary max-w-3xl mx-auto" data-aos="fade-up" data-aos-delay="100">
             Do essencial para começar a ferramentas avançadas para crescer.
           </p>
         </div>
