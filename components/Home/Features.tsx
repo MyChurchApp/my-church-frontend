@@ -60,7 +60,7 @@ export default function FeaturesSection() {
                 // A classe `self-stretch` força o slide a esticar para a altura do maior slide na linha
                 <SwiperSlide key={feature.title} className="self-stretch">
                   {/* h-full força o card a ocupar toda a altura do slide esticado */}
-                  <div className="bg-card p-6 rounded-xl border flex flex-col w-full h-full text-center items-center transition-transform duration-300 hover:scale-105 hover:shadow-lg">
+                  <div className="bg-card p-6 rounded-xl border flex flex-col w-full h-full text-center items-center transition-transform duration-300 hover:scale-105 hover:shadow-lg" style="height:255px">
                     <div className={`${colorClasses[feature.color]} rounded-full w-16 h-16 flex items-center justify-center mb-4 flex-shrink-0`}>
                       <Icon className="w-8 h-8" />
                     </div>
