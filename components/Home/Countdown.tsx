@@ -1,26 +1,25 @@
 'use client';
+import { useState, useEffect } from "react";
 
-import { useState, useEffect } from 'react';
-
-// Props to define the target date from the parent component
-interface CountdownProps {
-  targetDate: string;
-}
-
-// The static initial state is crucial to avoid hydration errors in Next.js
-const DYNAMIC_INITIAL_STATE = {
+// O estado inicial estático é crucial para evitar erros de hidratação no Next.js
+const INITIAL_TIME = {
   days: '00',
   hours: '00',
   minutes: '00',
   seconds: '00',
 };
 
-// Changed to a default export to fix the build error
+// As Props permitem que a data seja passada de fora, tornando o componente reutilizável
+interface CountdownProps {
+  targetDate: string;
+}
+
+// Exportação padrão para garantir compatibilidade com o Next.js
 export default function Countdown({ targetDate }: CountdownProps) {
-  const [timeLeft, setTimeLeft] = useState(DYNAMIC_INITIAL_STATE);
+  const [timeLeft, setTimeLeft] = useState(INITIAL_TIME);
 
   useEffect(() => {
-    // This logic only runs on the client side
+    // A lógica da contagem só corre no lado do cliente, que é a prática correta
     const launchDate = new Date(targetDate).getTime();
 
     const timer = setInterval(() => {
@@ -28,25 +27,25 @@ export default function Countdown({ targetDate }: CountdownProps) {
       const difference = launchDate - now;
 
       if (difference > 0) {
-        // Formats numbers to always have two digits (e.g., 09)
+        // Função para formatar os números para terem sempre dois dígitos (ex: 07)
         const format = (num: number) => num.toString().padStart(2, '0');
         
         setTimeLeft({
           days: format(Math.floor(difference / (1000 * 60 * 60 * 24))),
-          hours: format(Math.floor((difference / (1000 * 60 * 60)) % 24)),
+          hours: format(Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))),
           minutes: format(Math.floor((difference / 1000 / 60) % 60)),
           seconds: format(Math.floor((difference / 1000) % 60)),
         });
       } else {
-        // When time is up
+        // Zera o tempo e para o timer quando a contagem acaba
         setTimeLeft({ days: '00', hours: '00', minutes: '00', seconds: '00' });
         clearInterval(timer);
       }
     }, 1000);
 
-    // Cleanup function to stop the interval when the component is unmounted
+    // Função de limpeza para parar o timer de forma segura
     return () => clearInterval(timer);
-  }, [targetDate]); // The dependency array ensures the effect restarts if the target date changes
+  }, [targetDate]); // A dependência garante que o efeito reinicia se a data alvo mudar
 
   return (
     <div
@@ -89,4 +88,4 @@ export default function Countdown({ targetDate }: CountdownProps) {
       </div>
     </div>
   );
-}
+};
