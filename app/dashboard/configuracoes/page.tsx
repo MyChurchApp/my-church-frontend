@@ -149,13 +149,9 @@ export default function ConfiguracoesPage() {
             <CreditCard className="h-4 w-4 mr-2" />
             Assinatura
           </TabsTrigger>
-          <TabsTrigger value="usuarios">
+          <TabsTrigger value="bancarios">
             <Users className="h-4 w-4 mr-2" />
-            Usuários
-          </TabsTrigger>
-          <TabsTrigger value="notificacoes">
-            <Bell className="h-4 w-4 mr-2" />
-            Notificações
+            Dados Bancários
           </TabsTrigger>
         </TabsList>
 
@@ -372,12 +368,12 @@ export default function ConfiguracoesPage() {
                       <h3 className="text-lg font-medium">
                         {subscriptionData.plan}
                       </h3>
-                      <p className="text-sm text-muted-foreground">
+                      <div className="text-sm text-muted-foreground">
                         Status:{" "}
                         <Badge variant="outline">
                           {subscriptionData.status}
                         </Badge>
-                      </p>
+                      </div>
                     </div>
                     <div className="text-right">
                       <p className="text-2xl font-bold">
@@ -427,10 +423,10 @@ export default function ConfiguracoesPage() {
         </TabsContent>
 
         {/* Aba Usuários */}
-        <TabsContent value="usuarios">
+        <TabsContent value="bancarios">
           <Card>
             <CardHeader>
-              <CardTitle>Gerenciamento de Usuários</CardTitle>
+              <CardTitle>Dados Bancários</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground">
