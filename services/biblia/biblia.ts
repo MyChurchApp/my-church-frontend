@@ -1,6 +1,16 @@
 const API_URL = "https://demoapp.top1soft.com.br";
 
-// Types
+export interface GeminiModalProps {
+  open: boolean;
+  onClose: () => void;
+  data: {
+    explanation: string;
+    context: string;
+    application: string;
+  } | null;
+  isLoading?: boolean;
+}
+
 export type BibleVersion = {
   id: number;
   name: string;
@@ -10,6 +20,17 @@ export type BibleVersion = {
   publisher: string;
   publicationYear: number;
 };
+
+export interface TooltipState {
+  verseId: number;
+  text: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  verseText: string;
+  verseReference: string;
+}
 
 export type BibleBook = {
   id: number;
@@ -28,6 +49,12 @@ export type BibleVerse = {
   id: number;
   verseNumber: number;
   text: string;
+};
+
+type ExplainVerseResponse = {
+  explanation: string;
+  context: string;
+  application: string;
 };
 
 // Função utilitária para pegar o token do localStorage
@@ -93,14 +120,29 @@ export const bibleService = {
     return fetchAPI<BibleVerse[]>(`/api/Bible/chapters/${chapterId}/verses`);
   },
 
-  explainWithGemini: async (text: string): Promise<string> => {
-    console.log("Solicitando explicação ao Gemini para:", text);
-    // Simulação de delay e resposta do Gemini
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    return `Explicação do Gemini para "${text.substring(
-      0,
-      50
-    )}...": Este versículo aborda [conceito principal] e seu significado contextual é [explicação detalhada].`;
+  // Implementação real usando o endpoint da API PastorBot
+  explainWithGemini: async (
+    verseText: string,
+    verseReference: string
+  ): Promise<ExplainVerseResponse> => {
+    const token = getAuthToken();
+    const res = await fetch(`${API_URL}/api/PastorBot/explainverse`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        verseReference,
+        verseText,
+      }),
+    });
+
+    if (!res.ok) throw new Error(`Erro ${res.status}: ${res.statusText}`);
+
+    // Retorna o objeto direto, sem formatação de string!
+    return res.json();
   },
 
   // 7. Lista todos os versículos por versão, livro (abreviação) e número do capítulo

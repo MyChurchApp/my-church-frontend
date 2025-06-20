@@ -7,7 +7,13 @@ import React, {
   useCallback,
 } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { BibleBook, bibleService, BibleVerse } from "@/services/biblia/biblia";
+import {
+  BibleBook,
+  bibleService,
+  BibleVerse,
+  GeminiModalProps,
+  TooltipState,
+} from "@/services/biblia/biblia";
 import {
   ChevronLeft,
   ChevronRight,
@@ -19,21 +25,12 @@ import {
   Copy, // Novo ícone
   Share2, // Novo ícone
   Bot, // Ícone placeholder para Gemini
-  X, // Ícone para fechar tooltip
+  X,
+  Sparkles, // Ícone para fechar tooltip
 } from "lucide-react";
 import { useSwipeable } from "react-swipeable";
 import { useRouter } from "next/navigation";
 import ReactDOM from "react-dom"; // Importar ReactDOM para Portals
-
-// Tipo para o estado do tooltip
-interface TooltipState {
-  verseId: number;
-  text: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
 
 export default function BiblePage() {
   const [versionId, setVersionId] = useState<number | undefined>();
@@ -45,7 +42,12 @@ export default function BiblePage() {
     null
   ); // Estado para a explicação do Gemini
   const [isGeminiLoading, setIsGeminiLoading] = useState(false); // Estado para o loading do Gemini
-
+  const [isGeminiModalOpen, setIsGeminiModalOpen] = useState(false);
+  const [geminiFullResponse, setGeminiFullResponse] = useState<{
+    explanation: string;
+    context: string;
+    application: string;
+  } | null>(null);
   const router = useRouter();
   const mainContentRef = useRef<HTMLElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null); // Ref para o próprio tooltip
@@ -255,18 +257,29 @@ export default function BiblePage() {
   const handleVerseClick = (
     event: React.MouseEvent<HTMLParagraphElement>,
     verseId: number,
-    text: string
+    text: string,
+    verseObj: BibleVerse
   ) => {
-    // Calcula a posição do versículo
     const target = event.currentTarget;
     const rect = target.getBoundingClientRect();
 
-    // Calcula a posição do tooltip na tela
-    const x = rect.left + window.scrollX + rect.width / 2; // Centraliza X
-    const y = rect.top + window.scrollY - 10; // Acima do versículo
+    // Abreviação e referência
+    const verseReference =
+      book && chapter
+        ? `${book.abbreviation} ${chapter}:${verseObj.verseNumber}`
+        : "";
 
-    setTooltip({ verseId, text, x, y, width: rect.width, height: rect.height });
-    setGeminiExplanation(null); // Limpa explicação anterior
+    setTooltip({
+      verseId,
+      text,
+      verseText: text,
+      x: rect.left + window.scrollX + rect.width / 2,
+      y: rect.top + window.scrollY - 10,
+      width: rect.width,
+      height: rect.height,
+      verseReference,
+    });
+    setGeminiExplanation(null);
   };
 
   const handleCopy = async () => {
@@ -283,34 +296,49 @@ export default function BiblePage() {
   };
 
   const handleShare = async () => {
-    if (tooltip?.text) {
+    if (tooltip && book && chapter) {
       try {
+        const reference = `${book.name} ${chapter}:${tooltip.verseId}`;
+        const textToShare = `${reference} — ${tooltip.text}`;
         if (navigator.share) {
           await navigator.share({
-            title: `Bíblia - ${book?.name} ${chapter}:${tooltip.verseId}`,
-            text: tooltip.text,
-            url: window.location.href, // Compartilha a URL atual
+            title: `Bíblia - ${reference}`,
+            text: textToShare,
+            url: window.location.href,
           });
         } else {
-          // Fallback para navegadores sem Web Share API
-          prompt("Copie para compartilhar:", tooltip.text);
+          prompt("Copie para compartilhar:", textToShare);
         }
-      } catch (err) {
-        console.error("Erro ao compartilhar: ", err);
+      } catch (err: any) {
+        if (
+          typeof err === "object" &&
+          err !== null &&
+          "message" in err &&
+          (err as any).message === "Share canceled"
+        ) {
+        } else {
+          console.error("Erro ao compartilhar: ", err);
+        }
       }
     }
     setTooltip(null);
   };
 
   const handleExplainWithGemini = async () => {
-    if (tooltip?.text) {
+    if (tooltip?.text && tooltip?.verseReference) {
       setIsGeminiLoading(true);
-      setGeminiExplanation(null); // Limpa explicação anterior
+      setGeminiExplanation(null);
       try {
-        const explanation = await bibleService.explainWithGemini(tooltip.text);
-        setGeminiExplanation(explanation);
+        const resp = await bibleService.explainWithGemini(
+          tooltip.text,
+          tooltip.verseReference
+        );
+        setGeminiFullResponse(resp);
+        setIsGeminiModalOpen(true);
+        setTooltip(null); // FECHA TOOLTIP AO ABRIR O MODAL
       } catch (error) {
-        console.error("Erro ao obter explicação do Gemini:", error);
+        setGeminiFullResponse(null);
+        setIsGeminiModalOpen(false);
         setGeminiExplanation(
           "Não foi possível obter uma explicação no momento. Tente novamente mais tarde."
         );
@@ -328,6 +356,98 @@ export default function BiblePage() {
     if (!body) return null;
     return ReactDOM.createPortal(children, body);
   };
+
+  function GeminiModal({
+    open,
+    onClose,
+    data,
+    isLoading = false, // Default para false
+  }: GeminiModalProps) {
+    if (!open) return null;
+
+    return (
+      // Overlay de fundo: fecha ao clicar fora do modal
+      <div
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        onClick={onClose}
+      >
+        {/* Conteúdo do Modal: NÃO fecha ao clicar dentro */}
+        <div
+          className="bg-white dark:bg-gray-900 rounded-2xl max-w-sm md:max-w-lg lg:max-w-2xl w-full p-6 sm:p-8 shadow-3xl border border-gray-200 dark:border-gray-700 relative"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Botão de fechar */}
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 transition-colors duration-200 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-400 z-10"
+            aria-label="Fechar"
+            title="Fechar explicação"
+          >
+            <X size={24} />
+          </button>
+
+          {/* Cabeçalho do Modal */}
+          <h2 className="flex items-center gap-2 text-2xl font-extrabold mb-6 text-blue-700 dark:text-blue-400">
+            <Sparkles
+              size={28}
+              className="text-yellow-500 dark:text-yellow-400"
+            />
+            Explicação do Versículo
+          </h2>
+
+          {/* Conteúdo do Modal */}
+          <div className="space-y-6 overflow-y-auto max-h-[60vh] pr-2">
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center py-10 text-blue-600 dark:text-blue-400">
+                <Loader2 className="h-10 w-10 animate-spin mb-4" />
+                <p className="text-lg font-medium">Gerando explicação...</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                  Isso pode levar alguns segundos.
+                </p>
+              </div>
+            ) : !data ? (
+              <div className="text-center text-gray-500 dark:text-gray-400 py-10">
+                <p className="text-lg font-medium mb-2">
+                  Nenhuma explicação disponível.
+                </p>
+                <p className="text-sm">Por favor, tente novamente.</p>
+              </div>
+            ) : (
+              <>
+                {/* Seção Explicação */}
+                <div className="pb-4 border-b border-gray-200 dark:border-gray-700">
+                  <span className="block font-semibold mb-2 text-gray-800 dark:text-gray-200 text-lg">
+                    Explicação:
+                  </span>
+                  <p className="text-base text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed">
+                    {data.explanation}
+                  </p>
+                </div>
+                {/* Seção Contexto */}
+                <div className="pb-4 border-b border-gray-200 dark:border-gray-700">
+                  <span className="block font-semibold mb-2 text-gray-800 dark:text-gray-200 text-lg">
+                    Contexto:
+                  </span>
+                  <p className="text-base text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed">
+                    {data.context}
+                  </p>
+                </div>
+                {/* Seção Aplicação */}
+                <div>
+                  <span className="block font-semibold mb-2 text-gray-800 dark:text-gray-200 text-lg">
+                    Aplicação:
+                  </span>
+                  <p className="text-base text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed">
+                    {data.application}
+                  </p>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -580,7 +700,7 @@ export default function BiblePage() {
                   className="mb-4 last:mb-0 indent-0 text-justify relative
                              group cursor-pointer p-2 rounded-md transition-all duration-150 ease-in-out
                              hover:bg-blue-100/50 dark:hover:bg-blue-900/40" // Destaque ao passar o mouse
-                  onClick={(e) => handleVerseClick(e, v.verseNumber, v.text)}
+                  onClick={(e) => handleVerseClick(e, v.verseNumber, v.text, v)}
                 >
                   <sup className="font-bold text-blue-700 dark:text-blue-400 mr-2 text-base select-none">
                     {v.verseNumber}
@@ -720,6 +840,11 @@ export default function BiblePage() {
           </div>
         </TooltipPortal>
       )}
+      <GeminiModal
+        open={isGeminiModalOpen}
+        onClose={() => setIsGeminiModalOpen(false)}
+        data={geminiFullResponse}
+      />
     </div>
   );
 }
