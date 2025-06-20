@@ -18,14 +18,33 @@ export interface Church {
   description: string;
   pastor?: string;
   email?: string;
+  subscription?: {
+    id: number;
+    churchId: number;
+    planId: number | null;
+    isActive: boolean;
+    startDate: string;
+    endDate: string;
+    payments: any[]; // ajuste se quiser tipar os pagamentos
+    plan: {
+      id: number;
+      name: string;
+      price: number;
+      maxMembers: number;
+      maxEvents: number;
+      maxStorageGB: number;
+    };
+  };
 }
 
-// Interface para estatísticas da igreja
-export interface ChurchStats {
-  membersCount: number;
-  eventsCount: number;
-  donationsTotal: number;
-  attendanceRate: number;
+export interface ChurchDashboardStats {
+  totalActiveMembers: number;
+  totalEvents: number;
+  currentBalance: number;
+  memberGrowthPercent: number;
+  eventGrowthPercent: number;
+  financialGrowthPercent: number;
+  averageDonationTicket: number;
 }
 
 const API_BASE_URL =
@@ -111,31 +130,6 @@ export const getChurchData = async (): Promise<Church> => {
   }
 };
 
-// Função para obter estatísticas da igreja
-export const getChurchStats = async (): Promise<ChurchStats> => {
-  try {
-    // Tentar buscar estatísticas reais da API
-    const response = await authFetch(`${API_BASE_URL}/Church/stats`);
-
-    if (!response.ok) {
-      throw new Error(`Erro ao obter estatísticas: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error("Erro ao obter estatísticas da igreja:", error);
-
-    // Retornar estatísticas vazias em caso de erro
-    return {
-      membersCount: 0,
-      eventsCount: 0,
-      donationsTotal: 0,
-      attendanceRate: 0,
-    };
-  }
-};
-
 // Função para atualizar dados da igreja
 export const updateChurchData = async (
   churchData: Partial<Church>
@@ -166,3 +160,19 @@ export const updateChurchData = async (
 
   return await response.json();
 };
+
+export const getChurchDashboardStats =
+  async (): Promise<ChurchDashboardStats> => {
+    const token =
+      typeof window !== "undefined" ? localStorage.getItem("authToken") : null;
+
+    if (!token) throw new Error("Token de autenticação não encontrado");
+
+    const res = await fetch(`${API_BASE_URL}/Church/dashboard`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!res.ok) throw new Error(`Erro ao obter dashboard: ${res.status}`);
+
+    return (await res.json()) as ChurchDashboardStats;
+  };

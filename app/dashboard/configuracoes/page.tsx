@@ -10,17 +10,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { CreditCard, Users, Bell, Shield, Loader2, Save } from "lucide-react";
+import { CreditCard, Users, Shield, Loader2, Save } from "lucide-react";
 import { isAuthenticated, getUserRole } from "@/lib/auth-utils";
 import {
   getChurchData,
   updateChurchData,
   type Church,
 } from "@/services/church.service";
-import {
-  getSubscriptionData,
-  type Subscription,
-} from "@/services/subscription.service";
+
 import { ChurchIcon } from "lucide-react";
 
 export default function ConfiguracoesPage() {
@@ -29,9 +26,7 @@ export default function ConfiguracoesPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [churchData, setChurchData] = useState<Church | null>(null);
-  const [subscriptionData, setSubscriptionData] = useState<Subscription | null>(
-    null
-  );
+
 
   const userRole = getUserRole();
   const isAdmin = userRole === "Admin";
@@ -55,13 +50,11 @@ export default function ConfiguracoesPage() {
       setLoading(true);
       setError(null);
 
-      const [church, subscription] = await Promise.all([
+      const [church] = await Promise.all([
         getChurchData(),
-        getSubscriptionData(),
       ]);
 
       setChurchData(church);
-      setSubscriptionData(subscription);
     } catch (error) {
       console.error("Erro ao carregar dados:", error);
       setError("Erro ao carregar dados. Tente novamente.");
@@ -361,23 +354,25 @@ export default function ConfiguracoesPage() {
               <CardTitle>Plano e Assinatura</CardTitle>
             </CardHeader>
             <CardContent>
-              {subscriptionData && (
+              {churchData?.subscription && (
                 <div className="space-y-6">
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="text-lg font-medium">
-                        {subscriptionData.plan}
+                        {churchData.subscription.plan.name}
                       </h3>
                       <div className="text-sm text-muted-foreground">
                         Status:{" "}
                         <Badge variant="outline">
-                          {subscriptionData.status}
+                          {churchData.subscription.isActive
+                            ? "Ativa"
+                            : "Inativa"}
                         </Badge>
                       </div>
                     </div>
                     <div className="text-right">
                       <p className="text-2xl font-bold">
-                        R$ {subscriptionData.price}
+                        R$ {churchData.subscription.plan.price}
                       </p>
                       <p className="text-sm text-muted-foreground">por mês</p>
                     </div>
@@ -385,30 +380,36 @@ export default function ConfiguracoesPage() {
 
                   <div className="grid gap-4 md:grid-cols-2">
                     <div>
-                      <Label>Próxima Cobrança</Label>
-                      <p className="text-sm">{subscriptionData.nextBilling}</p>
+                      <Label>Início da Assinatura</Label>
+                      <p className="text-sm">
+                        {new Date(
+                          churchData.subscription.startDate
+                        ).toLocaleDateString()}
+                      </p>
                     </div>
                     <div>
-                      <Label>Método de Pagamento</Label>
+                      <Label>Fim da Assinatura</Label>
                       <p className="text-sm">
-                        {subscriptionData.paymentMethod}
+                        {new Date(
+                          churchData.subscription.endDate
+                        ).toLocaleDateString()}
                       </p>
                     </div>
                   </div>
 
                   <div>
                     <Label>Recursos Inclusos</Label>
-                    <ul className="mt-2 space-y-1">
-                      {subscriptionData.includedFeatures.map(
-                        (feature, index) => (
-                          <li
-                            key={index}
-                            className="text-sm text-muted-foreground"
-                          >
-                            • {feature}
-                          </li>
-                        )
-                      )}
+                    <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
+                      <li>
+                        • Até {churchData.subscription.plan.maxMembers} membros
+                      </li>
+                      <li>
+                        • Até {churchData.subscription.plan.maxEvents} eventos
+                      </li>
+                      <li>
+                        • {churchData.subscription.plan.maxStorageGB}GB de
+                        armazenamento
+                      </li>
                     </ul>
                   </div>
 
