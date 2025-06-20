@@ -1,4 +1,5 @@
 "use client";
+
 import React, {
   useState,
   useEffect,
@@ -22,37 +23,40 @@ import {
   Moon,
   Loader2,
   ArrowLeft,
-  Copy, // Novo ícone
-  Share2, // Novo ícone
-  Bot, // Ícone placeholder para Gemini
+  Copy,
+  Share2,
+  Bot,
   X,
-  Sparkles, // Ícone para fechar tooltip
+  Sparkles,
 } from "lucide-react";
 import { useSwipeable } from "react-swipeable";
 import { useRouter } from "next/navigation";
-import ReactDOM from "react-dom"; // Importar ReactDOM para Portals
+import { ChapterModal } from "./ChapterPopover";
+import BookModal from "./BookModal";
 
 export default function BiblePage() {
   const [versionId, setVersionId] = useState<number | undefined>();
   const [book, setBook] = useState<BibleBook | undefined>();
   const [chapter, setChapter] = useState<number>(1);
   const [isDarkMode, setIsDarkMode] = useState(false);
-  const [tooltip, setTooltip] = useState<TooltipState | null>(null); // Estado para o tooltip
+  const [tooltip, setTooltip] = useState<TooltipState | null>(null);
   const [geminiExplanation, setGeminiExplanation] = useState<string | null>(
     null
-  ); // Estado para a explicação do Gemini
-  const [isGeminiLoading, setIsGeminiLoading] = useState(false); // Estado para o loading do Gemini
+  );
+  const [isGeminiLoading, setIsGeminiLoading] = useState(false);
   const [isGeminiModalOpen, setIsGeminiModalOpen] = useState(false);
   const [geminiFullResponse, setGeminiFullResponse] = useState<{
     explanation: string;
     context: string;
     application: string;
   } | null>(null);
+
+  const [isChapterModalOpen, setIsChapterModalOpen] = useState(false);
+  const [isBookModalOpen, setIsBookModalOpen] = useState(false);
+
   const router = useRouter();
   const mainContentRef = useRef<HTMLElement>(null);
-  const tooltipRef = useRef<HTMLDivElement>(null); // Ref para o próprio tooltip
-
-  // Toggle Dark Mode: Aplicar a classe 'dark' ao <html> e salvar preferência
+  const tooltipRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const html = document.documentElement;
     if (isDarkMode) {
@@ -63,7 +67,6 @@ export default function BiblePage() {
     localStorage.setItem("theme", isDarkMode ? "dark" : "light");
   }, [isDarkMode]);
 
-  // Carregar preferência de tema do localStorage na montagem
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme");
     if (savedTheme === "dark") {
@@ -71,79 +74,75 @@ export default function BiblePage() {
     }
   }, []);
 
-  // Fechar tooltip ao clicar fora dele
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (
         tooltipRef.current &&
-        !tooltipRef.current.contains(event.target as Node)
+        !tooltipRef.current.contains(event.target as Node) &&
+        !isChapterModalOpen &&
+        !isBookModalOpen
       ) {
         setTooltip(null);
-        setGeminiExplanation(null); // Limpa a explicação do Gemini
+        setGeminiExplanation(null);
       }
     }
-    document.addEventListener("mousedown", handleClickOutside);
+
+    if (tooltip || (!isChapterModalOpen && !isBookModalOpen)) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [tooltipRef]);
+  }, [tooltipRef, tooltip, isChapterModalOpen, isBookModalOpen]);
 
-  // 1. Buscar versões
   const { data: versions = [], isLoading: isLoadingVersions } = useQuery({
     queryKey: ["bible-versions"],
     queryFn: bibleService.getVersions,
-    staleTime: 1000 * 60 * 10, // 10 minutos de cache
+    staleTime: 1000 * 60 * 10,
   });
 
-  // Define a primeira versão como padrão se não houver nenhuma selecionada
   useEffect(() => {
     if (versions.length && !versionId) {
       setVersionId(versions[0].id);
     }
   }, [versions, versionId]);
 
-  // 2. Buscar livros da versão
   const { data: books = [], isLoading: isLoadingBooks } = useQuery({
     queryKey: ["bible-books", versionId],
     queryFn: () =>
       versionId
         ? bibleService.getBooksByVersion(versionId)
         : Promise.resolve([]),
-    enabled: !!versionId, // Só executa se versionId estiver definido
-    staleTime: 1000 * 60 * 10, // 10 minutos de cache
+    enabled: !!versionId,
+    staleTime: 1000 * 60 * 10,
   });
 
-  // Define o primeiro livro como padrão para a versão selecionada ou ajusta se o livro atual não existir na nova versão
   useEffect(() => {
     if (books.length && !book) {
       setBook(books[0]);
     } else if (book && !books.some((b) => b.id === book.id)) {
-      setBook(books[0]); // Seleciona o primeiro livro da nova versão
+      setBook(books[0]);
     }
   }, [books, book]);
 
-  // 3. Buscar capítulos do livro
   const { data: chapters = [], isLoading: isLoadingChapters } = useQuery({
     queryKey: ["bible-chapters", book?.id],
     queryFn: () =>
       book ? bibleService.getChaptersByBookId(book.id) : Promise.resolve([]),
-    enabled: !!book, // Só executa se book estiver definido
-    staleTime: 1000 * 60 * 10, // 10 minutos de cache
+    enabled: !!book,
+    staleTime: 1000 * 60 * 10,
   });
 
-  // Ajusta o capítulo quando o livro muda ou os capítulos são carregados
   useEffect(() => {
     if (book && chapters.length > 0) {
-      // Se o capítulo atual for inválido para o novo livro, volte para o capítulo 1
       if (chapter > chapters.length || chapter < 1) {
         setChapter(1);
       }
     } else if (book && chapters.length === 0) {
-      setChapter(1); // Caso o livro não tenha capítulos, mantenha 1 ou considere um estado de "indisponível"
+      setChapter(1);
     }
   }, [book, chapters, chapter]);
 
-  // 4. Buscar versículos do capítulo
   const chapterId = useMemo(
     () => chapters.find((c) => c.chapterNumber === chapter)?.id,
     [chapters, chapter]
@@ -158,10 +157,9 @@ export default function BiblePage() {
         ? bibleService.getVersesByChapterId(chapterId)
         : Promise.resolve([]),
     enabled: !!chapterId,
-    staleTime: 0, // Sempre buscar fresco
+    staleTime: 0,
   });
 
-  // Side-effect: rolar pro topo e limpar tooltip/explicação ao trocar de capítulo
   useEffect(() => {
     if (verses) {
       mainContentRef.current?.scrollTo({ top: 0, behavior: "smooth" });
@@ -232,7 +230,6 @@ export default function BiblePage() {
     setChapter,
   ]);
 
-  // Hook para detecção de swipe
   const handlers = useSwipeable({
     onSwipedLeft: () => {
       if (!isLoadingChapters && !isLoadingVerses) {
@@ -252,8 +249,6 @@ export default function BiblePage() {
   const showGlobalLoading =
     isLoadingVersions || isLoadingBooks || isLoadingChapters;
 
-  // --- Funções do Tooltip ---
-
   const handleVerseClick = (
     event: React.MouseEvent<HTMLParagraphElement>,
     verseId: number,
@@ -263,7 +258,6 @@ export default function BiblePage() {
     const target = event.currentTarget;
     const rect = target.getBoundingClientRect();
 
-    // Abreviação e referência
     const verseReference =
       book && chapter
         ? `${book.abbreviation} ${chapter}:${verseObj.verseNumber}`
@@ -335,7 +329,7 @@ export default function BiblePage() {
         );
         setGeminiFullResponse(resp);
         setIsGeminiModalOpen(true);
-        setTooltip(null); // FECHA TOOLTIP AO ABRIR O MODAL
+        setTooltip(null);
       } catch (error) {
         setGeminiFullResponse(null);
         setIsGeminiModalOpen(false);
@@ -348,35 +342,36 @@ export default function BiblePage() {
     }
   };
 
-  // Componente Tooltip (usando Portal)
   const TooltipPortal = ({ children }: { children: React.ReactNode }) => {
-    // Certifica-se de que o elemento `body` existe antes de criar o portal
-    if (typeof window === "undefined") return null;
-    const body = document.querySelector("body");
-    if (!body) return null;
-    return ReactDOM.createPortal(children, body);
+    const importedReactDOM =
+      typeof window !== "undefined" ? require("react-dom") : null;
+    if (!importedReactDOM || typeof window === "undefined" || !document.body)
+      return null;
+    return importedReactDOM.createPortal(children, document.body);
   };
 
   function GeminiModal({
     open,
     onClose,
     data,
-    isLoading = false, // Default para false
+    isLoading = false,
   }: GeminiModalProps) {
     if (!open) return null;
 
-    return (
-      // Overlay de fundo: fecha ao clicar fora do modal
+    const importedReactDOM =
+      typeof window !== "undefined" ? require("react-dom") : null;
+    if (!importedReactDOM || typeof window === "undefined" || !document.body)
+      return null;
+
+    return importedReactDOM.createPortal(
       <div
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 sm:p-6"
         onClick={onClose}
       >
-        {/* Conteúdo do Modal: NÃO fecha ao clicar dentro */}
         <div
-          className="bg-white dark:bg-gray-900 rounded-2xl max-w-sm md:max-w-lg lg:max-w-2xl w-full p-6 sm:p-8 shadow-3xl border border-gray-200 dark:border-gray-700 relative"
+          className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-sm md:max-w-lg lg:max-w-2xl p-6 shadow-2xl border border-gray-200 dark:border-gray-700 relative transform transition-all duration-300 ease-out animate-fade-in"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Botão de fechar */}
           <button
             onClick={onClose}
             className="absolute top-4 right-4 text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 transition-colors duration-200 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-400 z-10"
@@ -386,7 +381,6 @@ export default function BiblePage() {
             <X size={24} />
           </button>
 
-          {/* Cabeçalho do Modal */}
           <h2 className="flex items-center gap-2 text-2xl font-extrabold mb-6 text-blue-700 dark:text-blue-400">
             <Sparkles
               size={28}
@@ -395,7 +389,6 @@ export default function BiblePage() {
             Explicação do Versículo
           </h2>
 
-          {/* Conteúdo do Modal */}
           <div className="space-y-6 overflow-y-auto max-h-[60vh] pr-2">
             {isLoading ? (
               <div className="flex flex-col items-center justify-center py-10 text-blue-600 dark:text-blue-400">
@@ -414,7 +407,6 @@ export default function BiblePage() {
               </div>
             ) : (
               <>
-                {/* Seção Explicação */}
                 <div className="pb-4 border-b border-gray-200 dark:border-gray-700">
                   <span className="block font-semibold mb-2 text-gray-800 dark:text-gray-200 text-lg">
                     Explicação:
@@ -423,7 +415,7 @@ export default function BiblePage() {
                     {data.explanation}
                   </p>
                 </div>
-                {/* Seção Contexto */}
+
                 <div className="pb-4 border-b border-gray-200 dark:border-gray-700">
                   <span className="block font-semibold mb-2 text-gray-800 dark:text-gray-200 text-lg">
                     Contexto:
@@ -432,7 +424,7 @@ export default function BiblePage() {
                     {data.context}
                   </p>
                 </div>
-                {/* Seção Aplicação */}
+
                 <div>
                   <span className="block font-semibold mb-2 text-gray-800 dark:text-gray-200 text-lg">
                     Aplicação:
@@ -445,7 +437,8 @@ export default function BiblePage() {
             )}
           </div>
         </div>
-      </div>
+      </div>,
+      document.body
     );
   }
 
@@ -454,7 +447,6 @@ export default function BiblePage() {
       {...handlers}
       className="relative min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 flex flex-col font-sans overflow-x-hidden"
     >
-      {/* Botões Flutuantes Laterais (Desktop Only) */}
       <button
         onClick={handlePrevChapter}
         disabled={
@@ -485,10 +477,8 @@ export default function BiblePage() {
         <ChevronRight size={24} />
       </button>
 
-      {/* Header com controles de navegação fixos */}
       <header className="sticky top-0 z-20 bg-white dark:bg-gray-900 shadow-md p-4 flex flex-col md:flex-row items-center justify-between gap-3 border-b border-gray-100 dark:border-gray-800">
         <div className="flex items-center gap-3 w-full md:w-auto">
-          {/* Botão de voltar */}
           <button
             onClick={() => router.back()}
             className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 dark:focus:ring-offset-gray-900"
@@ -505,7 +495,6 @@ export default function BiblePage() {
         </div>
 
         <div className="flex flex-wrap justify-center md:justify-end items-center gap-3 w-full md:w-auto">
-          {/* Seleção de versão */}
           <div className="relative flex-grow min-w-[140px]">
             <label htmlFor="version-select" className="sr-only">
               Selecionar Versão
@@ -537,43 +526,36 @@ export default function BiblePage() {
             )}
           </div>
 
-          {/* Seleção de livro */}
           <div className="relative flex-grow min-w-[160px]">
-            <label htmlFor="book-select" className="sr-only">
-              Selecionar Livro
-            </label>
-            <select
-              id="book-select"
-              value={book?.id || ""}
-              onChange={(e) => {
-                const newBook = books.find(
-                  (b) => b.id === Number(e.target.value)
-                );
-                setBook(newBook);
-                setChapter(1);
-              }}
-              className="w-full p-2.5 pr-8 border border-gray-300 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-base focus:ring-blue-600 focus:border-blue-600 appearance-none transition-colors duration-200 ease-in-out cursor-pointer shadow-sm"
+            <button
+              onClick={() => setIsBookModalOpen(true)}
               disabled={isLoadingBooks || !versionId}
-              aria-live="polite"
+              className="w-full p-2.5 pr-8 border border-gray-300 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-base font-semibold focus:ring-blue-600 focus:border-blue-600 transition-colors duration-200 ease-in-out cursor-pointer shadow-sm flex justify-between items-center"
+              aria-label={
+                book?.name ? `Livro: ${book.name}` : "Selecionar Livro"
+              }
+              title={book?.name ? `Livro: ${book.name}` : "Selecionar Livro"}
             >
               {isLoadingBooks ? (
-                <option value="">Carregando livros...</option>
+                <span className="flex items-center gap-2">
+                  <Loader2 size={16} className="animate-spin" /> Carregando
+                  livros...
+                </span>
               ) : !versionId ? (
-                <option value="">Selecione uma versão</option>
+                <span>Selecione uma versão</span>
               ) : (
-                books.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name} ({b.abbreviation})
-                  </option>
-                ))
+                <span>{book?.name || "Selecionar Livro"}</span>
               )}
-            </select>
+              <ChevronRight
+                size={16}
+                className="text-gray-500 dark:text-gray-400"
+              />{" "}
+            </button>
             {isLoadingBooks && (
               <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-gray-400 dark:text-gray-500" />
             )}
           </div>
 
-          {/* Navegação de capítulo */}
           <div className="flex items-center gap-2">
             <button
               onClick={handlePrevChapter}
@@ -589,34 +571,26 @@ export default function BiblePage() {
             >
               <ChevronLeft size={20} />
             </button>
-            <div className="relative min-w-[80px]">
-              <label htmlFor="chapter-select" className="sr-only">
-                Selecionar Capítulo
-              </label>
-              <select
-                id="chapter-select"
-                value={chapter}
-                onChange={(e) => setChapter(Number(e.target.value))}
-                className="w-full p-2.5 pr-8 border border-gray-300 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-base focus:ring-blue-600 focus:border-blue-600 appearance-none transition-colors duration-200 ease-in-out cursor-pointer shadow-sm"
-                disabled={isLoadingChapters || !book}
-                aria-live="polite"
-              >
-                {isLoadingChapters ? (
-                  <option value="">...</option>
-                ) : !book ? (
-                  <option value="">Capítulo</option>
-                ) : (
-                  chapters.map((c) => (
-                    <option key={c.id} value={c.chapterNumber}>
-                      Cap. {c.chapterNumber}
-                    </option>
-                  ))
-                )}
-              </select>
-              {isLoadingChapters && (
-                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-gray-400 dark:text-gray-500" />
+
+            <button
+              onClick={() => setIsChapterModalOpen((prev) => !prev)}
+              disabled={isLoadingChapters || !book}
+              className="w-28 p-2.5 border border-gray-300 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-base font-semibold focus:ring-blue-600 focus:border-blue-600 transition-colors duration-200 ease-in-out cursor-pointer shadow-sm flex justify-center items-center gap-1"
+              aria-label={`Capítulo ${chapter} de ${totalChapters}`}
+              title="Selecionar capítulo"
+            >
+              {isLoadingChapters ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <>
+                  Cap. {chapter}
+                  <span className="text-gray-500 dark:text-gray-400">
+                    /{totalChapters}
+                  </span>
+                </>
               )}
-            </div>
+            </button>
+
             <button
               onClick={handleNextChapter}
               disabled={
@@ -634,7 +608,6 @@ export default function BiblePage() {
             </button>
           </div>
 
-          {/* Toggle Dark Mode */}
           <button
             onClick={() => setIsDarkMode(!isDarkMode)}
             className="p-2 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 dark:focus:ring-offset-gray-900"
@@ -646,13 +619,12 @@ export default function BiblePage() {
         </div>
       </header>
 
-      {/* Conteúdo principal da Bíblia */}
       <main
         ref={mainContentRef}
         className="flex-grow p-4 md:p-6 max-w-4xl mx-auto w-full overflow-y-auto"
       >
         {showGlobalLoading && (
-          <div className="flex items-center justify-center py-8 text-blue-600 dark:text-blue-400 animate-pulse">
+          <div className="flex flex-col items-center justify-center py-8 text-blue-600 dark:text-blue-400 animate-pulse">
             <Loader2 className="mr-2 h-6 w-6 animate-spin" />
             <span className="text-lg font-medium">Carregando dados...</span>
           </div>
@@ -670,7 +642,6 @@ export default function BiblePage() {
           </div>
         )}
 
-        {/* Área de exibição dos versículos */}
         <div className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl p-6 sm:p-8 space-y-5 text-lg leading-relaxed border border-gray-200 dark:border-gray-700 relative min-h-[200px]">
           {isLoadingVerses && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-white dark:bg-gray-900 bg-opacity-80 dark:bg-opacity-80 z-10 rounded-xl">
@@ -699,7 +670,7 @@ export default function BiblePage() {
                   key={v.id}
                   className="mb-4 last:mb-0 indent-0 text-justify relative
                              group cursor-pointer p-2 rounded-md transition-all duration-150 ease-in-out
-                             hover:bg-blue-100/50 dark:hover:bg-blue-900/40" // Destaque ao passar o mouse
+                             hover:bg-blue-100/50 dark:hover:bg-blue-900/40"
                   onClick={(e) => handleVerseClick(e, v.verseNumber, v.text, v)}
                 >
                   <sup className="font-bold text-blue-700 dark:text-blue-400 mr-2 text-base select-none">
@@ -712,7 +683,6 @@ export default function BiblePage() {
           )}
         </div>
 
-        {/* Bloco de Navegação no Final do Conteúdo */}
         {!showGlobalLoading && book && totalChapters > 0 && (
           <div className="mt-8 mb-4 flex justify-center items-center gap-4 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg shadow-inner border border-gray-200 dark:border-gray-700 mx-auto max-w-sm md:max-w-md">
             <button
@@ -751,7 +721,6 @@ export default function BiblePage() {
         )}
       </main>
 
-      {/* Footer */}
       <footer className="p-4 bg-gray-100 dark:bg-gray-900 text-center text-gray-600 dark:text-gray-400 text-sm border-t border-gray-200 dark:border-gray-800 mt-6">
         Desenvolvido com{" "}
         <span role="img" aria-label="coração">
@@ -760,16 +729,15 @@ export default function BiblePage() {
         para o estudo da Bíblia.
       </footer>
 
-      {/* Tooltip do Versículo (usando Portal) */}
       {tooltip && (
         <TooltipPortal>
           <div
             ref={tooltipRef}
             className="absolute z-50 flex flex-col items-center"
             style={{
-              top: tooltip.y - (geminiExplanation ? 200 : 80), // Ajusta a posição para cima, mais se houver explicação
+              top: tooltip.y - (geminiExplanation ? 200 : 80),
               left: tooltip.x,
-              transform: "translateX(-50%)", // Centraliza o tooltip na horizontal
+              transform: "translateX(-50%)",
             }}
           >
             <div className="bg-gray-800 dark:bg-gray-700 text-white rounded-lg shadow-xl p-2 flex flex-col gap-2 border border-gray-700 dark:border-gray-600 min-w-[200px] max-w-xs sm:max-w-md">
@@ -832,7 +800,6 @@ export default function BiblePage() {
                 </div>
               )}
             </div>
-            {/* Triângulo apontando para o versículo */}
             <div
               className="w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent
                          border-t-[10px] border-t-gray-800 dark:border-t-gray-700 -mt-1"
@@ -844,6 +811,36 @@ export default function BiblePage() {
         open={isGeminiModalOpen}
         onClose={() => setIsGeminiModalOpen(false)}
         data={geminiFullResponse}
+        isLoading={isGeminiLoading}
+      />
+
+      <ChapterModal
+        open={isChapterModalOpen}
+        onClose={() => setIsChapterModalOpen(false)}
+        chapters={chapters}
+        currentChapter={chapter}
+        onSelectChapter={(chapNum: React.SetStateAction<number>) => {
+          setChapter(chapNum);
+          setIsChapterModalOpen(false);
+        }}
+        isLoading={isLoadingChapters}
+        bookName={book?.name}
+      />
+
+      <BookModal
+        open={isBookModalOpen}
+        onClose={() => setIsBookModalOpen(false)}
+        books={books}
+        currentBookId={book?.id}
+        onSelectBook={(selectedBookId: number) => {
+          const newBook = books.find((b) => b.id === selectedBookId);
+          if (newBook) {
+            setBook(newBook);
+            setChapter(1);
+          }
+          setIsBookModalOpen(false);
+        }}
+        isLoading={isLoadingBooks}
       />
     </div>
   );
