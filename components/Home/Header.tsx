@@ -22,7 +22,6 @@ const Header = () => {
   return (
     <header id="main-header" className={headerClasses}>
       <nav className="container mx-auto px-6 py-4 flex justify-between items-center">
-        {/* ... restante da sua nav ... */}
         <a
           href="#"
           className={`text-2xl font-bold transition-colors duration-300 z-10 flex items-center ${
@@ -30,7 +29,7 @@ const Header = () => {
           }`}
         >
           <Church className="mr-2 h-6 w-6" />
-          MyChurch
+          MyChurchaa
         </a>
         <div className="hidden md:flex items-center space-x-8">
           <a href="#video" className="nav-link font-medium hover:text-blue-200" onClick={closeMenu}>Demonstração</a>
