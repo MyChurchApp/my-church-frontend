@@ -143,7 +143,7 @@ export default function LoginPage() {
       <header className="w-full py-4 px-6 flex justify-center border-b border-gray-200 bg-white/80 backdrop-blur-sm">
         <Link href="/" className="flex items-center gap-2">
           <Church className="mr-2 h-6 w-6" />
-          MyChurchaa
+          MyChurch
         </Link>
       </header>
 
