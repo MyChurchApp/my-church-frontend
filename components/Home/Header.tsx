@@ -28,7 +28,7 @@ const Header = () => {
             isScrolled ? "brand-text text-blue-600" : "text-white"
           }`}
         >
-          <Church className="mr-2 h-6 w-6" /> {/* Usando ícone Lucide */}
+          <Church className="mr-2 h-6 w-6" />
           MyChurch
         </a>
         <div className="hidden md:flex items-center space-x-8">
@@ -81,7 +81,7 @@ const Header = () => {
             }`}
             onClick={() => setIsMenuOpen(!isMenuOpen)}
           >
-            <Menu className="h-6 w-6" /> {/* Usando ícone Lucide */}
+            <Menu className="h-6 w-6" />
           </button>
         </div>
       </nav>
@@ -113,7 +113,7 @@ const Header = () => {
         </a>
         <div className="mt-4 pt-4 border-t border-border-color">
           <a
-            href="#"
+            href="/login" // <-- CORREÇÃO APLICADA AQUI
             className="block w-full text-center mb-2 px-4 py-2 text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 dark:text-white dark:border-white dark:hover:bg-gray-700"
             onClick={closeMenu}
           >
@@ -131,4 +131,5 @@ const Header = () => {
     </header>
   );
 };
+
 export default Header;
