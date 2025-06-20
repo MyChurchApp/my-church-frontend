@@ -19,6 +19,7 @@ import {
   Package,
   Heart,
   Book,
+  BookHeart,
 } from "lucide-react";
 import { getUserData, logout } from "@/lib/auth-utils";
 
@@ -81,14 +82,12 @@ export function Sidebar({ className = "" }: SidebarProps) {
       href: "/dashboard/membros",
       accessLevel: "admin",
     },
-
     {
       icon: Calendar,
       label: "Eventos",
       href: "/dashboard/eventos",
       accessLevel: "member",
     },
-
     {
       icon: Book,
       label: "Culto",
@@ -107,7 +106,6 @@ export function Sidebar({ className = "" }: SidebarProps) {
         },
       ],
     },
-
     {
       icon: Heart,
       label: "Doações",
@@ -122,7 +120,6 @@ export function Sidebar({ className = "" }: SidebarProps) {
         },
       ],
     },
-
     {
       icon: MessageSquare,
       label: "Comunicação",
@@ -141,7 +138,6 @@ export function Sidebar({ className = "" }: SidebarProps) {
         },
       ],
     },
-
     {
       icon: DollarSign,
       label: "Financeiro",
@@ -160,14 +156,18 @@ export function Sidebar({ className = "" }: SidebarProps) {
         },
       ],
     },
-
     {
       icon: Package,
       label: "Ativos",
       href: "/dashboard/ativos",
       accessLevel: "admin",
     },
-
+    {
+      icon: BookHeart,
+      label: "Biblia",
+      href: "/biblia",
+      accessLevel: "member",
+    },
     {
       icon: Settings,
       label: "Configurações",
