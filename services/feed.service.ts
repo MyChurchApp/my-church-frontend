@@ -305,7 +305,6 @@ export const likeFeedPost = async (postId: number): Promise<void> => {
         const isAlreadyLiked = await isAlreadyLikedError(responseClone)
 
         if (isAlreadyLiked) {
-          console.log("Post já estava curtido, removendo like automaticamente...")
           await unlikeFeedPost(postId)
           return
         }

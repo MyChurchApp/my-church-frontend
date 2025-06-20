@@ -24,16 +24,7 @@ export default function IgrejaPage() {
     try {
       setLoading(true);
       setError(null);
-
-      console.log("Carregando dados da igreja...");
-
-      // Buscar dados básicos da igreja
-
-      // Buscar dados completos
       const fullData = await getChurchData();
-      console.log("Dados completos:", fullData);
-
-      // Verificar limites do plano
 
       setChurchData(fullData);
     } catch (err) {

@@ -1,23 +1,20 @@
-"use client"
+"use client";
 
-import { useEffect } from "react"
-import * as signalR from "@microsoft/signalr"
-import { getBibleReading } from "@/lib/bible-api"
+import { useEffect } from "react";
+import * as signalR from "@microsoft/signalr";
+import { getBibleReading } from "@/lib/bible-api";
 
-const API_URL = "https://demoapp.top1soft.com.br"
-const HUB_PATH = "/ws/worship"
+const API_URL = "https://demoapp.top1soft.com.br";
+const HUB_PATH = "/ws/worship";
 
 export function useSignalR(worshipServiceId: number) {
   useEffect(() => {
-    const token = typeof window !== "undefined" ? localStorage.getItem("authToken") : null
+    const token =
+      typeof window !== "undefined" ? localStorage.getItem("authToken") : null;
     if (!token) {
-      console.warn("⚠️ Nenhum token JWT encontrado no localStorage.")
-      return
+      console.warn("⚠️ Nenhum token JWT encontrado no localStorage.");
+      return;
     }
-
-    console.log("🔌 Iniciando conexão SignalR...")
-    console.log("📍 URL:", `${API_URL}${HUB_PATH}`)
-    console.log("🔑 Token:", token ? `${token.substring(0, 20)}...` : "Não encontrado")
 
     const connection = new signalR.HubConnectionBuilder()
       .withUrl(`${API_URL}${HUB_PATH}`, {
@@ -25,94 +22,65 @@ export function useSignalR(worshipServiceId: number) {
       })
       .withAutomaticReconnect()
       .configureLogging(signalR.LogLevel.Information)
-      .build()
+      .build();
 
     const startConnection = async () => {
       try {
-        console.log("🚀 Tentando conectar ao SignalR...")
-        await connection.start()
-        console.log("✅ Conectado ao SignalR com sucesso!")
+        await connection.start();
 
-        console.log("🎯 Entrando no worship service:", worshipServiceId)
-        await connection.invoke("JoinWorship", worshipServiceId)
-        console.log("✅ Entrou no worship service com sucesso!")
+        await connection.invoke("JoinWorship", worshipServiceId);
 
         // Evento de leitura bíblica destacada
         connection.on("BibleReadingHighlighted", async (data) => {
-          console.log("🎉 ===== EVENTO BIBLE READING HIGHLIGHTED RECEBIDO =====")
-          console.log("📖 Dados brutos recebidos:", data)
-          console.log("📖 Tipo dos dados:", typeof data)
-          console.log("📖 É array?", Array.isArray(data))
-          console.log("📖 Keys do objeto:", data ? Object.keys(data) : "Não é objeto")
-          console.log("📖 JSON stringified:", JSON.stringify(data, null, 2))
-
           // Extrair dados com diferentes estruturas possíveis
-          let versionId, bookId, chapterId, verseId
+          let versionId, bookId, chapterId, verseId;
 
           if (data && typeof data === "object") {
-            console.log("🔍 Analisando estrutura dos dados...")
-
             // Estrutura completa esperada: { versionId: 1, bookId: 1, chapterId: 1, verseId?: 1 }
-            versionId = data.versionId || data.VersionId || data.version_id || data.versions
-            bookId = data.bookId || data.BookId || data.book_id || data.book
-            chapterId = data.chapterId || data.ChapterId || data.chapter_id
-            verseId = data.verseId || data.VerseId || data.verse_id
-
-            console.log("🔍 Primeira tentativa de extração:")
-            console.log("   versionId:", versionId)
-            console.log("   bookId:", bookId)
-            console.log("   chapterId:", chapterId)
-            console.log("   verseId:", verseId)
+            versionId =
+              data.versionId ||
+              data.VersionId ||
+              data.version_id ||
+              data.versions;
+            bookId = data.bookId || data.BookId || data.book_id || data.book;
+            chapterId = data.chapterId || data.ChapterId || data.chapter_id;
+            verseId = data.verseId || data.VerseId || data.verse_id;
 
             // Fallbacks para estruturas antigas
             if (!versionId) {
-              versionId = data.version || 1
-              console.log("🔄 Fallback versionId:", versionId)
+              versionId = data.version || 1;
             }
             if (!bookId) {
-              bookId = data.id || 1
-              console.log("🔄 Fallback bookId:", bookId)
+              bookId = data.id || 1;
             }
             if (!chapterId) {
-              chapterId = data.chapter || 1
-              console.log("🔄 Fallback chapterId:", chapterId)
+              chapterId = data.chapter || 1;
             }
             if (!verseId) {
-              verseId = data.verse
-              console.log("🔄 Fallback verseId:", verseId)
+              verseId = data.verse;
             }
           }
 
           // Valores padrão
-          versionId = versionId || 1
-          bookId = bookId || 1
-          chapterId = chapterId || 1
+          versionId = versionId || 1;
+          bookId = bookId || 1;
+          chapterId = chapterId || 1;
           // verseId pode ser undefined para capítulo completo
-
-          console.log("📊 Valores finais extraídos:")
-          console.log("   versionId:", versionId)
-          console.log("   bookId:", bookId)
-          console.log("   chapterId:", chapterId)
-          console.log("   verseId:", verseId)
-          console.log("   isFullChapter:", !verseId)
 
           const logMessage = verseId
             ? `📖 Processando: Versão ${versionId}, Livro ${bookId}, Capítulo ${chapterId}, Versículo ${verseId}`
-            : `📖 Processando: Versão ${versionId}, Livro ${bookId}, Capítulo ${chapterId} (capítulo completo)`
-
-          console.log(logMessage)
+            : `📖 Processando: Versão ${versionId}, Livro ${bookId}, Capítulo ${chapterId} (capítulo completo)`;
 
           try {
-            console.log("🌐 Iniciando busca na API bíblica usando nova função...")
-
             // Usar a nova função que faz as chamadas corretas
-            const bibleData = await getBibleReading(versionId, bookId, chapterId, verseId)
-
-            console.log("📖 Resultado da busca bíblica:", bibleData)
+            const bibleData = await getBibleReading(
+              versionId,
+              bookId,
+              chapterId,
+              verseId
+            );
 
             if (bibleData.success) {
-              console.log("✅ Dados da API bíblica obtidos com sucesso!")
-
               // Disparar evento customizado com os dados da API
               const eventDetail = {
                 versionId,
@@ -122,22 +90,18 @@ export function useSignalR(worshipServiceId: number) {
                 isFullChapter: !verseId,
                 apiData: bibleData,
                 originalData: data,
-              }
-
-              console.log("🎯 Disparando evento customizado com dados:", eventDetail)
+              };
 
               const event = new CustomEvent("bibleReadingHighlighted", {
                 detail: eventDetail,
-              })
-              window.dispatchEvent(event)
-
-              console.log("✅ Evento customizado disparado com sucesso!")
+              });
+              window.dispatchEvent(event);
             } else {
-              throw new Error(bibleData.error || "Erro desconhecido na API")
+              throw new Error(bibleData.error || "Erro desconhecido na API");
             }
           } catch (error) {
-            console.error("❌ Erro ao buscar dados bíblicos:", error)
-            console.error("❌ Stack trace:", (error as Error).stack)
+            console.error("❌ Erro ao buscar dados bíblicos:", error);
+            console.error("❌ Stack trace:", (error as Error).stack);
 
             // Disparar evento mesmo com erro
             const errorEventDetail = {
@@ -149,54 +113,35 @@ export function useSignalR(worshipServiceId: number) {
               error: true,
               errorMessage: (error as Error).message,
               originalData: data,
-            }
-
-            console.log("🎯 Disparando evento de erro com dados:", errorEventDetail)
+            };
 
             const event = new CustomEvent("bibleReadingHighlighted", {
               detail: errorEventDetail,
-            })
-            window.dispatchEvent(event)
-
-            console.log("✅ Evento de erro disparado!")
+            });
+            window.dispatchEvent(event);
           }
-
-          console.log("🎉 ===== FIM DO PROCESSAMENTO DO EVENTO =====")
-        })
-
-        // Log de todos os eventos para debug
-        connection.onreceive = (data) => {
-          console.log("🔄 ===== EVENTO SIGNALR GENÉRICO RECEBIDO =====")
-          console.log("📦 Dados:", data)
-          console.log("📦 Tipo:", typeof data)
-          console.log("📦 JSON:", JSON.stringify(data, null, 2))
-          console.log("🔄 ===== FIM DO EVENTO GENÉRICO =====")
-        }
+        });
 
         // Log de reconexão
         connection.onreconnecting((error) => {
-          console.warn("🔄 SignalR reconectando...", error)
-        })
+          console.warn("🔄 SignalR reconectando...", error);
+        });
 
-        connection.onreconnected((connectionId) => {
-          console.log("✅ SignalR reconectado! ID:", connectionId)
-        })
+        connection.onreconnected((connectionId) => {});
 
         connection.onclose((error) => {
-          console.error("❌ Conexão SignalR fechada:", error)
-        })
+          console.error("❌ Conexão SignalR fechada:", error);
+        });
       } catch (err) {
-        console.error("❌ Falha ao conectar SignalR:", err)
-        console.error("❌ Stack trace:", (err as Error).stack)
+        console.error("❌ Falha ao conectar SignalR:", err);
+        console.error("❌ Stack trace:", (err as Error).stack);
       }
-    }
+    };
 
-    startConnection()
+    startConnection();
 
     return () => {
-      console.log("🔌 Fechando conexão SignalR...")
-      connection.stop()
-      console.log("✅ Conexão SignalR fechada!")
-    }
-  }, [worshipServiceId])
+      connection.stop();
+    };
+  }, [worshipServiceId]);
 }

@@ -47,7 +47,6 @@ export default function CultoPage() {
 
   // Função para adicionar info de debug
   const addDebugInfo = (info: string) => {
-    console.log("📝 Debug info:", info);
     setDebugInfo((prev) => [
       `${new Date().toLocaleTimeString()}: ${info}`,
       ...prev.slice(0, 8),
@@ -62,13 +61,6 @@ export default function CultoPage() {
     verseId?: number,
     originalData?: any
   ) => {
-    console.log("🔍 fetchBibleReading chamada com parâmetros:");
-    console.log("   versionId:", versionId);
-    console.log("   bookId:", bookId);
-    console.log("   chapterId:", chapterId);
-    console.log("   verseId:", verseId);
-    console.log("   originalData:", originalData);
-
     setIsLoading(true);
     const isFullChapter = !verseId;
 
@@ -85,7 +77,6 @@ export default function CultoPage() {
         chapterId,
         verseId
       );
-      console.log("📖 Resultado completo da busca bíblica:", bibleData);
 
       if (bibleData.success) {
         let text = "Texto não disponível";
@@ -123,7 +114,6 @@ export default function CultoPage() {
           chapterInfo: bibleData.chapterInfo,
         };
 
-        console.log("✅ Nova leitura criada:", newReading);
         setReadings((prev) => [newReading, ...prev]);
 
         const successMessage = isFullChapter
@@ -161,12 +151,10 @@ export default function CultoPage() {
         originalData,
       };
 
-      console.log("❌ Leitura de erro criada:", errorReading);
       setReadings((prev) => [errorReading, ...prev]);
       addDebugInfo(`❌ Erro: ${(error as Error).message}`);
     } finally {
       setIsLoading(false);
-      console.log("🏁 fetchBibleReading finalizada");
     }
   };
 
@@ -196,12 +184,7 @@ export default function CultoPage() {
 
   // Escutar eventos do SignalR globalmente
   useEffect(() => {
-    console.log("👂 Configurando listener para eventos de leitura bíblica...");
-
     const handleBibleReading = (event: CustomEvent) => {
-      console.log("🎯 ===== EVENTO CUSTOMIZADO RECEBIDO NA PÁGINA =====");
-      console.log("🎯 Event detail:", event.detail);
-
       const {
         versionId,
         bookId,
@@ -216,15 +199,10 @@ export default function CultoPage() {
       const eventMessage = `📡 Evento: V${versionId}, L${bookId}, C${chapterId}${
         verseId ? `:${verseId}` : " (completo)"
       }`;
-      console.log(eventMessage);
+
       addDebugInfo(eventMessage);
 
       if (apiData) {
-        console.log(
-          "✅ Evento já tem dados da API, processando diretamente..."
-        );
-        console.log("📊 API Data:", apiData);
-
         let text = "Texto não disponível";
         let verseNumber = verseId;
 
@@ -242,13 +220,6 @@ export default function CultoPage() {
         const bookName = apiData.bookName || `Livro ${bookId}`;
         const versionName = apiData.versionName || `Versão ${versionId}`;
         const chapterNumber = apiData.chapterNumber || chapterId;
-
-        console.log("📖 Dados extraídos:");
-        console.log("   text:", text);
-        console.log("   bookName:", bookName);
-        console.log("   versionName:", versionName);
-        console.log("   chapterNumber:", chapterNumber);
-        console.log("   verseNumber:", verseNumber);
 
         const newReading: BibleReading = {
           id: `${versionId}-${bookId}-${chapterId}-${
@@ -272,14 +243,11 @@ export default function CultoPage() {
           chapterInfo: apiData.chapterInfo,
         };
 
-        console.log("✅ Nova leitura criada diretamente:", newReading);
         setReadings((prev) => [newReading, ...prev]);
         addDebugInfo(
           `✅ Leitura adicionada: ${versionName} - ${bookName} ${chapterNumber}`
         );
       } else if (error) {
-        console.log("❌ Evento tem erro, criando leitura de erro...");
-
         const errorReading: BibleReading = {
           id: `error-${versionId}-${bookId}-${chapterId}-${
             verseId || "full"
@@ -299,15 +267,11 @@ export default function CultoPage() {
           originalData,
         };
 
-        console.log("❌ Leitura de erro criada:", errorReading);
         setReadings((prev) => [errorReading, ...prev]);
         addDebugInfo(`❌ Erro no evento SignalR`);
       } else {
-        console.log("🔍 Evento não tem dados nem erro, buscando na API...");
         fetchBibleReading(versionId, bookId, chapterId, verseId, originalData);
       }
-
-      console.log("🎯 ===== FIM DO PROCESSAMENTO DO EVENTO NA PÁGINA =====");
     };
 
     window.addEventListener(
@@ -316,7 +280,6 @@ export default function CultoPage() {
     );
 
     return () => {
-      console.log("👂 Removendo listener de eventos de leitura bíblica...");
       window.removeEventListener(
         "bibleReadingHighlighted",
         handleBibleReading as EventListener
@@ -340,7 +303,6 @@ export default function CultoPage() {
             <Button
               key={`${test.versionId}-${test.bookId}-${test.chapterId}-${test.verseId}`}
               onClick={() => {
-                console.log("🔘 Botão de teste clicado:", test);
                 fetchBibleReading(
                   test.versionId,
                   test.bookId,
@@ -363,7 +325,6 @@ export default function CultoPage() {
             <Button
               key={`${test.versionId}-${test.bookId}-${test.chapterId}`}
               onClick={() => {
-                console.log("🔘 Botão de capítulo clicado:", test);
                 fetchBibleReading(test.versionId, test.bookId, test.chapterId);
               }}
               variant="secondary"

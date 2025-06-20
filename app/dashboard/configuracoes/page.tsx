@@ -1,82 +1,92 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { CreditCard, Users, Bell, Shield, Loader2, Save } from "lucide-react"
-import { isAuthenticated, getUserRole } from "@/lib/auth-utils"
-import { getChurchData, type Church } from "@/services/church.service"
-import { getSubscriptionData, type Subscription } from "@/services/subscription.service"
-import { ChurchIcon } from "lucide-react"
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { CreditCard, Users, Bell, Shield, Loader2, Save } from "lucide-react";
+import { isAuthenticated, getUserRole } from "@/lib/auth-utils";
+import {
+  getChurchData,
+  updateChurchData,
+  type Church,
+} from "@/services/church.service";
+import {
+  getSubscriptionData,
+  type Subscription,
+} from "@/services/subscription.service";
+import { ChurchIcon } from "lucide-react";
 
 export default function ConfiguracoesPage() {
-  const router = useRouter()
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [churchData, setChurchData] = useState<Church | null>(null)
-  const [subscriptionData, setSubscriptionData] = useState<Subscription | null>(null)
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [churchData, setChurchData] = useState<Church | null>(null);
+  const [subscriptionData, setSubscriptionData] = useState<Subscription | null>(
+    null
+  );
 
-  const userRole = getUserRole()
-  const isAdmin = userRole === "Admin"
+  const userRole = getUserRole();
+  const isAdmin = userRole === "Admin";
 
   useEffect(() => {
     if (!isAuthenticated()) {
-      router.push("/login")
-      return
+      router.push("/login");
+      return;
     }
 
     if (!isAdmin) {
-      router.push("/dashboard")
-      return
+      router.push("/dashboard");
+      return;
     }
 
-    loadData()
-  }, [router, isAdmin])
+    loadData();
+  }, [router, isAdmin]);
 
   const loadData = async () => {
     try {
-      setLoading(true)
-      setError(null)
+      setLoading(true);
+      setError(null);
 
-      const [church, subscription] = await Promise.all([getChurchData(), getSubscriptionData()])
+      const [church, subscription] = await Promise.all([
+        getChurchData(),
+        getSubscriptionData(),
+      ]);
 
-      setChurchData(church)
-      setSubscriptionData(subscription)
+      setChurchData(church);
+      setSubscriptionData(subscription);
     } catch (error) {
-      console.error("Erro ao carregar dados:", error)
-      setError("Erro ao carregar dados. Tente novamente.")
+      console.error("Erro ao carregar dados:", error);
+      setError("Erro ao carregar dados. Tente novamente.");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleSaveChurchData = async () => {
-    if (!churchData) return
+    if (!churchData) return;
 
     try {
-      setSaving(true)
-      // Aqui você faria a chamada para a API para salvar os dados
-      // await updateChurchData(churchData)
+      setSaving(true);
+      setError(null);
 
-      // Simulação de salvamento
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      alert("Dados salvos com sucesso!")
+      await updateChurchData(churchData);
     } catch (error) {
-      console.error("Erro ao salvar dados:", error)
-      alert("Erro ao salvar dados. Tente novamente.")
+      console.error("Erro ao salvar dados:", error);
+      setError(
+        "Não foi possível atualizar no momento. Tente novamente mais tarde."
+      );
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
-  }
+  };
 
   if (loading) {
     return (
@@ -86,7 +96,7 @@ export default function ConfiguracoesPage() {
           <p className="text-sm text-gray-500">Carregando configurações...</p>
         </div>
       </div>
-    )
+    );
   }
 
   if (!isAdmin) {
@@ -95,13 +105,19 @@ export default function ConfiguracoesPage() {
         <Card className="w-full max-w-md">
           <CardContent className="flex flex-col items-center p-6">
             <Shield className="h-16 w-16 text-red-500 mb-4" />
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Acesso Negado</h2>
-            <p className="text-gray-600 text-center mb-4">Você não tem permissão para acessar esta página.</p>
-            <Button onClick={() => router.push("/dashboard")}>Voltar ao Dashboard</Button>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">
+              Acesso Negado
+            </h2>
+            <p className="text-gray-600 text-center mb-4">
+              Você não tem permissão para acessar esta página.
+            </p>
+            <Button onClick={() => router.push("/dashboard")}>
+              Voltar ao Dashboard
+            </Button>
           </CardContent>
         </Card>
       </div>
-    )
+    );
   }
 
   return (
@@ -110,7 +126,9 @@ export default function ConfiguracoesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Configurações</h1>
-          <p className="text-muted-foreground">Gerencie as configurações da sua igreja</p>
+          <p className="text-muted-foreground">
+            Gerencie as configurações da sua igreja
+          </p>
         </div>
       </div>
 
@@ -161,7 +179,9 @@ export default function ConfiguracoesPage() {
                       <Button variant="outline" size="sm">
                         Alterar Logo
                       </Button>
-                      <p className="text-sm text-muted-foreground mt-1">Recomendado: 400x400px, PNG ou JPG</p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Recomendado: 400x400px, PNG ou JPG
+                      </p>
                     </div>
                   </div>
 
@@ -314,19 +334,23 @@ export default function ConfiguracoesPage() {
                   )}
 
                   <div className="flex justify-end">
-                    <Button onClick={handleSaveChurchData} disabled={saving}>
-                      {saving ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Salvando...
-                        </>
-                      ) : (
-                        <>
-                          <Save className="h-4 w-4 mr-2" />
-                          Salvar Alterações
-                        </>
-                      )}
-                    </Button>
+                    <div className="flex flex-col items-end gap-2">
+                      <Button onClick={handleSaveChurchData} disabled={saving}>
+                        {saving ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Salvando...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="h-4 w-4 mr-2" />
+                            Salvar Alterações
+                          </>
+                        )}
+                      </Button>
+
+                      {error && <p className="text-sm text-red-600">{error}</p>}
+                    </div>
                   </div>
                 </>
               )}
@@ -345,13 +369,20 @@ export default function ConfiguracoesPage() {
                 <div className="space-y-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-lg font-medium">{subscriptionData.plan}</h3>
+                      <h3 className="text-lg font-medium">
+                        {subscriptionData.plan}
+                      </h3>
                       <p className="text-sm text-muted-foreground">
-                        Status: <Badge variant="outline">{subscriptionData.status}</Badge>
+                        Status:{" "}
+                        <Badge variant="outline">
+                          {subscriptionData.status}
+                        </Badge>
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-2xl font-bold">R$ {subscriptionData.price}</p>
+                      <p className="text-2xl font-bold">
+                        R$ {subscriptionData.price}
+                      </p>
                       <p className="text-sm text-muted-foreground">por mês</p>
                     </div>
                   </div>
@@ -363,18 +394,25 @@ export default function ConfiguracoesPage() {
                     </div>
                     <div>
                       <Label>Método de Pagamento</Label>
-                      <p className="text-sm">{subscriptionData.paymentMethod}</p>
+                      <p className="text-sm">
+                        {subscriptionData.paymentMethod}
+                      </p>
                     </div>
                   </div>
 
                   <div>
                     <Label>Recursos Inclusos</Label>
                     <ul className="mt-2 space-y-1">
-                      {subscriptionData.includedFeatures.map((feature, index) => (
-                        <li key={index} className="text-sm text-muted-foreground">
-                          • {feature}
-                        </li>
-                      ))}
+                      {subscriptionData.includedFeatures.map(
+                        (feature, index) => (
+                          <li
+                            key={index}
+                            className="text-sm text-muted-foreground"
+                          >
+                            • {feature}
+                          </li>
+                        )
+                      )}
                     </ul>
                   </div>
 
@@ -395,7 +433,9 @@ export default function ConfiguracoesPage() {
               <CardTitle>Gerenciamento de Usuários</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground">Funcionalidade em desenvolvimento...</p>
+              <p className="text-muted-foreground">
+                Funcionalidade em desenvolvimento...
+              </p>
             </CardContent>
           </Card>
         </TabsContent>
@@ -407,11 +447,13 @@ export default function ConfiguracoesPage() {
               <CardTitle>Configurações de Notificações</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground">Funcionalidade em desenvolvimento...</p>
+              <p className="text-muted-foreground">
+                Funcionalidade em desenvolvimento...
+              </p>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
     </div>
-  )
+  );
 }

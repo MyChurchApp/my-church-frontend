@@ -79,8 +79,6 @@ export default function LoginPage() {
 
       if (response.ok) {
         const data = await response.json();
-        console.log("Resposta completa do login:", data);
-
         // Verificar se a resposta tem a estrutura esperada
         if (data.token && data.token.token) {
           // Salvar token no localStorage
@@ -103,9 +101,6 @@ export default function LoginPage() {
             };
 
             localStorage.setItem("user", JSON.stringify(userData));
-
-            console.log("Dados do usuário salvos:", userData);
-            console.log("ChurchId extraído:", userData.churchId);
           }
 
           // Redirecionar conforme parâmetros ou para dashboard
