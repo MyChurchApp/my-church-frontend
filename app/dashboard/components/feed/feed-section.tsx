@@ -1,11 +1,20 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { RefreshCw, Send, Edit, Trash2, User, Clock, AlertCircle, Heart } from "lucide-react"
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  RefreshCw,
+  Send,
+  Edit,
+  Trash2,
+  User,
+  Clock,
+  AlertCircle,
+  Heart,
+} from "lucide-react";
 import {
   formatTimeAgo,
   canEditOrDeletePost,
@@ -13,20 +22,20 @@ import {
   isRecentPost,
   type FeedItem,
   type PostLikeState,
-} from "@/services/feed.service"
+} from "@/services/feed.service";
 
 interface FeedSectionProps {
-  feedItems: FeedItem[]
-  loading: boolean
-  error: string | null
-  hasMore: boolean
-  likeStates: PostLikeState
-  onCreatePost: (content: string) => Promise<number>
-  onUpdatePost: (postId: number, content: string) => Promise<void>
-  onDeletePost: (postId: number) => Promise<void>
-  onLikePost: (postId: number) => Promise<void>
-  onLoadMore: () => Promise<void>
-  onRefresh: () => Promise<void>
+  feedItems: FeedItem[];
+  loading: boolean;
+  error: string | null;
+  hasMore: boolean;
+  likeStates: PostLikeState;
+  onCreatePost: (content: string) => Promise<number>;
+  onUpdatePost: (postId: number, content: string) => Promise<void>;
+  onDeletePost: (postId: number) => Promise<void>;
+  onLikePost: (postId: number) => Promise<void>;
+  onLoadMore: () => Promise<void>;
+  onRefresh: () => Promise<void>;
 }
 
 export function FeedSection({
@@ -42,92 +51,103 @@ export function FeedSection({
   onLoadMore,
   onRefresh,
 }: FeedSectionProps) {
-  const [newPostContent, setNewPostContent] = useState("")
-  const [editingPost, setEditingPost] = useState<number | null>(null)
-  const [editContent, setEditContent] = useState("")
-  const [submitting, setSubmitting] = useState(false)
-  const [loadingMore, setLoadingMore] = useState(false)
-  const [actionError, setActionError] = useState<string | null>(null)
+  const [newPostContent, setNewPostContent] = useState("");
+  const [editingPost, setEditingPost] = useState<number | null>(null);
+  const [editContent, setEditContent] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  // Obter ID do usuário atual
   const getCurrentUserId = (): string => {
-    if (typeof window === "undefined") return ""
+    if (typeof window === "undefined") return "";
 
-    const token = localStorage.getItem("authToken")
-    if (!token) return ""
+    const token = localStorage.getItem("authToken");
+    if (!token) return "";
 
     try {
-      const payload = JSON.parse(atob(token.split(".")[1]))
-      return payload.nameid || payload.sub || payload.id || ""
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      return payload.nameid || payload.sub || payload.id || "";
     } catch (error) {
-      console.error("Erro ao decodificar token:", error)
-      return ""
+      console.error("Erro ao decodificar token:", error);
+      return "";
     }
-  }
+  };
 
   const handleSubmitPost = async () => {
-    if (!newPostContent.trim()) return
+    if (!newPostContent.trim()) return;
 
     try {
-      setSubmitting(true)
-      setActionError(null)
-      await onCreatePost(newPostContent.trim())
-      setNewPostContent("")
+      setSubmitting(true);
+      setActionError(null);
+      await onCreatePost(newPostContent.trim());
+      setNewPostContent("");
     } catch (error) {
-      console.error("Erro ao criar post:", error)
-      setActionError(error instanceof Error ? error.message : "Erro ao criar post")
+      console.error("Erro ao criar post:", error);
+      setActionError(
+        error instanceof Error ? error.message : "Erro ao criar post"
+      );
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
+  };
 
   const handleEditPost = (post: FeedItem) => {
-    setEditingPost(post.id)
-    setEditContent(post.content)
-    setActionError(null)
-  }
+    setEditingPost(post.id);
+    setEditContent(post.content);
+    setActionError(null);
+  };
 
   const handleSaveEdit = async () => {
-    if (!editContent.trim() || !editingPost) return
+    if (!editContent.trim() || !editingPost) return;
 
     try {
-      setSubmitting(true)
-      setActionError(null)
-      await onUpdatePost(editingPost, editContent.trim())
-      setEditingPost(null)
-      setEditContent("")
+      setSubmitting(true);
+      setActionError(null);
+      await onUpdatePost(editingPost, editContent.trim());
+      setEditingPost(null);
+      setEditContent("");
     } catch (error) {
-      console.error("Erro ao editar post:", error)
-      setActionError(error instanceof Error ? error.message : "Erro ao editar post")
+      console.error("Erro ao editar post:", error);
+      setActionError(
+        error instanceof Error ? error.message : "Erro ao editar post"
+      );
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
+  };
 
   const handleDeletePost = async (postId: number) => {
-    if (!confirm("Tem certeza que deseja deletar este post?")) return
+    if (!confirm("Tem certeza que deseja deletar este post?")) return;
 
     try {
-      setActionError(null)
-      await onDeletePost(postId)
+      setActionError(null);
+      await onDeletePost(postId);
     } catch (error) {
-      console.error("Erro ao deletar post:", error)
-      setActionError(error instanceof Error ? error.message : "Erro ao deletar post")
+      console.error("Erro ao deletar post:", error);
+      setActionError(
+        error instanceof Error ? error.message : "Erro ao deletar post"
+      );
     }
-  }
+  };
 
   const handleLoadMore = async () => {
     try {
-      setLoadingMore(true)
-      await onLoadMore()
+      setLoadingMore(true);
+      await onLoadMore();
     } catch (error) {
-      console.error("Erro ao carregar mais posts:", error)
+      console.error("Erro ao carregar mais posts:", error);
     } finally {
-      setLoadingMore(false)
+      setLoadingMore(false);
     }
-  }
+  };
 
-  const currentUserId = getCurrentUserId()
+  const getUserRole = (): string => {
+    if (typeof window === "undefined") return "";
+    return localStorage.getItem("userRole") || "";
+  };
+
+  const isAdmin = getUserRole() === "Admin";
+  const currentUserId = getCurrentUserId();
 
   if (error) {
     return (
@@ -152,7 +172,7 @@ export function FeedSection({
           </div>
         </CardContent>
       </Card>
-    )
+    );
   }
 
   return (
@@ -160,7 +180,12 @@ export function FeedSection({
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           Feed da Comunidade
-          <Button variant="outline" size="sm" onClick={onRefresh} disabled={loading}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onRefresh}
+            disabled={loading}
+          >
             <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
           </Button>
         </CardTitle>
@@ -175,20 +200,26 @@ export function FeedSection({
         )}
 
         {/* Criar novo post */}
-        <div className="space-y-2">
-          <Textarea
-            placeholder="Compartilhe algo com a comunidade..."
-            value={newPostContent}
-            onChange={(e) => setNewPostContent(e.target.value)}
-            className="min-h-[80px]"
-          />
-          <div className="flex justify-end">
-            <Button onClick={handleSubmitPost} disabled={!newPostContent.trim() || submitting} size="sm">
-              <Send className="h-4 w-4 mr-2" />
-              {submitting ? "Publicando..." : "Publicar"}
-            </Button>
+        {isAdmin && (
+          <div className="space-y-2">
+            <Textarea
+              placeholder="Compartilhe algo com a comunidade..."
+              value={newPostContent}
+              onChange={(e) => setNewPostContent(e.target.value)}
+              className="min-h-[80px]"
+            />
+            <div className="flex justify-end">
+              <Button
+                onClick={handleSubmitPost}
+                disabled={!newPostContent.trim() || submitting}
+                size="sm"
+              >
+                <Send className="h-4 w-4 mr-2" />
+                {submitting ? "Publicando..." : "Publicar"}
+              </Button>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Lista de posts */}
         {loading && feedItems.length === 0 ? (
@@ -217,9 +248,9 @@ export function FeedSection({
         ) : (
           <div className="space-y-4">
             {feedItems.map((post) => {
-              const canEdit = canEditOrDeletePost(post, currentUserId)
-              const timeLeft = getTimeLeftForEdit(post.created)
-              const isRecent = isRecentPost(post.created)
+              const canEdit = canEditOrDeletePost(post, currentUserId);
+              const timeLeft = getTimeLeftForEdit(post.created);
+              const isRecent = isRecentPost(post.created);
 
               return (
                 <div key={post.id} className="border rounded-lg p-4 space-y-3">
@@ -237,25 +268,36 @@ export function FeedSection({
                         )}
                       </div>
                       <div>
-                        <p className="font-medium text-sm">{post.member?.name || "Usuário"}</p>
+                        <p className="font-medium text-sm">
+                          {post.member?.name || "Usuário"}
+                        </p>
                         <div className="flex items-center space-x-2 text-xs text-gray-500">
                           <span>{formatTimeAgo(post.created)}</span>
-                          {post.memberId.toString() === currentUserId && isRecent && (
-                            <div className="flex items-center space-x-1">
-                              <Clock className="h-3 w-3" />
-                              <span>{timeLeft}</span>
-                            </div>
-                          )}
+                          {post.memberId.toString() === currentUserId &&
+                            isRecent && (
+                              <div className="flex items-center space-x-1">
+                                <Clock className="h-3 w-3" />
+                                <span>{timeLeft}</span>
+                              </div>
+                            )}
                         </div>
                       </div>
                     </div>
 
                     {canEdit && (
                       <div className="flex items-center space-x-1">
-                        <Button variant="ghost" size="sm" onClick={() => handleEditPost(post)}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEditPost(post)}
+                        >
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleDeletePost(post.id)}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeletePost(post.id)}
+                        >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -274,14 +316,18 @@ export function FeedSection({
                           variant="outline"
                           size="sm"
                           onClick={() => {
-                            setEditingPost(null)
-                            setEditContent("")
-                            setActionError(null)
+                            setEditingPost(null);
+                            setEditContent("");
+                            setActionError(null);
                           }}
                         >
                           Cancelar
                         </Button>
-                        <Button size="sm" onClick={handleSaveEdit} disabled={!editContent.trim() || submitting}>
+                        <Button
+                          size="sm"
+                          onClick={handleSaveEdit}
+                          disabled={!editContent.trim() || submitting}
+                        >
                           {submitting ? "Salvando..." : "Salvar"}
                         </Button>
                       </div>
@@ -290,7 +336,9 @@ export function FeedSection({
                     <div className="text-sm">
                       <p className="whitespace-pre-wrap">{post.content}</p>
                       {post.updated && (
-                        <p className="text-xs text-gray-400 mt-2">Editado em {formatTimeAgo(post.updated)}</p>
+                        <p className="text-xs text-gray-400 mt-2">
+                          Editado em {formatTimeAgo(post.updated)}
+                        </p>
                       )}
                     </div>
                   )}
@@ -304,28 +352,43 @@ export function FeedSection({
                         onClick={() => onLikePost(post.id)}
                         disabled={likeStates[post.id]?.loading}
                         className={`flex items-center space-x-1 ${
-                          likeStates[post.id]?.isLiked ? "text-red-600" : "text-gray-500"
+                          likeStates[post.id]?.isLiked
+                            ? "text-red-600"
+                            : "text-gray-500"
                         }`}
                       >
-                        <Heart className={`h-4 w-4 ${likeStates[post.id]?.isLiked ? "fill-current" : ""}`} />
-                        <span className="text-xs">{likeStates[post.id]?.likesCount ?? post.likesCount}</span>
+                        <Heart
+                          className={`h-4 w-4 ${
+                            likeStates[post.id]?.isLiked ? "fill-current" : ""
+                          }`}
+                        />
+                        <span className="text-xs">
+                          {likeStates[post.id]?.likesCount ?? post.likesCount}
+                        </span>
                       </Button>
                     </div>
 
                     <div className="text-xs text-gray-500">
-                      {post.memberId.toString() === currentUserId && !isRecent && (
-                        <span className="text-orange-600">Não pode mais ser editado</span>
-                      )}
+                      {post.memberId.toString() === currentUserId &&
+                        !isRecent && (
+                          <span className="text-orange-600">
+                            Não pode mais ser editado
+                          </span>
+                        )}
                     </div>
                   </div>
                 </div>
-              )
+              );
             })}
 
             {/* Botão carregar mais */}
             {hasMore && (
               <div className="text-center">
-                <Button variant="outline" onClick={handleLoadMore} disabled={loadingMore}>
+                <Button
+                  variant="outline"
+                  onClick={handleLoadMore}
+                  disabled={loadingMore}
+                >
                   {loadingMore ? "Carregando..." : "Carregar mais"}
                 </Button>
               </div>
@@ -334,5 +397,5 @@ export function FeedSection({
         )}
       </CardContent>
     </Card>
-  )
+  );
 }

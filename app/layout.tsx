@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "../styles/globals.css";
 import Script from "next/script";
+import { ReactQueryProvider } from "@/app/providers/react-query-provider"; // <-- Faltava isso
 
 const inter = Inter({
   subsets: ["latin"],
@@ -14,7 +15,7 @@ export const metadata: Metadata = {
   icons: {
     icon: "/favicon.ico",
   },
-    generator: 'v0.dev'
+  generator: "v0.dev",
 };
 
 export default function RootLayout({
@@ -35,22 +36,24 @@ export default function RootLayout({
         />
       </head>
       <body className={inter.className}>
-        {children}
-        <Script
-          src="https://unpkg.com/aos@2.3.1/dist/aos.js"
-          strategy="afterInteractive"
-        />
-        <Script id="aos-init" strategy="afterInteractive">
-          {`
-            if (window.AOS) {
-              AOS.init({
-                duration: 800,
-                once: true,
-                offset: 50
-              });
-            }
-          `}
-        </Script>
+        <ReactQueryProvider>
+          {children}
+          <Script
+            src="https://unpkg.com/aos@2.3.1/dist/aos.js"
+            strategy="afterInteractive"
+          />
+          <Script id="aos-init" strategy="afterInteractive">
+            {`
+              if (window.AOS) {
+                AOS.init({
+                  duration: 800,
+                  once: true,
+                  offset: 50
+                });
+              }
+            `}
+          </Script>
+        </ReactQueryProvider>
       </body>
     </html>
   );

@@ -221,25 +221,6 @@ export default function LoginPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center">
-                  <div className="flex items-center">
-                    <Checkbox
-                      id="remember-me"
-                      checked={rememberMe}
-                      onCheckedChange={(checked) =>
-                        setRememberMe(checked as boolean)
-                      }
-                      className="h-4 w-4 text-gray-900 focus:ring-gray-500 border-gray-300 rounded"
-                    />
-                    <Label
-                      htmlFor="remember-me"
-                      className="ml-2 block text-sm text-gray-700"
-                    >
-                      Lembrar de mim
-                    </Label>
-                  </div>
-                </div>
-
                 <div>
                   <Button
                     type="submit"

@@ -165,14 +165,21 @@ export const getChurchDashboardStats =
   async (): Promise<ChurchDashboardStats> => {
     const token =
       typeof window !== "undefined" ? localStorage.getItem("authToken") : null;
-
     if (!token) throw new Error("Token de autenticação não encontrado");
 
     const res = await fetch(`${API_BASE_URL}/Church/dashboard`, {
       headers: { Authorization: `Bearer ${token}` },
     });
 
-    if (!res.ok) throw new Error(`Erro ao obter dashboard: ${res.status}`);
+    if (res.status === 403) {
+      const error = new Error("Forbidden");
+      (error as any).status = 403;
+      throw error;
+    }
 
-    return (await res.json()) as ChurchDashboardStats;
+    if (!res.ok) {
+      throw new Error(`Erro ao obter dashboard: ${res.status}`);
+    }
+
+    return res.json();
   };

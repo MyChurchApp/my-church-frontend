@@ -1,9 +1,9 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import Link from "next/link"
-import { useRouter, usePathname } from "next/navigation"
-import { Button } from "@/components/ui/button"
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Button } from "@/components/ui/button";
 import {
   Home,
   Users,
@@ -19,296 +19,312 @@ import {
   Package,
   Heart,
   Book,
-} from "lucide-react"
-import { getUserData, logout } from "@/lib/auth-utils"
+} from "lucide-react";
+import { getUserData, logout } from "@/lib/auth-utils";
 
-interface SidebarProps {
-  className?: string
+type Role = "admin" | "member";
+
+interface SubItem {
+  label: string;
+  href: string;
+  accessLevel?: Role;
 }
 
 interface MenuItem {
-  icon: any
-  label: string
-  href: string
-  accessLevel: "admin" | "member"
-  subItems?: {
-    label: string
-    href: string
-  }[]
+  icon: any;
+  label: string;
+  href: string;
+  accessLevel: Role;
+  subItems?: SubItem[];
+}
+
+interface SidebarProps {
+  className?: string;
 }
 
 export function Sidebar({ className = "" }: SidebarProps) {
-  const [isCollapsed, setIsCollapsed] = useState(false)
-  const [isMobileOpen, setIsMobileOpen] = useState(false)
-  const [expandedMenus, setExpandedMenus] = useState<string[]>([])
-  const [user, setUser] = useState<any>(null)
-  const [churchData, setChurchData] = useState<any>(null)
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
+  const [user, setUser] = useState<any>(null);
+  const [churchData, setChurchData] = useState<{
+    id: string;
+    name: string;
+    logo: string;
+  } | null>(null);
 
-  const router = useRouter()
-  const pathname = usePathname()
+  const pathname = usePathname();
 
   useEffect(() => {
-    // Obter dados do usuário
-    const userData = getUserData()
-    if (userData) {
-      setUser(userData)
-    }
+    setUser(getUserData());
+    setChurchData({ id: "1", name: "MyChurch", logo: "/mychurch-logo.png" });
+  }, []);
 
-    // Dados da igreja (estático por enquanto)
-    setChurchData({
-      id: "1",
-      name: "MyChurch",
-      logo: "/mychurch-logo.png",
-    })
-  }, [])
+  useEffect(() => setIsMobileOpen(false), [pathname]);
 
-  // Close mobile menu when route changes
   useEffect(() => {
-    setIsMobileOpen(false)
-  }, [pathname])
-
-  // Prevent body scroll when mobile menu is open
-  useEffect(() => {
-    if (isMobileOpen) {
-      const scrollY = window.scrollY
-      document.body.style.position = "fixed"
-      document.body.style.top = `-${scrollY}px`
-      document.body.style.width = "100%"
-      document.body.style.overflow = "hidden"
-    } else {
-      const scrollY = document.body.style.top
-      document.body.style.position = ""
-      document.body.style.top = ""
-      document.body.style.width = ""
-      document.body.style.overflow = ""
-      if (scrollY) {
-        window.scrollTo(0, Number.parseInt(scrollY || "0") * -1)
-      }
-    }
-
+    if (!isMobileOpen) return;
+    const scrollY = window.scrollY;
+    document.body.style.cssText = `position:fixed;top:-${scrollY}px;width:100%;overflow:hidden`;
     return () => {
-      document.body.style.position = ""
-      document.body.style.top = ""
-      document.body.style.width = ""
-      document.body.style.overflow = ""
-    }
-  }, [isMobileOpen])
+      document.body.style.cssText = "";
+      window.scrollTo(0, scrollY);
+    };
+  }, [isMobileOpen]);
 
-  const handleLogout = () => {
-    logout()
-  }
-
-  const allMenuItems: MenuItem[] = [
+  const rawMenu: MenuItem[] = [
     { icon: Home, label: "Início", href: "/dashboard", accessLevel: "member" },
-    { icon: Users, label: "Membros", href: "/dashboard/membros", accessLevel: "member" },
-    { icon: Calendar, label: "Eventos", href: "/dashboard/eventos", accessLevel: "member" },
+
+    {
+      icon: Users,
+      label: "Membros",
+      href: "/dashboard/membros",
+      accessLevel: "admin",
+    },
+
+    {
+      icon: Calendar,
+      label: "Eventos",
+      href: "/dashboard/eventos",
+      accessLevel: "member",
+    },
+
     {
       icon: Book,
       label: "Culto",
       href: "/dashboard/culto",
       accessLevel: "member",
       subItems: [
-        { label: "Acompanhar Culto", href: "/dashboard/culto" },
-        { label: "Gestão de Culto", href: "/dashboard/culto/gestao" },
+        {
+          label: "Acompanhar Culto",
+          href: "/dashboard/culto",
+          accessLevel: "member",
+        },
+        {
+          label: "Gestão de Culto",
+          href: "/dashboard/culto/gestao",
+          accessLevel: "admin",
+        },
       ],
     },
+
     {
       icon: Heart,
       label: "Doações",
       href: "/dashboard/doacoes",
       accessLevel: "member",
       subItems: [
-        { label: "Ofertar", href: "/dashboard/doacoes" },
-        { label: "Histórico", href: "/dashboard/doacoes/historico" },
+        { label: "Ofertar", href: "/dashboard/doacoes", accessLevel: "member" },
+        {
+          label: "Histórico",
+          href: "/dashboard/doacoes/historico",
+          accessLevel: "admin",
+        },
       ],
     },
+
     {
       icon: MessageSquare,
       label: "Comunicação",
       href: "/dashboard/comunicacao",
       accessLevel: "admin",
       subItems: [
-        { label: "Nova Publicação", href: "/dashboard/comunicacao/nova-publicacao" },
-        { label: "WhatsApp", href: "/dashboard/comunicacao/whatsapp" },
+        {
+          label: "Nova Publicação",
+          href: "/dashboard/comunicacao/nova-publicacao",
+          accessLevel: "admin",
+        },
+        {
+          label: "WhatsApp",
+          href: "/dashboard/comunicacao/whatsapp",
+          accessLevel: "admin",
+        },
       ],
     },
-    // Financeiro com submenu apenas para admins
-    ...(user?.accessLevel === "admin"
-      ? [
-          {
-            icon: DollarSign,
-            label: "Financeiro",
-            href: "/dashboard/financeiro",
-            accessLevel: "admin" as const,
-            subItems: [
-              { label: "Fluxo de Caixa", href: "/dashboard/financeiro" },
-              { label: "Transferir Doações", href: "/dashboard/financeiro/ofertas-realizadas" },
-            ],
-          },
-        ]
-      : [
-          {
-            icon: DollarSign,
-            label: "Financeiro",
-            href: "/dashboard/financeiro",
-            accessLevel: "admin" as const,
-          },
-        ]),
-    { icon: Package, label: "Ativos", href: "/dashboard/ativos", accessLevel: "admin" },
-    { icon: Settings, label: "Configurações", href: "/dashboard/configuracoes", accessLevel: "admin" },
-  ]
 
-  // Filtrar itens baseado no nível de acesso do usuário
-  const menuItems = allMenuItems.filter((item) => {
-    if (!user) return false
-    if (user.accessLevel === "admin") return true
-    return item.accessLevel === "member"
-  })
+    {
+      icon: DollarSign,
+      label: "Financeiro",
+      href: "/dashboard/financeiro",
+      accessLevel: "admin",
+      subItems: [
+        {
+          label: "Fluxo de Caixa",
+          href: "/dashboard/financeiro",
+          accessLevel: "admin",
+        },
+        {
+          label: "Transferir Doações",
+          href: "/dashboard/financeiro/ofertas-realizadas",
+          accessLevel: "admin",
+        },
+      ],
+    },
 
-  const toggleSubmenu = (href: string) => {
-    setExpandedMenus((prev) => (prev.includes(href) ? prev.filter((item) => item !== href) : [...prev, href]))
-  }
+    {
+      icon: Package,
+      label: "Ativos",
+      href: "/dashboard/ativos",
+      accessLevel: "admin",
+    },
 
-  const isActiveRoute = (href: string, subItems?: any[]) => {
-    if (href === "/dashboard") {
-      return pathname === "/dashboard"
-    }
-    if (subItems) {
-      return pathname.startsWith(href) || subItems.some((sub) => pathname.startsWith(sub.href))
-    }
-    return pathname.startsWith(href)
-  }
+    {
+      icon: Settings,
+      label: "Configurações",
+      href: "/dashboard/configuracoes",
+      accessLevel: "admin",
+    },
+  ];
+
+  const filterByRole = (items: MenuItem[]): MenuItem[] =>
+    items
+      .map((item) => {
+        const parentAllowed =
+          user?.accessLevel === "admin" || item.accessLevel === "member";
+
+        const subItems = item.subItems?.filter((sub) => {
+          const level = sub.accessLevel ?? item.accessLevel;
+          return user?.accessLevel === "admin" || level === "member";
+        });
+
+        if (!parentAllowed && (!subItems || subItems.length === 0)) return null;
+
+        if (!parentAllowed && subItems && subItems.length > 0) {
+          return { ...item, href: subItems[0].href, subItems };
+        }
+
+        return { ...item, subItems };
+      })
+      .filter(Boolean) as MenuItem[];
+
+  const menuItems = filterByRole(rawMenu);
+
+  const toggleSub = (href: string) =>
+    setExpandedMenus((prev) =>
+      prev.includes(href) ? prev.filter((i) => i !== href) : [...prev, href]
+    );
+
+  const isActive = (href: string, subs?: SubItem[]) =>
+    href === "/dashboard"
+      ? pathname === "/dashboard"
+      : pathname.startsWith(href) ||
+        subs?.some((s) => pathname.startsWith(s.href));
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="p-4 border-b border-gray-200">
-        <div className="flex items-center justify-between">
-          {!isCollapsed && (
-            <div className="text-lg font-bold text-gray-900 truncate">{churchData?.name || "MyChurch"}</div>
+      <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+        {!isCollapsed && (
+          <span className="font-bold truncate">{churchData?.name}</span>
+        )}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="hidden md:flex"
+        >
+          {isCollapsed ? (
+            <ChevronRight className="h-4 w-4" />
+          ) : (
+            <ChevronLeft className="h-4 w-4" />
           )}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            className="ml-auto hidden md:flex"
-          >
-            {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-          </Button>
-          <Button variant="ghost" size="icon" onClick={() => setIsMobileOpen(false)} className="ml-auto md:hidden">
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setIsMobileOpen(false)}
+          className="md:hidden"
+        >
+          <X className="h-4 w-4" />
+        </Button>
       </div>
 
-      {/* User Info */}
-      {!isCollapsed && user && (
-        <div className="p-4 border-b border-gray-200 bg-gray-50">
-          <div className="text-sm">
-            <p className="font-medium text-gray-900">{user.name}</p>
-            <p className="text-gray-600">{user.role}</p>
-            <span
-              className={`inline-block px-2 py-1 text-xs rounded-full mt-1 ${
-                user.accessLevel === "admin" ? "bg-blue-100 text-blue-800" : "bg-green-100 text-green-800"
-              }`}
-            >
-              {user.accessLevel === "admin" ? "Administrador" : "Membro"}
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* Navigation */}
-      <nav className="flex-1 p-4">
+      <nav className="flex-1 p-4 overflow-y-auto">
         <ul className="space-y-2">
           {menuItems.map((item) => (
             <li key={item.href}>
-              <div>
-                {item.subItems ? (
-                  // Item com submenu
-                  <div>
-                    <button
-                      onClick={() => toggleSubmenu(item.href)}
-                      className={`flex items-center justify-between w-full gap-3 px-3 py-2 rounded-md transition-colors ${
-                        isActiveRoute(item.href, item.subItems)
-                          ? "text-white shadow-md"
-                          : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
-                      }`}
-                      style={isActiveRoute(item.href, item.subItems) ? { backgroundColor: "#89f0e6" } : {}}
-                    >
-                      <div className="flex items-center gap-3">
-                        <item.icon className="h-5 w-5 flex-shrink-0" />
-                        {!isCollapsed && <span className="font-medium">{item.label}</span>}
-                      </div>
-                      {!isCollapsed && (
-                        <ChevronRight
-                          className={`h-4 w-4 transition-transform ${
-                            expandedMenus.includes(item.href) ? "rotate-90" : ""
-                          }`}
-                        />
-                      )}
-                    </button>
-
-                    {/* Submenus */}
-                    {!isCollapsed && expandedMenus.includes(item.href) && (
-                      <ul className="ml-8 mt-2 space-y-1">
-                        {item.subItems.map((subItem) => (
-                          <li key={subItem.href}>
-                            <Link
-                              href={subItem.href}
-                              className={`block px-3 py-2 rounded-md text-sm transition-colors ${
-                                pathname.startsWith(subItem.href)
-                                  ? "bg-teal-100 text-teal-800"
-                                  : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-                              }`}
-                            >
-                              {subItem.label}
-                            </Link>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                ) : (
-                  // Item normal sem submenu
-                  <Link
-                    href={item.href}
-                    className={`flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${
-                      isActiveRoute(item.href)
+              {item.subItems && item.subItems.length ? (
+                <>
+                  <button
+                    onClick={() => toggleSub(item.href)}
+                    className={`flex w-full items-center justify-between gap-3 px-3 py-2 rounded-md transition-colors ${
+                      isActive(item.href, item.subItems)
                         ? "text-white shadow-md"
-                        : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                        : "text-gray-700 hover:bg-gray-100"
                     }`}
-                    style={isActiveRoute(item.href) ? { backgroundColor: "#89f0e6" } : {}}
+                    style={
+                      isActive(item.href, item.subItems)
+                        ? { background: "#89f0e6" }
+                        : {}
+                    }
                   >
-                    <item.icon className="h-5 w-5 flex-shrink-0" />
-                    {!isCollapsed && <span className="font-medium">{item.label}</span>}
-                  </Link>
-                )}
-              </div>
+                    <div className="flex items-center gap-3">
+                      <item.icon className="h-5 w-5" />
+                      {!isCollapsed && <span>{item.label}</span>}
+                    </div>
+                    {!isCollapsed && (
+                      <ChevronRight
+                        className={`h-4 w-4 transform transition-transform ${
+                          expandedMenus.includes(item.href) ? "rotate-90" : ""
+                        }`}
+                      />
+                    )}
+                  </button>
+
+                  {!isCollapsed && expandedMenus.includes(item.href) && (
+                    <ul className="ml-8 mt-1 space-y-1">
+                      {item.subItems!.map((sub) => (
+                        <li key={sub.href}>
+                          <Link
+                            href={sub.href}
+                            className={`block px-3 py-2 text-sm rounded-md transition-colors ${
+                              pathname.startsWith(sub.href)
+                                ? "bg-teal-100 text-teal-800"
+                                : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                            }`}
+                          >
+                            {sub.label}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </>
+              ) : (
+                <Link
+                  href={item.href}
+                  className={`flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${
+                    isActive(item.href)
+                      ? "text-white shadow-md"
+                      : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                  }`}
+                  style={isActive(item.href) ? { background: "#89f0e6" } : {}}
+                >
+                  <item.icon className="h-5 w-5" />
+                  {!isCollapsed && <span>{item.label}</span>}
+                </Link>
+              )}
             </li>
           ))}
         </ul>
       </nav>
 
-      {/* Footer */}
       <div className="p-4 border-t border-gray-200">
         <Button
           variant="ghost"
-          onClick={handleLogout}
+          onClick={logout}
           className={`w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 ${
             isCollapsed ? "px-2" : "px-3"
           }`}
         >
-          <LogOut className="h-5 w-5 flex-shrink-0" />
+          <LogOut className="h-5 w-5" />
           {!isCollapsed && <span className="ml-3">Sair</span>}
         </Button>
       </div>
     </div>
-  )
+  );
 
   return (
     <>
-      {/* Mobile Menu Button */}
       <Button
         variant="ghost"
         size="icon"
@@ -318,7 +334,6 @@ export function Sidebar({ className = "" }: SidebarProps) {
         <Menu className="h-5 w-5" />
       </Button>
 
-      {/* Desktop Sidebar */}
       <div
         className={`hidden md:block bg-white border-r border-gray-200 transition-all duration-300 ${
           isCollapsed ? "w-16" : "w-64"
@@ -327,12 +342,13 @@ export function Sidebar({ className = "" }: SidebarProps) {
         <SidebarContent />
       </div>
 
-      {/* Mobile Overlay */}
       {isMobileOpen && (
-        <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setIsMobileOpen(false)} />
+        <div
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={() => setIsMobileOpen(false)}
+        />
       )}
 
-      {/* Mobile Sidebar */}
       <div
         className={`fixed top-0 left-0 h-full w-64 bg-white z-50 transform transition-transform duration-300 md:hidden ${
           isMobileOpen ? "translate-x-0" : "-translate-x-full"
@@ -341,5 +357,5 @@ export function Sidebar({ className = "" }: SidebarProps) {
         <SidebarContent />
       </div>
     </>
-  )
+  );
 }
