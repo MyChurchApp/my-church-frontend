@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Sidebar } from "@/components/sidebar";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -134,7 +133,6 @@ export default function FinanceiroPage() {
       }
     } catch (error) {
       console.error("❌ Erro na requisição:", error);
-      alert(`❌ Erro: ${error.message}`);
     }
   };
 
@@ -546,7 +544,7 @@ export default function FinanceiroPage() {
           onGenerateReport={generatePDFReport}
           viewMode={viewMode}
           onViewModeChange={setViewMode}
-          onTestAuth={handleTestAuth}
+          onTestApi={handleTestAuth}
         />
 
         <div className="flex-1 overflow-y-auto">

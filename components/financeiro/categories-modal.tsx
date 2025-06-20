@@ -1,52 +1,103 @@
-"use client"
-import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import type { CashFlowCategory } from "@/lib/types"
-import { useState } from "react"
+"use client";
+
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { toast } from "@/components/ui/use-toast";
+import { CashFlowCategory } from "@/services/financeiro.service";
+
+interface Category {
+  id: number;
+  name: string;
+  description: string;
+}
 
 interface CategoriesModalProps {
-  categories: CashFlowCategory[]
-  onAddCategory: (name: string) => void
-  onDeleteCategory: (id: string) => void
-  isOpen: boolean
-  onOpenChange: (open: boolean) => void
+  categories: CashFlowCategory[];
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+  onCreateCategory: (data: {
+    name: string;
+    description: string;
+  }) => Promise<void>;
+  onDeleteCategory: (id: number) => Promise<void>;
+  onEditCategory?: (category: CashFlowCategory) => Promise<void>;
 }
 
 export function CategoriesModal({
   categories,
-  onAddCategory,
-  onDeleteCategory,
   isOpen,
   onOpenChange,
+  onCreateCategory,
+  onDeleteCategory,
 }: CategoriesModalProps) {
-  const [newCategoryName, setNewCategoryName] = useState("")
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleAddCategory = () => {
-    if (newCategoryName.trim() !== "") {
-      onAddCategory(newCategoryName)
-      setNewCategoryName("")
+  const handleAddCategory = async () => {
+    const name = newCategoryName.trim();
+    if (!name) return;
+
+    try {
+      setLoading(true);
+      await onCreateCategory({ name, description: "" });
+      toast({ title: "✅ Categoria adicionada com sucesso!" });
+      setNewCategoryName("");
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "❌ Erro ao adicionar categoria",
+        description: err instanceof Error ? err.message : "Erro desconhecido.",
+      });
+    } finally {
+      setLoading(false);
     }
-  }
+  };
 
-  const handleDeleteClick = (category: CashFlowCategory) => {
+  const handleDeleteClick = async (category: Category) => {
     const confirmDelete = window.confirm(
-      `Tem certeza que deseja excluir a categoria "${category.name}"?\n\n` + `Esta ação não pode ser desfeita.`,
-    )
+      `Tem certeza que deseja excluir a categoria "${category.name}"?\nEssa ação não pode ser desfeita.`
+    );
 
-    if (confirmDelete) {
-      onDeleteCategory(category.id)
+    if (!confirmDelete) return;
+
+    try {
+      await onDeleteCategory(category.id);
+      toast({ title: "✅ Categoria excluída com sucesso!" });
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "❌ Erro ao excluir categoria",
+        description: err instanceof Error ? err.message : "Erro desconhecido.",
+      });
     }
-  }
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="w-[95vw] max-w-md mx-auto">
         <DialogHeader>
           <DialogTitle>Gerenciar Categorias</DialogTitle>
-          <DialogDescription>Adicione ou remova categorias para organizar suas finanças.</DialogDescription>
+          <DialogDescription>
+            Adicione ou remova categorias para organizar suas finanças.
+          </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
@@ -60,8 +111,12 @@ export function CategoriesModal({
               className="col-span-3"
             />
           </div>
-          <Button onClick={handleAddCategory} variant="outline">
-            Adicionar Categoria
+          <Button
+            onClick={handleAddCategory}
+            variant="outline"
+            disabled={loading}
+          >
+            {loading ? "Adicionando..." : "Adicionar Categoria"}
           </Button>
         </div>
         <Table>
@@ -92,5 +147,5 @@ export function CategoriesModal({
         </Table>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
