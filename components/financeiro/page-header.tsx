@@ -1,14 +1,14 @@
-"use client"
+"use client";
 
-import { Button } from "@/components/ui/button"
-import { MdPictureAsPdf, MdViewList, MdViewModule } from "react-icons/md"
+import { Button } from "@/components/ui/button";
+import { MdPictureAsPdf, MdViewList, MdViewModule } from "react-icons/md";
 
 interface PageHeaderProps {
-  viewMode: "cards" | "table"
-  onViewModeChange: (mode: "cards" | "table") => void
-  onGenerateReport: () => void
-  onTestApi?: () => void
-  onGetApiDetails?: () => void
+  viewMode: "cards" | "table";
+  onViewModeChange: (mode: "cards" | "table") => void;
+  onGenerateReport: () => void;
+  onTestApi?: () => void;
+  onGetApiDetails?: () => void;
 }
 
 export function PageHeader({
@@ -26,12 +26,6 @@ export function PageHeader({
       </div>
 
       <div className="flex items-center space-x-2 mt-4 md:mt-0">
-        {onTestApi && (
-          <Button onClick={onTestApi} variant="outline" size="sm">
-            Testar API
-          </Button>
-        )}
-
         {onGetApiDetails && (
           <Button onClick={onGetApiDetails} variant="outline" size="sm">
             Ver Detalhes API
@@ -63,5 +57,5 @@ export function PageHeader({
         </div>
       </div>
     </div>
-  )
+  );
 }
