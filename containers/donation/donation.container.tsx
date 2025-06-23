@@ -1,10 +1,10 @@
-"use client"
+"use client";
 
-import { useDonation } from "./useDonation"
-import { DonationComponent } from "@/components/donation/donation.component"
+import { DonationComponent } from "@/components/donation/donation.component";
+import { useDonation } from "./useDonation";
 
 export function DonationContainer() {
-  const donationHook = useDonation()
+  const donationHook = useDonation();
 
-  return <DonationComponent {...donationHook} />
+  return <DonationComponent {...donationHook} />;
 }
