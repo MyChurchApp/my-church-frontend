@@ -1,6 +1,6 @@
 "use client";
 
-import { DonationComponent } from "@/components/donation/donation.component";
+import { DonationComponent } from "../../components/donation/donation.component";
 import { useDonation } from "./useDonation";
 
 export function DonationContainer() {
