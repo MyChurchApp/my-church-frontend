@@ -1,4 +1,4 @@
-import { DonationContainer } from "../../../containers/Donation/donation.container";
+import { DonationContainer } from "@/containers/Donation";
 import { Suspense } from "react";
 
 export default function DoacoesPage() {
