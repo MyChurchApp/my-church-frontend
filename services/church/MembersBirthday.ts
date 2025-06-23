@@ -1,4 +1,70 @@
-import { BirthdayFilterType, BirthdayMember } from "../members.service";
+export enum BirthdayFilterType {
+  Day = 0,
+  Week = 1,
+  Month = 2,
+}
+
+// Interface para membro aniversariante (baseada na API)
+export interface ApiBirthdayMember {
+  id: number;
+  name: string;
+  document: Array<{
+    id: number;
+    memberId: number;
+    type: number;
+    number: string;
+  }>;
+  email: string;
+  phone: string;
+  photo: string | null;
+  birthDate: string;
+  isBaptized: boolean;
+  baptizedDate: string;
+  isTither: boolean;
+  churchId: number;
+  church: {
+    id: number;
+    name: string;
+    logo: string;
+    address: {
+      id: number;
+      street: string;
+      city: string;
+      state: string;
+      zipCode: string;
+      country: string;
+      neighborhood: string;
+    };
+    phone: string;
+    description: string;
+    members: string[];
+    subscription: any;
+  };
+  role: number;
+  created: string;
+  updated: string | null;
+  maritalStatus: string | null;
+  memberSince: string | null;
+  ministry: string | null;
+  isActive: boolean;
+  notes: string | null;
+}
+
+// Interface para membro aniversariante processado (para uso no frontend)
+export interface BirthdayMember {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  photo: string | null;
+  birthDate: string;
+  ageWillTurn: number;
+  birthdayThisYear: Date;
+  daysUntilBirthday: number;
+  isToday: boolean;
+  birthdayMessage: string;
+}
+
 const BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "https://demoapp.top1soft.com.br/api";
 

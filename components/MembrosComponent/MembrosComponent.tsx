@@ -1,4 +1,5 @@
 "use client";
+import { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,12 +18,85 @@ import {
   Trash2,
 } from "lucide-react";
 import ValidatedMemberModal from "@/components/validated-member-modal";
-
 import EditMemberModal from "./EditMemberModal";
 import { MembrosPageProps } from "@/containers/Membros/Membro.types";
+import { FileService } from "@/services/fileService/File";
+
+// Avatar otimizado
+interface MemberAvatarProps {
+  photoFileName: string | null;
+  initials: string;
+  memberName: string;
+}
+
+function MemberAvatar({
+  photoFileName,
+  initials,
+  memberName,
+}: MemberAvatarProps) {
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const lastFileName = useRef<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    let objectUrl: string | null = null;
+
+    async function fetchPhoto() {
+      if (!photoFileName || photoFileName === "foto-padrao.jpg") {
+        setPhotoUrl(null);
+        setIsLoading(false);
+        lastFileName.current = photoFileName;
+        return;
+      }
+
+      if (photoFileName === lastFileName.current) return; // não refaz se não mudou
+
+      setIsLoading(true);
+      try {
+        const blob = await FileService.downloadFile(photoFileName);
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        setPhotoUrl(objectUrl);
+        lastFileName.current = photoFileName;
+      } catch {
+        setPhotoUrl(null);
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    }
+
+    fetchPhoto();
+
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+    // Só atualiza se o nome mudar
+  }, [photoFileName]);
+
+  return (
+    <Avatar className="h-12 w-12 shrink-0">
+      {photoUrl ? (
+        <AvatarImage src={photoUrl} alt={`Foto de ${memberName}`} />
+      ) : photoFileName === "foto-padrao.jpg" ? (
+        <AvatarImage src="/default-avatar.png" alt="Avatar padrão" />
+      ) : null}
+      <AvatarFallback className="bg-slate-200 text-slate-600">
+        {isLoading && photoFileName ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          initials
+        )}
+      </AvatarFallback>
+    </Avatar>
+  );
+}
 
 export function MembrosComponent({
-  filteredMembers,
+  members, // agora é members, não filteredMembers
+  searchType,
+  setSearchType,
   searchTerm,
   setSearchTerm,
   statusFilter,
@@ -44,236 +118,312 @@ export function MembrosComponent({
   loadMembers,
   memberCounts,
 }: MembrosPageProps) {
+  const [pendingSearchTerm, setPendingSearchTerm] = useState(searchTerm);
+
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="flex flex-col items-center gap-2">
-          <Loader2 className="h-8 w-8 animate-spin" />
-          <p className="text-sm text-gray-500">Carregando membros...</p>
+      <div className="flex h-screen items-center justify-center bg-slate-50 p-4">
+        <div className="flex flex-col items-center gap-2 text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+          <h3 className="text-lg font-medium text-slate-700">
+            Carregando membros...
+          </h3>
+          <p className="text-sm text-slate-500">
+            Por favor, aguarde um momento.
+          </p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Membros</h1>
-          <p className="text-gray-600">Gerencie os membros da sua igreja</p>
-        </div>
-        {isAdmin && <ValidatedMemberModal onMemberCreated={loadMembers} />}
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Users className="h-5 w-5 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Total de Membros</p>
-                <p className="text-xl font-semibold">
-                  {isLoadingCounts ? "..." : memberCounts?.total ?? "--"}
-                </p>
-              </div>
+    <main
+      className="bg-slate-50/50 min-h-screen p-4 sm:p-6 lg:p-8"
+      aria-labelledby="page-title"
+    >
+      <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
+        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1
+              id="page-title"
+              className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900"
+            >
+              Membros
+            </h1>
+            <p className="mt-1 text-slate-500">
+              Gerencie os membros da sua organização.
+            </p>
+          </div>
+          {isAdmin && (
+            <div className="shrink-0 w-full sm:w-auto">
+              <ValidatedMemberModal onMemberCreated={loadMembers} />
             </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <UserCheck className="h-5 w-5 text-green-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Membros Ativos</p>
-                <p className="text-xl font-semibold">
-                  {isLoadingCounts ? "..." : memberCounts?.totalActive ?? "--"}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-red-100 rounded-lg">
-                <UserX className="h-5 w-5 text-red-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Membros Inativos</p>
-                <p className="text-xl font-semibold">
-                  {isLoadingCounts
-                    ? "..."
-                    : memberCounts?.totalInactive ?? "--"}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+          )}
+        </header>
 
-      {/* Search and Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-          <Input
-            placeholder="Buscar por nome ou email..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-        <Button variant="outline" className="flex items-center gap-2">
-          <Filter className="h-4 w-4" />
-          Filtros
-        </Button>
-      </div>
+        {/* Estatísticas */}
+        <section
+          aria-labelledby="stats-title"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
+        >
+          <h2 id="stats-title" className="sr-only">
+            Estatísticas
+          </h2>
+          <Card>
+            <CardContent className="p-4 sm:p-5">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-blue-100 rounded-lg">
+                  <Users className="h-5 w-5 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-slate-500">
+                    Total de Membros
+                  </p>
+                  <p className="text-xl sm:text-2xl font-semibold text-slate-900">
+                    {isLoadingCounts ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      memberCounts?.total ?? "0"
+                    )}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4 sm:p-5">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-green-100 rounded-lg">
+                  <UserCheck className="h-5 w-5 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-slate-500">
+                    Membros Ativos
+                  </p>
+                  <p className="text-xl sm:text-2xl font-semibold text-slate-900">
+                    {isLoadingCounts ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      memberCounts?.totalActive ?? "0"
+                    )}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4 sm:p-5">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-red-100 rounded-lg">
+                  <UserX className="h-5 w-5 text-red-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-slate-500">
+                    Membros Inativos
+                  </p>
+                  <p className="text-xl sm:text-2xl font-semibold text-slate-900">
+                    {isLoadingCounts ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      memberCounts?.totalInactive ?? "0"
+                    )}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </section>
 
-      {/* Error Message */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-md p-4">
-          <p className="text-red-700">{error}</p>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={loadMembers}
-            className="mt-2"
+        {/* Filtros */}
+        <div className="flex gap-2">
+          <select
+            value={searchType}
+            onChange={(e) =>
+              setSearchType(e.target.value as "Name" | "Email" | "Document")
+            }
+            className="border p-2 rounded-md"
           >
-            Tentar Novamente
+            <option value="Name">Nome</option>
+            <option value="Email">Email</option>
+            <option value="Document">CPF</option>
+          </select>
+          <Input
+            value={pendingSearchTerm}
+            onChange={(e) => setPendingSearchTerm(e.target.value)}
+            placeholder={`Buscar por ${
+              searchType === "Name"
+                ? "nome"
+                : searchType === "Email"
+                ? "email"
+                : "CPF"
+            }`}
+            className="flex-1"
+          />
+          <Button
+            type="button"
+            onClick={() => setSearchTerm(pendingSearchTerm)}
+            className="ml-2"
+          >
+            Pesquisar
           </Button>
         </div>
-      )}
 
-      {/* Members Grid */}
-      {filteredMembers.length === 0 && !error ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <Users className="h-12 w-12 text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              {searchTerm
-                ? "Nenhum membro encontrado"
-                : "Nenhum membro cadastrado"}
-            </h3>
-            <p className="text-gray-600 mb-4">
-              {searchTerm
-                ? "Tente ajustar os termos de busca"
-                : "Comece adicionando o primeiro membro da sua igreja"}
-            </p>
-            {isAdmin && !searchTerm && (
-              <ValidatedMemberModal onMemberCreated={loadMembers} />
-            )}
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredMembers.map((member: any) => (
-            <Card key={member.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <Avatar>
-                      <AvatarImage src={member.photo || undefined} />
-                      <AvatarFallback>
-                        {getInitials(member.name)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <h3 className="font-medium text-gray-900">
-                        {member.name}
-                      </h3>
-                      <p className="text-sm text-gray-600">{member.email}</p>
+        {error && (
+          <div
+            role="alert"
+            className="bg-red-100 border-l-4 border-red-500 text-red-800 rounded-r-lg p-4 text-center"
+          >
+            <p className="font-medium">{error}</p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={loadMembers}
+              className="mt-3 bg-white hover:bg-slate-50"
+            >
+              Tentar Novamente
+            </Button>
+          </div>
+        )}
+
+        {/* Lista de membros */}
+        <section aria-live="polite">
+          {members.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {members.map((member: any) => (
+                <Card
+                  key={member.id}
+                  className="group flex flex-col h-full transition-all duration-300 hover:shadow-lg hover:border-slate-300"
+                >
+                  <CardContent className="p-4 flex flex-col h-full">
+                    <div className="flex justify-between items-start gap-3 mb-4">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <MemberAvatar
+                          photoFileName={member.photo || "foto-padrao.jpg"}
+                          initials={getInitials(member.name)}
+                          memberName={member.name}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-slate-800 truncate">
+                            {member.name}
+                          </h3>
+                          <p className="text-sm text-slate-500 truncate">
+                            {member.email}
+                          </p>
+                        </div>
+                      </div>
+                      <Badge
+                        variant={member.isActive ? "default" : "secondary"}
+                        className="shrink-0"
+                      >
+                        {member.isActive ? "Ativo" : "Inativo"}
+                      </Badge>
                     </div>
-                  </div>
-                  <Badge variant={member.isActive ? "default" : "secondary"}>
-                    {member.isActive ? "Ativo" : "Inativo"}
-                  </Badge>
-                </div>
-
-                <div className="space-y-2 text-sm text-gray-600">
-                  <div className="flex justify-between">
-                    <span>CPF:</span>
-                    <span>{formatDocument(member.document)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Telefone:</span>
-                    <span>{member.phone || "N/A"}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Batizado:</span>
-                    <span>{member.isBaptized ? "Sim" : "Não"}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Dizimista:</span>
-                    <span>{member.isTither ? "Sim" : "Não"}</span>
-                  </div>
-                </div>
-
-                {isAdmin && (
-                  <div className="flex gap-2 mt-4">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1"
-                      onClick={() => handleEditMember(member)}
-                    >
-                      <Edit className="h-4 w-4 mr-1" />
-                      Editar
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-red-600 hover:text-red-700"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+                    <dl className="flex-1 space-y-2 text-sm border-t border-slate-200 pt-3">
+                      <div className="flex justify-between gap-2">
+                        <dt className="text-slate-500">CPF:</dt>
+                        <dd className="font-medium text-slate-700">
+                          {formatDocument(member.document)}
+                        </dd>
+                      </div>
+                      <div className="flex justify-between gap-2">
+                        <dt className="text-slate-500">Telefone:</dt>
+                        <dd className="font-medium text-slate-700">
+                          {member.phone || "Não informado"}
+                        </dd>
+                      </div>
+                      <div className="flex justify-between gap-2">
+                        <dt className="text-slate-500">Batizado:</dt>
+                        <dd className="font-medium text-slate-700">
+                          {member.isBaptized ? "Sim" : "Não"}
+                        </dd>
+                      </div>
+                    </dl>
+                    {isAdmin && (
+                      <div className="border-t border-slate-200 pt-3 mt-4 flex gap-2 md:opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1"
+                          onClick={() => handleEditMember(member)}
+                        >
+                          <Edit className="h-3.5 w-3.5 mr-2" />
+                          Editar
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          aria-label={`Excluir ${member.name}`}
+                          className="text-red-500 hover:bg-red-50 hover:text-red-600"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+                <Users className="h-14 w-14 text-slate-300 mb-4" />
+                <h3 className="text-lg font-semibold text-slate-800 mb-2">
+                  {searchTerm
+                    ? "Nenhum membro encontrado"
+                    : "Nenhum membro cadastrado"}
+                </h3>
+                <p className="text-slate-500 mb-6 max-w-sm">
+                  {searchTerm
+                    ? "Tente refinar sua busca. Verifique se o nome, email ou CPF estão corretos."
+                    : "Para começar, adicione um novo membro à sua lista."}
+                </p>
+                {isAdmin && !searchTerm && (
+                  <ValidatedMemberModal onMemberCreated={loadMembers} />
                 )}
               </CardContent>
             </Card>
-          ))}
-        </div>
-      )}
+          )}
+        </section>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handlePageChange(currentPage - 1)}
-            disabled={currentPage === 1}
-          >
-            <ChevronLeft className="h-4 w-4" />
-            Anterior
-          </Button>
-          <span className="text-sm text-gray-600">
-            Página {currentPage} de {totalPages}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handlePageChange(currentPage + 1)}
-            disabled={currentPage === totalPages}
-          >
-            Próxima
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-      )}
+        {totalPages > 1 && (
+          <footer className="flex items-center justify-center gap-2 sm:gap-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="flex items-center gap-1"
+              aria-label="Ir para a página anterior"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              <span className="hidden sm:inline">Anterior</span>
+            </Button>
+            <span className="text-sm font-medium text-slate-600">
+              Página {currentPage} de {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="flex items-center gap-1"
+              aria-label="Ir para a próxima página"
+            >
+              <span className="hidden sm:inline">Próxima</span>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </footer>
+        )}
 
-      {showEditModal && editingMember && (
-        <EditMemberModal
-          member={editingMember}
-          isOpen={showEditModal}
-          onClose={() => setShowEditModal(false)}
-          onMemberUpdated={handleMemberUpdated}
-        />
-      )}
-    </div>
+        {showEditModal && editingMember && (
+          <EditMemberModal
+            member={editingMember}
+            isOpen={showEditModal}
+            onClose={() => setShowEditModal(false)}
+            onMemberUpdated={handleMemberUpdated}
+          />
+        )}
+      </div>
+    </main>
   );
 }

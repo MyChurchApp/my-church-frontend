@@ -2,7 +2,9 @@ import { ApiMember } from "@/lib/api";
 import { MemberCountsResponse } from "@/services/member/MemberCounts";
 
 export type MembrosPageProps = {
-  filteredMembers: ApiMember[];
+  members: ApiMember[]; // renomeado
+  searchType: "Name" | "Email" | "Document";
+  setSearchType: (v: "Name" | "Email" | "Document") => void;
   searchTerm: string;
   setSearchTerm: (v: string) => void;
   statusFilter: string;
@@ -24,5 +26,3 @@ export type MembrosPageProps = {
   memberCounts?: MemberCountsResponse;
   isLoadingCounts: boolean;
 };
-
-

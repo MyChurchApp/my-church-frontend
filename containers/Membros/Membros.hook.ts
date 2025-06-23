@@ -1,19 +1,26 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { getMembersFromAPI, type ApiMember } from "@/lib/api";
-import { getUserRole, isAuthenticated } from "@/lib/auth-utils";
-import { useQuery } from "@tanstack/react-query";
 import {
+  type ApiMember,
+  getMembersFromAPI,
+  isAuthenticated,
   getMemberCounts,
-  MemberCountsResponse,
+  type MemberCountsResponse,
 } from "@/services/member/MemberCounts";
+import { useQuery } from "@tanstack/react-query";
+import { getUserRole } from "@/lib/auth-utils";
+
+// Filtros disponíveis
+type SearchType = "Name" | "Email" | "Document";
 
 export function useMembros() {
   const router = useRouter();
+
+  // Estado principal
   const [members, setMembers] = useState<ApiMember[]>([]);
-  const [filteredMembers, setFilteredMembers] = useState<ApiMember[]>([]);
+  const [searchType, setSearchType] = useState<SearchType>("Name");
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all"); // "all", "active", "inactive"
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editingMember, setEditingMember] = useState<ApiMember | null>(null);
@@ -25,7 +32,7 @@ export function useMembros() {
   const userRole = getUserRole();
   const isAdmin = userRole === "Admin";
 
-  // Faz a contagem de membros usando a API centralizada
+  // Contagem dos membros (React Query)
   const {
     data: memberCounts,
     isLoading: isLoadingCounts,
@@ -38,6 +45,7 @@ export function useMembros() {
     retry: 1,
   });
 
+  // Carregar membros sempre que filtro/página mudar
   useEffect(() => {
     if (!isAuthenticated()) {
       router.push("/login");
@@ -45,51 +53,40 @@ export function useMembros() {
     }
     loadMembers();
     // eslint-disable-next-line
-  }, [router, currentPage]);
+  }, [router, currentPage, searchType, searchTerm, statusFilter]);
 
+  // Carrega da API conforme filtros
   const loadMembers = async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await getMembersFromAPI(currentPage, pageSize);
+
+      // Monta filtros para a API
+      const filters: any = {};
+      if (searchTerm) filters[searchType] = searchTerm;
+      if (statusFilter !== "all") filters.IsActive = statusFilter === "active";
+
+      const response = await getMembersFromAPI(currentPage, pageSize, filters);
       setMembers(response.items);
-      setFilteredMembers(response.items);
       setTotalPages(response.totalPages);
     } catch (error: any) {
       setError(
         "Erro ao carregar membros. Verifique sua conexão e tente novamente."
       );
       setMembers([]);
-      setFilteredMembers([]);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    let filtered = members;
-    if (searchTerm) {
-      filtered = filtered.filter(
-        (member) =>
-          member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          member.email.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-    if (statusFilter !== "all") {
-      filtered = filtered.filter((member) =>
-        statusFilter === "active" ? member.isActive : !member.isActive
-      );
-    }
-    setFilteredMembers(filtered);
-  }, [members, searchTerm, statusFilter]);
-
+  // Paginação
   const handlePageChange = (page: number) => setCurrentPage(page);
 
+  // Edição
   const handleEditMember = (member: ApiMember) => {
     setEditingMember(member);
     setShowEditModal(true);
   };
-
   const handleMemberUpdated = () => {
     setShowEditModal(false);
     setEditingMember(null);
@@ -97,6 +94,7 @@ export function useMembros() {
     refetchCounts();
   };
 
+  // Helper para pegar iniciais
   const getInitials = (name: string) =>
     name
       .split(" ")
@@ -105,6 +103,7 @@ export function useMembros() {
       .slice(0, 2)
       .toUpperCase();
 
+  // Helper para formatar CPF
   const formatDocument = (documents: any[]) => {
     if (!documents || documents.length === 0) return "N/A";
     const cpf = documents.find((doc) => doc.type === 1);
@@ -117,7 +116,8 @@ export function useMembros() {
 
   return {
     members,
-    filteredMembers,
+    searchType,
+    setSearchType,
     searchTerm,
     setSearchTerm,
     statusFilter,
