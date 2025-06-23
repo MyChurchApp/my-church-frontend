@@ -1,15 +1,11 @@
-// app/components/Plans.tsx
 "use client";
 
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Pagination, Navigation } from "swiper/modules";
-
-// Importando os estilos do Swiper
 import "swiper/css";
 import "swiper/css/pagination";
 import "swiper/css/navigation";
 
-// Array de dados completo e sem omissões para os planos
 const plansData = [
   {
     name: "Plano Descubra",
@@ -181,7 +177,7 @@ const Plans = () => {
                     </ul>
                   </div>
                   <a
-                    href="#"
+                    href="#launch"
                     className={`mt-8 block w-full text-center text-white font-bold py-3 rounded-lg transition duration-300 ${plan.buttonClass}`}
                   >
                     {plan.buttonText}

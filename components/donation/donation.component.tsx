@@ -24,7 +24,7 @@ import {
   DonationResponse,
   donationService,
 } from "@/services/donation/donation.service";
-import type { DonationFormData } from "@/containers/donation/useDonation";
+import type { DonationFormData } from "@/containers/Donation/useDonation";
 import Link from "next/link";
 import Image from "next/image";
 

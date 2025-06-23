@@ -1,5 +1,5 @@
-import { DonationContainer } from "@/containers/donation/donation.container"
+import { DonationContainer } from "@/containers/Donation/donation.container";
 
 export default function DoacoesPage() {
-  return <DonationContainer />
+  return <DonationContainer />;
 }

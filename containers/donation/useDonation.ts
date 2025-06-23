@@ -1,33 +1,37 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { donationService, type DonationRequest, type DonationResponse } from "@/services/donation/donation.service"
+import { useState } from "react";
+import {
+  donationService,
+  type DonationRequest,
+  type DonationResponse,
+} from "@/services/donation/donation.service";
 
-export interface DonationFormData {
-  value: string
-  description: string
-  billingType: "CREDIT_CARD" | "PIX"
+export type DonationFormData = {
+  value: string;
+  description: string;
+  billingType: "CREDIT_CARD" | "PIX";
   creditCard: {
-    holderName: string
-    number: string
-    expiryMonth: string
-    expiryYear: string
-    ccv: string
-  }
+    holderName: string;
+    number: string;
+    expiryMonth: string;
+    expiryYear: string;
+    ccv: string;
+  };
   creditCardHolderInfo: {
-    name: string
-    email: string
-    cpfCnpj: string
-    postalCode: string
-    addressNumber: string
-    phone: string
-  }
-}
+    name: string;
+    email: string;
+    cpfCnpj: string;
+    postalCode: string;
+    addressNumber: string;
+    phone: string;
+  };
+};
 
 export const useDonation = () => {
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<DonationResponse | null>(null)
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<DonationResponse | null>(null);
 
   const initialFormData: DonationFormData = {
     value: "",
@@ -48,63 +52,72 @@ export const useDonation = () => {
       addressNumber: "",
       phone: "",
     },
-  }
+  };
 
-  const [formData, setFormData] = useState<DonationFormData>(initialFormData)
+  const [formData, setFormData] = useState<DonationFormData>(initialFormData);
 
   const updateFormData = (field: string, value: any) => {
     setFormData((prev) => {
       if (field.includes(".")) {
-        const [parent, child] = field.split(".")
-        return {
-          ...prev,
-          [parent]: {
-            ...prev[parent as keyof DonationFormData],
-            [child]: value,
-          },
+        const [parent, child] = field.split(".");
+        const parentValue = prev[parent as keyof DonationFormData];
+
+        if (parentValue && typeof parentValue === "object") {
+          return {
+            ...prev,
+            [parent]: {
+              ...parentValue,
+              [child]: value,
+            },
+          };
         }
+        return prev;
       }
       return {
         ...prev,
         [field]: value,
-      }
-    })
-  }
+      };
+    });
+  };
 
   const validateForm = (): string[] => {
-    const errors: string[] = []
+    const errors: string[] = [];
 
     // Validações básicas
     if (!formData.value || Number.parseFloat(formData.value) <= 0) {
-      errors.push("Valor da doação deve ser maior que zero")
+      errors.push("Valor da doação deve ser maior que zero");
     }
 
     if (!formData.description.trim()) {
-      errors.push("Descrição é obrigatória")
+      errors.push("Descrição é obrigatória");
     }
 
     // Validações específicas para cartão de crédito
     if (formData.billingType === "CREDIT_CARD") {
-      const cardErrors = donationService.validateCreditCard(formData.creditCard)
-      const holderErrors = donationService.validateCardHolderInfo(formData.creditCardHolderInfo)
+      const cardErrors = donationService.validateCreditCard(
+        formData.creditCard
+      );
+      const holderErrors = donationService.validateCardHolderInfo(
+        formData.creditCardHolderInfo
+      );
 
-      errors.push(...cardErrors, ...holderErrors)
+      errors.push(...cardErrors, ...holderErrors);
     }
 
-    return errors
-  }
+    return errors;
+  };
 
   const submitDonation = async (): Promise<boolean> => {
-    setIsLoading(true)
-    setError(null)
-    setSuccess(null)
+    setIsLoading(true);
+    setError(null);
+    setSuccess(null);
 
     try {
       // Validar formulário
-      const validationErrors = validateForm()
+      const validationErrors = validateForm();
       if (validationErrors.length > 0) {
-        setError(validationErrors.join(", "))
-        return false
+        setError(validationErrors.join(", "));
+        return false;
       }
 
       // Preparar dados para envio
@@ -113,47 +126,50 @@ export const useDonation = () => {
         description: formData.description,
         billingType: formData.billingType,
         dueDate: new Date().toISOString(),
-      }
+      };
 
       // Adicionar dados do cartão se necessário
       if (formData.billingType === "CREDIT_CARD") {
         donationRequest.creditCard = {
           ...formData.creditCard,
           number: formData.creditCard.number.replace(/\s/g, ""), // Remover espaços
-        }
-        donationRequest.creditCardHolderInfo = formData.creditCardHolderInfo
+        };
+        donationRequest.creditCardHolderInfo = formData.creditCardHolderInfo;
       }
 
       // Enviar doação
-      const response = await donationService.createDonation(donationRequest)
-      setSuccess(response)
+      const response = await donationService.createDonation(donationRequest);
+      setSuccess(response);
 
       // Limpar formulário em caso de sucesso
-      setFormData(initialFormData)
+      setFormData(initialFormData);
 
-      return true
+      return true;
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Erro desconhecido ao processar doação"
-      setError(errorMessage)
-      return false
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : "Erro desconhecido ao processar doação";
+      setError(errorMessage);
+      return false;
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const resetForm = () => {
-    setFormData(initialFormData)
-    setError(null)
-    setSuccess(null)
-  }
+    setFormData(initialFormData);
+    setError(null);
+    setSuccess(null);
+  };
 
   const clearError = () => {
-    setError(null)
-  }
+    setError(null);
+  };
 
   const clearSuccess = () => {
-    setSuccess(null)
-  }
+    setSuccess(null);
+  };
 
   return {
     formData,
@@ -166,5 +182,5 @@ export const useDonation = () => {
     clearError,
     clearSuccess,
     validateForm,
-  }
-}
+  };
+};

@@ -92,3 +92,25 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+
+
+.swiper-wrapper {
+  align-items: stretch !important; /* Garante que os slides se estiquem para a altura do mais alto */
+}
+
+.swiper-slide {
+  height: auto !important; /* Permite que o SwiperSlide se ajuste à altura do conteúdo esticado */
+}
+
+/* Opcional: Ajuste para o botão de navegação, se estiverem sobrepostos */
+.swiper-button-prev,
+.swiper-button-next {
+  color: #89f0e6; /* Defina uma cor para seus botões de navegação */
+  /* Ajuste a posição se necessário, ex: top: 50%; transform: translateY(-50%); */
+}
+
+/* Ajuste para a paginação, se necessário */
+.plans-pagination .swiper-pagination-bullet-active {
+  background: #89f0e6; /* Cor do bullet ativo */
+}
