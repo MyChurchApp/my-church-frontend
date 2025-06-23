@@ -212,7 +212,7 @@ export function Sidebar({ className = "" }: SidebarProps) {
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full">
-      <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+      <div className="px-4 py-[14px] border-b border-gray-200 flex items-center justify-between">
         {!isCollapsed && (
           <span className="font-bold truncate">{churchData?.name}</span>
         )}

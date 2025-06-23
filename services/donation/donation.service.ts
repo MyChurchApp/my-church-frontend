@@ -31,6 +31,8 @@ export interface PixQrCode {
 }
 
 export interface DonationResponse {
+  value: any
+  description: string
   donationId: number
   paymentLink: string
   status: string

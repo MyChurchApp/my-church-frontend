@@ -1,54 +1,54 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
-import { Sidebar } from "@/components/sidebar"
-import { getToken, getUserData, getChurchInfo } from "@/lib/auth-utils"
+import type React from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Sidebar } from "@/components/sidebar";
+import { getToken, getUserData, getChurchInfo } from "@/lib/auth-utils";
 
 export default function DashboardLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
-  const router = useRouter()
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [user, setUser] = useState<any>(null)
-  const [church, setChurch] = useState<any>(null)
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [user, setUser] = useState<any>(null);
+  const [church, setChurch] = useState<any>(null);
 
   useEffect(() => {
     const initializeDashboard = () => {
       try {
         // Verificar se há token
-        const token = getToken()
+        const token = getToken();
         if (!token) {
-          router.push("/login")
-          return
+          router.push("/login");
+          return;
         }
 
         // Obter dados do usuário
-        const userData = getUserData()
+        const userData = getUserData();
         if (!userData) {
-          setError("Erro ao carregar dados do usuário")
-          return
+          setError("Erro ao carregar dados do usuário");
+          return;
         }
 
         // Obter dados da igreja
-        const churchData = getChurchInfo()
+        const churchData = getChurchInfo();
 
-        setUser(userData)
-        setChurch(churchData)
+        setUser(userData);
+        setChurch(churchData);
       } catch (error) {
-        console.error("❌ Erro ao inicializar dashboard:", error)
-        setError("Erro ao inicializar dashboard")
+        console.error("❌ Erro ao inicializar dashboard:", error);
+        setError("Erro ao inicializar dashboard");
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
-    }
+    };
 
-    initializeDashboard()
-  }, [router])
+    initializeDashboard();
+  }, [router]);
 
   if (isLoading) {
     return (
@@ -58,14 +58,16 @@ export default function DashboardLayout({
           <p className="text-gray-600">Carregando...</p>
         </div>
       </div>
-    )
+    );
   }
 
   if (error || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <p className="text-red-600 mb-4">{error || "Erro ao carregar dados"}</p>
+          <p className="text-red-600 mb-4">
+            {error || "Erro ao carregar dados"}
+          </p>
           <button
             onClick={() => router.push("/login")}
             className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
@@ -74,7 +76,7 @@ export default function DashboardLayout({
           </button>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -82,14 +84,9 @@ export default function DashboardLayout({
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0">
+        <header className="bg-white border-b border-gray-200 px-6 py-3 flex-shrink-0">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="hidden md:block">
-                <h2 className="text-lg font-semibold text-gray-900">{church?.name || "MyChurch"}</h2>
-                <p className="text-sm text-gray-600">Sistema de Gestão Eclesiástica</p>
-              </div>
-            </div>
+            <div className="flex items-center gap-4"></div>
             <div className="flex items-center gap-4">
               <div className="hidden md:block text-right">
                 <p className="font-medium text-gray-900">{user.name}</p>
@@ -112,5 +109,5 @@ export default function DashboardLayout({
         <main className="flex-1 overflow-y-auto">{children}</main>
       </div>
     </div>
-  )
+  );
 }
