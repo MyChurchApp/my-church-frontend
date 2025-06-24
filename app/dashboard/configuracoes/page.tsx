@@ -27,7 +27,6 @@ export default function ConfiguracoesPage() {
   const [error, setError] = useState<string | null>(null);
   const [churchData, setChurchData] = useState<Church | null>(null);
 
-
   const userRole = getUserRole();
   const isAdmin = userRole === "Admin";
 
@@ -50,9 +49,7 @@ export default function ConfiguracoesPage() {
       setLoading(true);
       setError(null);
 
-      const [church] = await Promise.all([
-        getChurchData(),
-      ]);
+      const [church] = await Promise.all([getChurchData()]);
 
       setChurchData(church);
     } catch (error) {
@@ -115,16 +112,6 @@ export default function ConfiguracoesPage() {
 
   return (
     <div className="flex-1 space-y-6 p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Configurações</h1>
-          <p className="text-muted-foreground">
-            Gerencie as configurações da sua igreja
-          </p>
-        </div>
-      </div>
-
       {/* Error Message */}
       {error && (
         <div className="rounded-md bg-red-50 p-4">

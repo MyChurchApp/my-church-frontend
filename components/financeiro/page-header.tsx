@@ -20,11 +20,6 @@ export function PageHeader({
 }: PageHeaderProps) {
   return (
     <div className="bg-white border-b p-4 flex flex-col md:flex-row justify-between items-center">
-      <div>
-        <h1 className="text-2xl font-bold">Financeiro</h1>
-        <p className="text-gray-500">Gerencie as finanças da sua igreja</p>
-      </div>
-
       <div className="flex items-center space-x-2 mt-4 md:mt-0">
         {onGetApiDetails && (
           <Button onClick={onGetApiDetails} variant="outline" size="sm">

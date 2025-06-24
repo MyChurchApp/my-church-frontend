@@ -91,16 +91,6 @@ export default function DonationsHistoryPage() {
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-                <DollarSign className="h-8 w-8 text-green-600" />
-                Histórico de Ofertas
-              </h1>
-              <p className="text-gray-600 mt-2">
-                Visualize todas as suas ofertas pagas e confirmadas
-              </p>
-            </div>
-
             <div className="flex gap-2">
               <Button
                 onClick={handleRetry}

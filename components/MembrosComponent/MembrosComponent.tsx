@@ -7,8 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Users,
-  Search,
-  Filter,
   UserCheck,
   UserX,
   ChevronLeft,
@@ -22,7 +20,6 @@ import { MembrosPageProps } from "@/containers/Membros/Membro.types";
 import { FileService } from "@/services/fileService/File";
 import CreatMembroModal from "./CreatMembroModal";
 
-// Avatar otimizado
 interface MemberAvatarProps {
   photoFileName: string | null;
   initials: string;
@@ -50,7 +47,7 @@ function MemberAvatar({
         return;
       }
 
-      if (photoFileName === lastFileName.current) return; // não refaz se não mudou
+      if (photoFileName === lastFileName.current) return;
 
       setIsLoading(true);
       try {
@@ -72,7 +69,6 @@ function MemberAvatar({
       cancelled = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-    // Só atualiza se o nome mudar
   }, [photoFileName]);
 
   return (
@@ -94,7 +90,7 @@ function MemberAvatar({
 }
 
 export function MembrosComponent({
-  members, // agora é members, não filteredMembers
+  members,
   searchType,
   setSearchType,
   searchTerm,
@@ -143,17 +139,6 @@ export function MembrosComponent({
     >
       <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
         <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1
-              id="page-title"
-              className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900"
-            >
-              Membros
-            </h1>
-            <p className="mt-1 text-slate-500">
-              Gerencie os membros da sua organização.
-            </p>
-          </div>
           {isAdmin && (
             <div className="shrink-0 w-full sm:w-auto">
               <CreatMembroModal onMemberCreated={loadMembers} />

@@ -1,14 +1,18 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { getToken, getUserData, getChurchInfo } from "@/lib/auth-utils";
-import { Button } from "@/components/ui/button";
-import { Menu } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import {
+  getToken,
+  getUserData,
+  getChurchInfo,
+  getUser,
+} from "@/lib/auth-utils";
 import clsx from "clsx";
-import { Sidebar } from "@/components/sidebar";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft, Menu } from "lucide-react";
+import SidebarMenu from "@/components/sidebar/SidebarMenu";
 
-// Hook para salvar o estado de recolhimento no localStorage
 const useLocalStorage = (key: string, initialValue: boolean) => {
   const [storedValue, setStoredValue] = useState(() => {
     if (typeof window === "undefined") return initialValue;
@@ -35,33 +39,100 @@ const useLocalStorage = (key: string, initialValue: boolean) => {
   return [storedValue, setValue] as const;
 };
 
-const DashboardHeader = ({ onMenuClick, user }: any) => {
-  const getInitials = (name: string) => {
-    if (!name) return "U";
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .slice(0, 2)
-      .join("")
-      .toUpperCase();
+const getPageTitle = (pathname: string): string => {
+  const titleMap: { [key: string]: string } = {
+    "/dashboard": "Dashboard",
+    "/dashboard/membros": "Membros",
+    "/dashboard/eventos": "Agenda de Eventos",
+    "/dashboard/culto": "Acompanhar Culto",
+    "/dashboard/culto/gestao": "Gestão de Cultos",
+    "/dashboard/doacoes": "Faça a Diferença Hoje",
+    "/dashboard/doacoes/historico": "Histórico de Ofertas",
+    "/dashboard/ativos": "Ativos da Igreja",
   };
 
+  if (titleMap[pathname]) {
+    return titleMap[pathname];
+  }
+
+  const lastSegment = pathname.split("/").pop() || "Página";
+  const formattedTitle = lastSegment
+    .split("-")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+
+  return formattedTitle;
+};
+
+const getPageSubtitle = (pathname: string): string => {
+  const subtitleMap: { [key: string]: string } = {
+    "/dashboard": "Visão geral da sua igreja.",
+    "/dashboard/membros": "Gerencie os membros da sua organização.",
+    "/dashboard/eventos": "Crie e administre os eventos da sua comunidade.",
+    "/dashboard/culto": "Detalhes e planejamento dos próximos cultos.",
+    "/dashboard/doacoes": "Acompanhe as contribuições e apoie esta obra.",
+  };
+
+  return subtitleMap[pathname] || "";
+};
+
+const getInitials = (name: string) => {
+  if (!name) return "U";
+  return name
+    .split(" ")
+    .map((n) => n[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+};
+
+export const DashboardHeader = ({ user, onMenuClick }: any) => {
+  const pathname = usePathname();
+  const pageTitle = getPageTitle(pathname);
+  const pageSubtitle = getPageSubtitle(pathname);
+  const router = useRouter();
+
+  useEffect(() => {
+    // Verificar se o usuário é admin
+    const user = getUser();
+    if (!user || user.accessLevel !== "admin") {
+      router.push("/dashboard");
+      return;
+    }
+  }, [router]);
+
   return (
-    <header className="bg-white border-b border-gray-200 px-6 py-3 flex-shrink-0">
+    <header className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 flex-shrink-0 sticky top-0 z-10">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4"></div>
+        {/* Lado Esquerdo: Alterna entre Botão e Título */}
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onMenuClick}
+            aria-label="Abrir menu"
+          >
+            <Menu className="h-6 w-6 text-gray-700" />
+          </Button>
+          <div className="">
+            <h1 className="text-xl font-semibold text-gray-800">{pageTitle}</h1>
+            {pageSubtitle && (
+              <p className="text-sm text-gray-500 mt-0.5">{pageSubtitle}</p>
+            )}
+          </div>
+        </div>
+
+        {/* Lado Direito: Informações do Usuário */}
         <div className="flex items-center gap-4">
           <div className="hidden md:block text-right">
-            <p className="font-medium text-gray-900">{user.name}</p>
-            <p className="text-sm text-gray-600">{user.role}</p>
+            <p className="font-medium text-gray-900 text-sm">{user.name}</p>
+            <p className="text-xs text-gray-500 capitalize">
+              {user.accessLevel || "Membro"}
+            </p>
           </div>
-          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-            <span className="text-blue-600 font-medium">
-              {user.name
-                ?.split(" ")
-                .map((n: string) => n[0])
-                .join("")
-                .slice(0, 2) || "U"}
+          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+            <span className="text-blue-600 font-bold">
+              {getInitials(user.name)}
             </span>
           </div>
         </div>
@@ -70,7 +141,6 @@ const DashboardHeader = ({ onMenuClick, user }: any) => {
   );
 };
 
-// COMPONENTE PRINCIPAL DO LAYOUT
 export default function DashboardLayout({
   children,
 }: {
@@ -147,7 +217,7 @@ export default function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <Sidebar
+      <SidebarMenu
         user={user}
         church={church}
         isCollapsed={isCollapsed}
@@ -155,20 +225,18 @@ export default function DashboardLayout({
         isMobileOpen={isMobileOpen}
         setIsMobileOpen={setIsMobileOpen}
       />
-
       <div
         className={clsx(
-          "flex flex-col transition-[margin-left] duration-300 ease-in-out",
+          "flex flex-col h-screen transition-[margin-left] duration-300 ease-in-out",
           isCollapsed ? "md:ml-20" : "md:ml-64"
         )}
       >
         <DashboardHeader
-          onMenuClick={() => setIsMobileOpen(true)}
           user={user}
+          onMenuClick={() => setIsMobileOpen(true)}
         />
-
-        <main className={mainContentClass}>
-          <div className="p-4 sm:p-6 lg:p-8">{children}</div>
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+          {children}
         </main>
       </div>
     </div>

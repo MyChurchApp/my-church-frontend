@@ -291,12 +291,6 @@ export default function CultoPage() {
     <div className="p-6">
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Acompanhar Culto</h1>
-          <p className="text-gray-600">
-            Acompanhe as leituras bíblicas em tempo real
-          </p>
-        </div>
         <div className="flex gap-2 flex-wrap">
           {/* Versículos específicos */}
           {testReadings.map((test) => (

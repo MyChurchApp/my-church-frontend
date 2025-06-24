@@ -1,44 +1,44 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { ArrowLeft } from "lucide-react"
-import { TransferBalanceCard } from "@/components/financeiro/transfer-balance-card"
-import { TransferForm } from "@/components/financeiro/transfer-form"
-import { getUser } from "@/lib/auth-utils"
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
+import { TransferBalanceCard } from "@/components/financeiro/transfer-balance-card";
+import { TransferForm } from "@/components/financeiro/transfer-form";
+import { getUser } from "@/lib/auth-utils";
 
 export default function OfertasRealizadasPage() {
-  const router = useRouter()
-  const [refreshKey, setRefreshKey] = useState(0)
+  const router = useRouter();
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     // Verificar se o usuário é admin
-    const user = getUser()
+    const user = getUser();
     if (!user || user.accessLevel !== "admin") {
-      router.push("/dashboard")
-      return
+      router.push("/dashboard");
+      return;
     }
-  }, [router])
+  }, [router]);
 
   const handleTransferComplete = () => {
     // Forçar atualização do saldo
-    setRefreshKey((prev) => prev + 1)
-  }
+    setRefreshKey((prev) => prev + 1);
+  };
 
   const handleRefresh = () => {
-    setRefreshKey((prev) => prev + 1)
-  }
+    setRefreshKey((prev) => prev + 1);
+  };
 
   return (
     <div className="container mx-auto p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Ofertas Realizadas</h1>
-          <p className="text-muted-foreground">Gerencie as transferências de ofertas para a igreja</p>
-        </div>
-        <Button variant="outline" onClick={() => router.back()} className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          onClick={() => router.back()}
+          className="flex items-center gap-2"
+        >
           <ArrowLeft className="h-4 w-4" />
           Voltar
         </Button>
@@ -57,5 +57,5 @@ export default function OfertasRealizadasPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

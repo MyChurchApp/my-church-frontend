@@ -1,19 +1,30 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Checkbox } from "@/components/ui/checkbox"
-import { useToast } from "@/hooks/use-toast"
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useToast } from "@/hooks/use-toast";
 import {
   Clock,
   MapPin,
@@ -30,12 +41,16 @@ import {
   Grid3X3,
   ChevronDown,
   ChevronUp,
-} from "lucide-react"
-import { eventsService, type CalendarEventResponse, type EventResponse } from "@/services/events.service"
-import { isAuthenticated, getUserRole } from "@/lib/auth-utils"
+} from "lucide-react";
+import {
+  eventsService,
+  type CalendarEventResponse,
+  type EventResponse,
+} from "@/services/events.service";
+import { isAuthenticated, getUserRole } from "@/lib/auth-utils";
 
-const DAYS_OF_WEEK = ["D", "S", "T", "Q", "Q", "S", "S"]
-const DAYS_OF_WEEK_FULL = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"]
+const DAYS_OF_WEEK = ["D", "S", "T", "Q", "Q", "S", "S"];
+const DAYS_OF_WEEK_FULL = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const MONTHS = [
   "Janeiro",
   "Fevereiro",
@@ -49,56 +64,58 @@ const MONTHS = [
   "Outubro",
   "Novembro",
   "Dezembro",
-]
+];
 
 interface EventFormData {
-  title: string
-  description: string
-  date: string
-  time: string
-  finishDate: string
-  finishTime: string
-  location: string
-  eventType: string
-  worshipTheme: string
-  requiresParticipantList: boolean
-  recurrence: string
+  title: string;
+  description: string;
+  date: string;
+  time: string;
+  finishDate: string;
+  finishTime: string;
+  location: string;
+  eventType: string;
+  worshipTheme: string;
+  requiresParticipantList: boolean;
+  recurrence: string;
 }
 
 // Hook para detectar tamanho da tela
 function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(false)
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     const checkIsMobile = () => {
-      setIsMobile(window.innerWidth < 768) // md breakpoint
-    }
+      setIsMobile(window.innerWidth < 768); // md breakpoint
+    };
 
     // Check inicial
-    checkIsMobile()
+    checkIsMobile();
 
     // Listener para mudanças de tamanho
-    window.addEventListener("resize", checkIsMobile)
+    window.addEventListener("resize", checkIsMobile);
 
-    return () => window.removeEventListener("resize", checkIsMobile)
-  }, [])
+    return () => window.removeEventListener("resize", checkIsMobile);
+  }, []);
 
-  return isMobile
+  return isMobile;
 }
 
 export default function EventosPage() {
-  const router = useRouter()
-  const { toast } = useToast()
-  const isMobile = useIsMobile()
-  const [events, setEvents] = useState<CalendarEventResponse[]>([])
-  const [currentDate, setCurrentDate] = useState(new Date())
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [desktopViewMode, setDesktopViewMode] = useState<"calendar" | "list">("calendar")
-  const [showEventModal, setShowEventModal] = useState(false)
-  const [editingEvent, setEditingEvent] = useState<EventResponse | null>(null)
-  const [expandedEvent, setExpandedEvent] = useState<number | null>(null)
+  const router = useRouter();
+  const { toast } = useToast();
+  const isMobile = useIsMobile();
+  const [events, setEvents] = useState<CalendarEventResponse[]>([]);
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [desktopViewMode, setDesktopViewMode] = useState<"calendar" | "list">(
+    "calendar"
+  );
+  const [showEventModal, setShowEventModal] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<EventResponse | null>(null);
+  const [expandedEvent, setExpandedEvent] = useState<number | null>(null);
   const [formData, setFormData] = useState<EventFormData>({
     title: "",
     description: "",
@@ -111,45 +128,45 @@ export default function EventosPage() {
     worshipTheme: "",
     requiresParticipantList: false,
     recurrence: "once",
-  })
-  const [submitting, setSubmitting] = useState(false)
+  });
+  const [submitting, setSubmitting] = useState(false);
 
   // Determinar o modo de visualização baseado no tamanho da tela
-  const viewMode = isMobile ? "list" : desktopViewMode
+  const viewMode = isMobile ? "list" : desktopViewMode;
 
-  const userRole = getUserRole()
-  const canManageEvents = userRole === "Admin" || userRole === "Pastor"
+  const userRole = getUserRole();
+  const canManageEvents = userRole === "Admin" || userRole === "Pastor";
 
   useEffect(() => {
     if (!isAuthenticated()) {
-      router.push("/login")
-      return
+      router.push("/login");
+      return;
     }
 
-    loadEvents()
-  }, [router, currentDate])
+    loadEvents();
+  }, [router, currentDate]);
 
   const loadEvents = async () => {
     try {
-      setLoading(true)
-      setError(null)
+      setLoading(true);
+      setError(null);
 
-      const year = currentDate.getFullYear()
-      const month = currentDate.getMonth() + 1
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth() + 1;
 
-      const eventsData = await eventsService.getCalendarEvents(year, month)
-      setEvents(eventsData)
+      const eventsData = await eventsService.getCalendarEvents(year, month);
+      setEvents(eventsData);
     } catch (error) {
-      console.error("Erro ao carregar eventos:", error)
-      setError("Erro ao carregar eventos. Verifique sua conexão.")
-      setEvents([])
+      console.error("Erro ao carregar eventos:", error);
+      setError("Erro ao carregar eventos. Verifique sua conexão.");
+      setEvents([]);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleCreateEvent = () => {
-    setEditingEvent(null)
+    setEditingEvent(null);
     setFormData({
       title: "",
       description: "",
@@ -162,189 +179,198 @@ export default function EventosPage() {
       worshipTheme: "",
       requiresParticipantList: false,
       recurrence: "once",
-    })
-    setShowEventModal(true)
-  }
+    });
+    setShowEventModal(true);
+  };
 
   const handleEditEvent = async (eventId: number) => {
     try {
-      const event = await eventsService.getEventById(eventId)
-      setEditingEvent(event)
-      setFormData(eventsService.formatEventFromAPI(event))
-      setShowEventModal(true)
+      const event = await eventsService.getEventById(eventId);
+      setEditingEvent(event);
+      setFormData(eventsService.formatEventFromAPI(event));
+      setShowEventModal(true);
     } catch (error) {
       toast({
         title: "Erro",
         description: "Erro ao carregar dados do evento",
         variant: "destructive",
-      })
+      });
     }
-  }
+  };
 
   const handleDeleteEvent = async (eventId: number) => {
-    if (!confirm("Tem certeza que deseja excluir este evento?")) return
+    if (!confirm("Tem certeza que deseja excluir este evento?")) return;
 
     try {
-      await eventsService.deleteEvent(eventId)
+      await eventsService.deleteEvent(eventId);
       toast({
         title: "Sucesso",
         description: "Evento excluído com sucesso",
-      })
-      loadEvents()
+      });
+      loadEvents();
     } catch (error) {
       toast({
         title: "Erro",
         description: "Erro ao excluir evento",
         variant: "destructive",
-      })
+      });
     }
-  }
+  };
 
   const handleSubmitEvent = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     if (!formData.title.trim()) {
       toast({
         title: "Erro",
         description: "Título é obrigatório",
         variant: "destructive",
-      })
-      return
+      });
+      return;
     }
 
     try {
-      setSubmitting(true)
-      const eventData = eventsService.formatEventForAPI(formData)
+      setSubmitting(true);
+      const eventData = eventsService.formatEventForAPI(formData);
 
       if (editingEvent) {
-        await eventsService.updateEvent(editingEvent.id, { ...eventData, id: editingEvent.id })
+        await eventsService.updateEvent(editingEvent.id, {
+          ...eventData,
+          id: editingEvent.id,
+        });
         toast({
           title: "Sucesso",
           description: "Evento atualizado com sucesso",
-        })
+        });
       } else {
-        await eventsService.createEvent(eventData)
+        await eventsService.createEvent(eventData);
         toast({
           title: "Sucesso",
           description: "Evento criado com sucesso",
-        })
+        });
       }
 
-      setShowEventModal(false)
-      loadEvents()
+      setShowEventModal(false);
+      loadEvents();
     } catch (error) {
       toast({
         title: "Erro",
-        description: editingEvent ? "Erro ao atualizar evento" : "Erro ao criar evento",
+        description: editingEvent
+          ? "Erro ao atualizar evento"
+          : "Erro ao criar evento",
         variant: "destructive",
-      })
+      });
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
+  };
 
   // Gerar dias do mês para o calendário
   const generateCalendarDays = () => {
-    const year = currentDate.getFullYear()
-    const month = currentDate.getMonth()
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
 
-    const firstDay = new Date(year, month, 1)
-    const lastDay = new Date(year, month + 1, 0)
-    const startDate = new Date(firstDay)
-    startDate.setDate(startDate.getDate() - firstDay.getDay())
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const startDate = new Date(firstDay);
+    startDate.setDate(startDate.getDate() - firstDay.getDay());
 
-    const days = []
-    const current = new Date(startDate)
+    const days = [];
+    const current = new Date(startDate);
 
     // Gerar 42 dias (6 semanas)
     for (let i = 0; i < 42; i++) {
-      days.push(new Date(current))
-      current.setDate(current.getDate() + 1)
+      days.push(new Date(current));
+      current.setDate(current.getDate() + 1);
     }
 
-    return days
-  }
+    return days;
+  };
 
   // Obter eventos para uma data específica
   const getEventsForDate = (date: Date) => {
     return events.filter((event) =>
       event.occurrences.some((occurrence) => {
-        const occurrenceDate = new Date(occurrence.start)
+        const occurrenceDate = new Date(occurrence.start);
         return (
           occurrenceDate.getDate() === date.getDate() &&
           occurrenceDate.getMonth() === date.getMonth() &&
           occurrenceDate.getFullYear() === date.getFullYear()
-        )
-      }),
-    )
-  }
+        );
+      })
+    );
+  };
 
   // Obter todos os eventos do mês atual ordenados por data
   const getAllEventsThisMonth = () => {
-    const monthEvents: Array<{ date: Date; event: CalendarEventResponse; occurrence: any }> = []
+    const monthEvents: Array<{
+      date: Date;
+      event: CalendarEventResponse;
+      occurrence: any;
+    }> = [];
 
     events.forEach((event) => {
       event.occurrences.forEach((occurrence) => {
-        const occurrenceDate = new Date(occurrence.start)
+        const occurrenceDate = new Date(occurrence.start);
         if (
           occurrenceDate.getMonth() === currentDate.getMonth() &&
           occurrenceDate.getFullYear() === currentDate.getFullYear()
         ) {
-          monthEvents.push({ date: occurrenceDate, event, occurrence })
+          monthEvents.push({ date: occurrenceDate, event, occurrence });
         }
-      })
-    })
+      });
+    });
 
-    return monthEvents.sort((a, b) => a.date.getTime() - b.date.getTime())
-  }
+    return monthEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
+  };
 
   // Navegar entre meses
   const navigateMonth = (direction: "prev" | "next") => {
-    const newDate = new Date(currentDate)
+    const newDate = new Date(currentDate);
     if (direction === "prev") {
-      newDate.setMonth(newDate.getMonth() - 1)
+      newDate.setMonth(newDate.getMonth() - 1);
     } else {
-      newDate.setMonth(newDate.getMonth() + 1)
+      newDate.setMonth(newDate.getMonth() + 1);
     }
-    setCurrentDate(newDate)
-  }
+    setCurrentDate(newDate);
+  };
 
   // Verificar se é hoje
   const isToday = (date: Date) => {
-    const today = new Date()
+    const today = new Date();
     return (
       date.getDate() === today.getDate() &&
       date.getMonth() === today.getMonth() &&
       date.getFullYear() === today.getFullYear()
-    )
-  }
+    );
+  };
 
   // Verificar se é do mês atual
   const isCurrentMonth = (date: Date) => {
-    return date.getMonth() === currentDate.getMonth()
-  }
+    return date.getMonth() === currentDate.getMonth();
+  };
 
   const formatTime = (dateString: string) => {
     return new Date(dateString).toLocaleTimeString("pt-BR", {
       hour: "2-digit",
       minute: "2-digit",
-    })
-  }
+    });
+  };
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString("pt-BR", {
       day: "2-digit",
       month: "2-digit",
-    })
-  }
+    });
+  };
 
   const formatFullDate = (date: Date) => {
     return date.toLocaleDateString("pt-BR", {
       weekday: "short",
       day: "2-digit",
       month: "short",
-    })
-  }
+    });
+  };
 
   if (loading) {
     return (
@@ -354,7 +380,7 @@ export default function EventosPage() {
           <p className="text-sm text-gray-500">Carregando eventos...</p>
         </div>
       </div>
-    )
+    );
   }
 
   if (error) {
@@ -365,20 +391,22 @@ export default function EventosPage() {
           <Button onClick={loadEvents}>Tentar Novamente</Button>
         </div>
       </div>
-    )
+    );
   }
 
-  const calendarDays = generateCalendarDays()
-  const monthEvents = getAllEventsThisMonth()
+  const calendarDays = generateCalendarDays();
+  const monthEvents = getAllEventsThisMonth();
 
   return (
     <div className="flex-1 space-y-4 p-4">
       {/* Header */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h1 className="text-xl md:text-2xl font-bold tracking-tight">{isMobile ? "Eventos" : "Agenda de Eventos"}</h1>
           {canManageEvents && (
-            <Button onClick={handleCreateEvent} size={isMobile ? "sm" : "default"}>
+            <Button
+              onClick={handleCreateEvent}
+              size={isMobile ? "sm" : "default"}
+            >
               <Plus className="h-4 w-4 mr-0 md:mr-2" />
               <span className="hidden md:inline">Novo Evento</span>
             </Button>
@@ -388,15 +416,28 @@ export default function EventosPage() {
         {/* Navigation and View Toggle */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => navigateMonth("prev")}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigateMonth("prev")}
+            >
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <h2 className="text-lg font-semibold min-w-[140px] text-center">
               {isMobile
-                ? `${MONTHS[currentDate.getMonth()].slice(0, 3)} ${currentDate.getFullYear()}`
-                : `${MONTHS[currentDate.getMonth()]} ${currentDate.getFullYear()}`}
+                ? `${MONTHS[currentDate.getMonth()].slice(
+                    0,
+                    3
+                  )} ${currentDate.getFullYear()}`
+                : `${
+                    MONTHS[currentDate.getMonth()]
+                  } ${currentDate.getFullYear()}`}
             </h2>
-            <Button variant="outline" size="sm" onClick={() => navigateMonth("next")}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigateMonth("next")}
+            >
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
@@ -441,16 +482,19 @@ export default function EventosPage() {
             <div className="grid grid-cols-7 gap-2">
               {/* Days of week header */}
               {DAYS_OF_WEEK_FULL.map((day) => (
-                <div key={day} className="p-3 text-center text-sm font-medium text-gray-500">
+                <div
+                  key={day}
+                  className="p-3 text-center text-sm font-medium text-gray-500"
+                >
                   {day}
                 </div>
               ))}
 
               {/* Calendar days */}
               {calendarDays.map((date, index) => {
-                const dayEvents = getEventsForDate(date)
-                const isCurrentMonthDay = isCurrentMonth(date)
-                const isTodayDate = isToday(date)
+                const dayEvents = getEventsForDate(date);
+                const isCurrentMonthDay = isCurrentMonth(date);
+                const isTodayDate = isToday(date);
 
                 return (
                   <div
@@ -459,12 +503,20 @@ export default function EventosPage() {
                       min-h-[120px] p-3 border border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors rounded-lg
                       ${!isCurrentMonthDay ? "text-gray-300 bg-gray-50" : ""}
                       ${isTodayDate ? "bg-blue-50 border-blue-200" : ""}
-                      ${selectedDate?.toDateString() === date.toDateString() ? "ring-2 ring-blue-500" : ""}
+                      ${
+                        selectedDate?.toDateString() === date.toDateString()
+                          ? "ring-2 ring-blue-500"
+                          : ""
+                      }
                     `}
                     onClick={() => setSelectedDate(date)}
                     onDoubleClick={() => canManageEvents && handleCreateEvent()}
                   >
-                    <div className={`text-sm font-medium mb-2 ${isTodayDate ? "text-blue-600" : ""}`}>
+                    <div
+                      className={`text-sm font-medium mb-2 ${
+                        isTodayDate ? "text-blue-600" : ""
+                      }`}
+                    >
                       {date.getDate()}
                     </div>
                     <div className="space-y-1">
@@ -474,22 +526,26 @@ export default function EventosPage() {
                           className="text-xs p-2 bg-blue-100 text-blue-800 rounded truncate hover:bg-blue-200 transition-colors"
                           title={event.title}
                           onClick={(e) => {
-                            e.stopPropagation()
-                            canManageEvents && handleEditEvent(event.id)
+                            e.stopPropagation();
+                            canManageEvents && handleEditEvent(event.id);
                           }}
                         >
                           <div className="flex items-center gap-1">
-                            {event.isRecurring && <Repeat className="h-3 w-3" />}
+                            {event.isRecurring && (
+                              <Repeat className="h-3 w-3" />
+                            )}
                             <span className="truncate">{event.title}</span>
                           </div>
                         </div>
                       ))}
                       {dayEvents.length > 3 && (
-                        <div className="text-xs text-gray-500 font-medium">+{dayEvents.length - 3} mais</div>
+                        <div className="text-xs text-gray-500 font-medium">
+                          +{dayEvents.length - 3} mais
+                        </div>
                       )}
                     </div>
                   </div>
-                )
+                );
               })}
             </div>
           </CardContent>
@@ -515,12 +571,15 @@ export default function EventosPage() {
                         )}
                       </div>
 
-                      <h3 className="font-medium text-lg mb-1 truncate">{event.title}</h3>
+                      <h3 className="font-medium text-lg mb-1 truncate">
+                        {event.title}
+                      </h3>
 
                       <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-gray-500 mb-2">
                         <div className="flex items-center gap-1">
                           <Clock className="h-4 w-4" />
-                          {formatTime(occurrence.start)} - {formatTime(occurrence.end)}
+                          {formatTime(occurrence.start)} -{" "}
+                          {formatTime(occurrence.end)}
                         </div>
                         {event.location && (
                           <div className="flex items-center gap-1">
@@ -531,14 +590,20 @@ export default function EventosPage() {
                       </div>
 
                       {event.description && expandedEvent === event.id && (
-                        <p className="text-sm text-gray-600 mb-2">{event.description}</p>
+                        <p className="text-sm text-gray-600 mb-2">
+                          {event.description}
+                        </p>
                       )}
 
                       {event.description && (
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => setExpandedEvent(expandedEvent === event.id ? null : event.id)}
+                          onClick={() =>
+                            setExpandedEvent(
+                              expandedEvent === event.id ? null : event.id
+                            )
+                          }
                           className="p-0 h-auto text-blue-600"
                         >
                           {expandedEvent === event.id ? (
@@ -558,10 +623,18 @@ export default function EventosPage() {
 
                     {canManageEvents && (
                       <div className="flex flex-col gap-2 ml-2">
-                        <Button variant="outline" size="sm" onClick={() => handleEditEvent(event.id)}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEditEvent(event.id)}
+                        >
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="outline" size="sm" onClick={() => handleDeleteEvent(event.id)}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDeleteEvent(event.id)}
+                        >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -618,12 +691,17 @@ export default function EventosPage() {
                           </Badge>
                         )}
                       </div>
-                      {event.description && <p className="text-sm text-gray-600 mb-2">{event.description}</p>}
+                      {event.description && (
+                        <p className="text-sm text-gray-600 mb-2">
+                          {event.description}
+                        </p>
+                      )}
                       <div className="flex items-center gap-4 text-sm text-gray-500">
                         {event.occurrences[0] && (
                           <div className="flex items-center gap-1">
                             <Clock className="h-4 w-4" />
-                            {formatTime(event.occurrences[0].start)} - {formatTime(event.occurrences[0].end)}
+                            {formatTime(event.occurrences[0].start)} -{" "}
+                            {formatTime(event.occurrences[0].end)}
                           </div>
                         )}
                         {event.location && (
@@ -636,10 +714,18 @@ export default function EventosPage() {
                     </div>
                     {canManageEvents && (
                       <div className="flex gap-2">
-                        <Button variant="outline" size="sm" onClick={() => handleEditEvent(event.id)}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEditEvent(event.id)}
+                        >
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="outline" size="sm" onClick={() => handleDeleteEvent(event.id)}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDeleteEvent(event.id)}
+                        >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -651,7 +737,11 @@ export default function EventosPage() {
               <div className="text-center py-6">
                 <p className="text-gray-500 mb-4">Nenhum evento nesta data</p>
                 {canManageEvents && (
-                  <Button onClick={handleCreateEvent} variant="outline" size="sm">
+                  <Button
+                    onClick={handleCreateEvent}
+                    variant="outline"
+                    size="sm"
+                  >
                     <Plus className="h-4 w-4 mr-2" />
                     Criar Evento
                   </Button>
@@ -666,7 +756,9 @@ export default function EventosPage() {
       <Dialog open={showEventModal} onOpenChange={setShowEventModal}>
         <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] overflow-y-auto md:max-w-2xl">
           <DialogHeader>
-            <DialogTitle className="text-lg">{editingEvent ? "Editar Evento" : "Novo Evento"}</DialogTitle>
+            <DialogTitle className="text-lg">
+              {editingEvent ? "Editar Evento" : "Novo Evento"}
+            </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmitEvent} className="space-y-4">
             {/* Informações Básicas */}
@@ -678,7 +770,9 @@ export default function EventosPage() {
                 <Input
                   id="title"
                   value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, title: e.target.value })
+                  }
                   placeholder="Nome do evento"
                   required
                   className="mt-1"
@@ -692,14 +786,19 @@ export default function EventosPage() {
                   </Label>
                   <Select
                     value={formData.eventType}
-                    onValueChange={(value) => setFormData({ ...formData, eventType: value })}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, eventType: value })
+                    }
                   >
                     <SelectTrigger className="mt-1">
                       <SelectValue placeholder="Tipo" />
                     </SelectTrigger>
                     <SelectContent>
                       {eventsService.getEventTypeOptions().map((option) => (
-                        <SelectItem key={option.value} value={option.value.toString()}>
+                        <SelectItem
+                          key={option.value}
+                          value={option.value.toString()}
+                        >
                           {option.label}
                         </SelectItem>
                       ))}
@@ -714,7 +813,9 @@ export default function EventosPage() {
                   <Input
                     id="location"
                     value={formData.location}
-                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, location: e.target.value })
+                    }
                     placeholder="Local"
                     className="mt-1"
                   />
@@ -728,7 +829,9 @@ export default function EventosPage() {
                 <Textarea
                   id="description"
                   value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, description: e.target.value })
+                  }
                   placeholder="Descrição do evento"
                   rows={2}
                   className="mt-1"
@@ -743,7 +846,9 @@ export default function EventosPage() {
                   <Input
                     id="worshipTheme"
                     value={formData.worshipTheme}
-                    onChange={(e) => setFormData({ ...formData, worshipTheme: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, worshipTheme: e.target.value })
+                    }
                     placeholder="Tema do culto"
                     className="mt-1"
                   />
@@ -764,7 +869,9 @@ export default function EventosPage() {
                     id="date"
                     type="date"
                     value={formData.date}
-                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, date: e.target.value })
+                    }
                     required
                     className="mt-1"
                   />
@@ -778,7 +885,9 @@ export default function EventosPage() {
                     id="time"
                     type="time"
                     value={formData.time}
-                    onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, time: e.target.value })
+                    }
                     required
                     className="mt-1"
                   />
@@ -792,7 +901,9 @@ export default function EventosPage() {
                     id="finishDate"
                     type="date"
                     value={formData.finishDate}
-                    onChange={(e) => setFormData({ ...formData, finishDate: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, finishDate: e.target.value })
+                    }
                     className="mt-1"
                   />
                 </div>
@@ -805,7 +916,9 @@ export default function EventosPage() {
                     id="finishTime"
                     type="time"
                     value={formData.finishTime}
-                    onChange={(e) => setFormData({ ...formData, finishTime: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, finishTime: e.target.value })
+                    }
                     className="mt-1"
                   />
                 </div>
@@ -820,7 +933,9 @@ export default function EventosPage() {
                 </Label>
                 <Select
                   value={formData.recurrence}
-                  onValueChange={(value) => setFormData({ ...formData, recurrence: value })}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, recurrence: value })
+                  }
                 >
                   <SelectTrigger className="mt-1">
                     <SelectValue />
@@ -842,9 +957,17 @@ export default function EventosPage() {
                 <Checkbox
                   id="requiresParticipantList"
                   checked={formData.requiresParticipantList}
-                  onCheckedChange={(checked) => setFormData({ ...formData, requiresParticipantList: !!checked })}
+                  onCheckedChange={(checked) =>
+                    setFormData({
+                      ...formData,
+                      requiresParticipantList: !!checked,
+                    })
+                  }
                 />
-                <Label htmlFor="requiresParticipantList" className="text-sm flex items-center gap-2">
+                <Label
+                  htmlFor="requiresParticipantList"
+                  className="text-sm flex items-center gap-2"
+                >
                   <Users className="h-4 w-4" />
                   Lista de participantes
                 </Label>
@@ -879,5 +1002,5 @@ export default function EventosPage() {
         </DialogContent>
       </Dialog>
     </div>
-  )
+  );
 }

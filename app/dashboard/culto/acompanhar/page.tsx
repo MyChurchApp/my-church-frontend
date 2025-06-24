@@ -1,10 +1,10 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Badge } from "@/components/ui/badge"
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import {
   Calendar,
   Clock,
@@ -17,106 +17,106 @@ import {
   CheckCircle2,
   XCircle,
   Loader2,
-} from "lucide-react"
-import { useRouter } from "next/navigation"
-import { isAuthenticated } from "@/lib/auth-utils"
+} from "lucide-react";
+import { useRouter } from "next/navigation";
+import { isAuthenticated } from "@/lib/auth-utils";
 
 // Tipos para a API
 interface WorshipService {
-  id: number
-  title: string
-  date: string
-  time: string
-  status: "scheduled" | "in-progress" | "completed"
-  preacher: string
-  theme: string
-  description: string
-  songs: Song[]
-  readings: Reading[]
-  announcements: Announcement[]
-  attendees: number
+  id: number;
+  title: string;
+  date: string;
+  time: string;
+  status: "scheduled" | "in-progress" | "completed";
+  preacher: string;
+  theme: string;
+  description: string;
+  songs: Song[];
+  readings: Reading[];
+  announcements: Announcement[];
+  attendees: number;
 }
 
 interface Song {
-  id: number
-  title: string
-  artist: string
-  key: string
-  bpm: number
-  duration: string
-  status: "pending" | "current" | "completed"
+  id: number;
+  title: string;
+  artist: string;
+  key: string;
+  bpm: number;
+  duration: string;
+  status: "pending" | "current" | "completed";
 }
 
 interface Reading {
-  id: number
-  title: string
-  reference: string
-  text: string
-  status: "pending" | "current" | "completed"
+  id: number;
+  title: string;
+  reference: string;
+  text: string;
+  status: "pending" | "current" | "completed";
 }
 
 interface Announcement {
-  id: number
-  title: string
-  content: string
-  status: "pending" | "current" | "completed"
+  id: number;
+  title: string;
+  content: string;
+  status: "pending" | "current" | "completed";
 }
 
 export default function AcompanharCultoPage() {
-  const router = useRouter()
-  const [cultoAtual, setCultoAtual] = useState<WorshipService | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState("musicas")
+  const router = useRouter();
+  const [cultoAtual, setCultoAtual] = useState<WorshipService | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("musicas");
 
   // Estado para controlar o item atual em cada seção
-  const [currentSongIndex, setCurrentSongIndex] = useState(-1)
-  const [currentReadingIndex, setCurrentReadingIndex] = useState(-1)
-  const [currentAnnouncementIndex, setCurrentAnnouncementIndex] = useState(-1)
+  const [currentSongIndex, setCurrentSongIndex] = useState(-1);
+  const [currentReadingIndex, setCurrentReadingIndex] = useState(-1);
+  const [currentAnnouncementIndex, setCurrentAnnouncementIndex] = useState(-1);
 
   // Estado para controlar se o culto está em andamento
-  const [isWorshipInProgress, setIsWorshipInProgress] = useState(false)
+  const [isWorshipInProgress, setIsWorshipInProgress] = useState(false);
 
   // Função para obter o token de autenticação do localStorage
   const getAuthToken = (): string | null => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem("authToken")
+      return localStorage.getItem("authToken");
     }
-    return null
-  }
+    return null;
+  };
 
   // Função para fazer requisições autenticadas
   const authenticatedFetch = async (url: string, options: RequestInit = {}) => {
-    const token = getAuthToken()
+    const token = getAuthToken();
 
     if (!token) {
-      throw new Error("Token de autenticação não encontrado")
+      throw new Error("Token de autenticação não encontrado");
     }
 
     const headers = {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
       ...options.headers,
-    }
+    };
 
     const response = await fetch(url, {
       ...options,
       headers,
-    })
+    });
 
     if (response.status === 401) {
       // Token expirado ou inválido
-      localStorage.removeItem("authToken")
-      router.push("/login")
-      throw new Error("Sessão expirada. Por favor, faça login novamente.")
+      localStorage.removeItem("authToken");
+      router.push("/login");
+      throw new Error("Sessão expirada. Por favor, faça login novamente.");
     }
 
     if (!response.ok) {
-      throw new Error(`Erro na requisição: ${response.status}`)
+      throw new Error(`Erro na requisição: ${response.status}`);
     }
 
-    return response.json()
-  }
+    return response.json();
+  };
 
   // Função para buscar o culto atual da API
   const fetchCurrentWorship = async (): Promise<WorshipService | null> => {
@@ -134,7 +134,8 @@ export default function AcompanharCultoPage() {
         status: "in-progress",
         preacher: "Pastor João Silva",
         theme: "Fé e Perseverança",
-        description: "Culto dominical sobre a importância da fé em tempos difíceis",
+        description:
+          "Culto dominical sobre a importância da fé em tempos difíceis",
         songs: [
           {
             id: 1,
@@ -193,135 +194,153 @@ export default function AcompanharCultoPage() {
           {
             id: 1,
             title: "Encontro de Jovens",
-            content: "No próximo sábado às 19h teremos nosso encontro de jovens",
+            content:
+              "No próximo sábado às 19h teremos nosso encontro de jovens",
             status: "pending",
           },
           {
             id: 2,
             title: "Campanha de Arrecadação",
-            content: "Estamos arrecadando alimentos não perecíveis para famílias carentes",
+            content:
+              "Estamos arrecadando alimentos não perecíveis para famílias carentes",
             status: "pending",
           },
         ],
         attendees: 87,
-      }
+      };
     } catch (error) {
-      console.error("Erro ao buscar culto atual:", error)
-      throw error
+      console.error("Erro ao buscar culto atual:", error);
+      throw error;
     }
-  }
+  };
 
   // Carregar dados iniciais
   useEffect(() => {
     const loadData = async () => {
-      setLoading(true)
-      setError(null)
+      setLoading(true);
+      setError(null);
 
       try {
         // Verificar se o usuário está autenticado
         if (!isAuthenticated()) {
-          router.push("/login")
-          return
+          router.push("/login");
+          return;
         }
 
         // Buscar dados do culto atual
-        const worshipData = await fetchCurrentWorship()
-        setCultoAtual(worshipData)
+        const worshipData = await fetchCurrentWorship();
+        setCultoAtual(worshipData);
 
         // Configurar índices iniciais baseados no status
         if (worshipData) {
-          setIsWorshipInProgress(worshipData.status === "in-progress")
+          setIsWorshipInProgress(worshipData.status === "in-progress");
 
           // Encontrar o índice da música atual
-          const songIndex = worshipData.songs.findIndex((song) => song.status === "current")
-          setCurrentSongIndex(songIndex !== -1 ? songIndex : -1)
+          const songIndex = worshipData.songs.findIndex(
+            (song) => song.status === "current"
+          );
+          setCurrentSongIndex(songIndex !== -1 ? songIndex : -1);
 
           // Encontrar o índice da leitura atual
-          const readingIndex = worshipData.readings.findIndex((reading) => reading.status === "current")
-          setCurrentReadingIndex(readingIndex !== -1 ? readingIndex : -1)
+          const readingIndex = worshipData.readings.findIndex(
+            (reading) => reading.status === "current"
+          );
+          setCurrentReadingIndex(readingIndex !== -1 ? readingIndex : -1);
 
           // Encontrar o índice do anúncio atual
           const announcementIndex = worshipData.announcements.findIndex(
-            (announcement) => announcement.status === "current",
-          )
-          setCurrentAnnouncementIndex(announcementIndex !== -1 ? announcementIndex : -1)
+            (announcement) => announcement.status === "current"
+          );
+          setCurrentAnnouncementIndex(
+            announcementIndex !== -1 ? announcementIndex : -1
+          );
         }
       } catch (error) {
-        console.error("Erro ao carregar dados:", error)
-        setError("Não foi possível carregar os dados do culto. Por favor, tente novamente.")
+        console.error("Erro ao carregar dados:", error);
+        setError(
+          "Não foi possível carregar os dados do culto. Por favor, tente novamente."
+        );
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    loadData()
-  }, [router])
+    loadData();
+  }, [router]);
 
   // Funções para controlar o fluxo do culto
   const startWorship = () => {
-    setIsWorshipInProgress(true)
+    setIsWorshipInProgress(true);
     // Em uma implementação real, você enviaria uma requisição para a API
     // para atualizar o status do culto
-  }
+  };
 
   const pauseWorship = () => {
-    setIsWorshipInProgress(false)
+    setIsWorshipInProgress(false);
     // Em uma implementação real, você enviaria uma requisição para a API
     // para atualizar o status do culto
-  }
+  };
 
   // Funções para controlar os itens em cada seção
-  const startItem = (section: "songs" | "readings" | "announcements", index: number) => {
-    if (!cultoAtual) return
+  const startItem = (
+    section: "songs" | "readings" | "announcements",
+    index: number
+  ) => {
+    if (!cultoAtual) return;
 
     // Atualizar o estado local
     if (section === "songs") {
-      setCurrentSongIndex(index)
+      setCurrentSongIndex(index);
 
       // Atualizar o status das músicas
       const updatedSongs = cultoAtual.songs.map((song, i) => ({
         ...song,
         status: i < index ? "completed" : i === index ? "current" : "pending",
-      }))
+      }));
 
       setCultoAtual({
         ...cultoAtual,
         songs: updatedSongs,
-      })
+      });
     } else if (section === "readings") {
-      setCurrentReadingIndex(index)
+      setCurrentReadingIndex(index);
 
       // Atualizar o status das leituras
       const updatedReadings = cultoAtual.readings.map((reading, i) => ({
         ...reading,
         status: i < index ? "completed" : i === index ? "current" : "pending",
-      }))
+      }));
 
       setCultoAtual({
         ...cultoAtual,
         readings: updatedReadings,
-      })
+      });
     } else if (section === "announcements") {
-      setCurrentAnnouncementIndex(index)
+      setCurrentAnnouncementIndex(index);
 
       // Atualizar o status dos anúncios
-      const updatedAnnouncements = cultoAtual.announcements.map((announcement, i) => ({
-        ...announcement,
-        status: i < index ? "completed" : i === index ? "current" : "pending",
-      }))
+      const updatedAnnouncements = cultoAtual.announcements.map(
+        (announcement, i) => ({
+          ...announcement,
+          status: i < index ? "completed" : i === index ? "current" : "pending",
+        })
+      );
 
       setCultoAtual({
         ...cultoAtual,
         announcements: updatedAnnouncements,
-      })
+      });
     }
 
     // Em uma implementação real, você enviaria uma requisição para a API
     // para atualizar o status do item
-  }
+  };
 
-  const completeItem = (section: "songs" | "readings" | "announcements", index: number) => {
-    if (!cultoAtual) return
+  const completeItem = (
+    section: "songs" | "readings" | "announcements",
+    index: number
+  ) => {
+    if (!cultoAtual) return;
 
     // Atualizar o estado local
     if (section === "songs") {
@@ -329,66 +348,68 @@ export default function AcompanharCultoPage() {
       const updatedSongs = cultoAtual.songs.map((song, i) => ({
         ...song,
         status: i <= index ? "completed" : song.status,
-      }))
+      }));
 
       // Avançar para a próxima música, se houver
-      const nextIndex = index + 1
+      const nextIndex = index + 1;
       if (nextIndex < cultoAtual.songs.length) {
-        updatedSongs[nextIndex].status = "current"
-        setCurrentSongIndex(nextIndex)
+        updatedSongs[nextIndex].status = "current";
+        setCurrentSongIndex(nextIndex);
       } else {
-        setCurrentSongIndex(-1) // Todas as músicas foram concluídas
+        setCurrentSongIndex(-1); // Todas as músicas foram concluídas
       }
 
       setCultoAtual({
         ...cultoAtual,
         songs: updatedSongs,
-      })
+      });
     } else if (section === "readings") {
       // Marcar a leitura atual como concluída
       const updatedReadings = cultoAtual.readings.map((reading, i) => ({
         ...reading,
         status: i <= index ? "completed" : reading.status,
-      }))
+      }));
 
       // Avançar para a próxima leitura, se houver
-      const nextIndex = index + 1
+      const nextIndex = index + 1;
       if (nextIndex < cultoAtual.readings.length) {
-        updatedReadings[nextIndex].status = "current"
-        setCurrentReadingIndex(nextIndex)
+        updatedReadings[nextIndex].status = "current";
+        setCurrentReadingIndex(nextIndex);
       } else {
-        setCurrentReadingIndex(-1) // Todas as leituras foram concluídas
+        setCurrentReadingIndex(-1); // Todas as leituras foram concluídas
       }
 
       setCultoAtual({
         ...cultoAtual,
         readings: updatedReadings,
-      })
+      });
     } else if (section === "announcements") {
       // Marcar o anúncio atual como concluído
-      const updatedAnnouncements = cultoAtual.announcements.map((announcement, i) => ({
-        ...announcement,
-        status: i <= index ? "completed" : announcement.status,
-      }))
+      const updatedAnnouncements = cultoAtual.announcements.map(
+        (announcement, i) => ({
+          ...announcement,
+          status: i <= index ? "completed" : announcement.status,
+        })
+      );
 
       // Avançar para o próximo anúncio, se houver
-      const nextIndex = index + 1
+      const nextIndex = index + 1;
       if (nextIndex < cultoAtual.announcements.length) {
-        updatedAnnouncements[nextIndex].status = "current"
-        setCurrentAnnouncementIndex(nextIndex)
+        updatedAnnouncements[nextIndex].status = "current";
+        setCurrentAnnouncementIndex(nextIndex);
       } else {
-        setCurrentAnnouncementIndex(-1) // Todos os anúncios foram concluídos
+        setCurrentAnnouncementIndex(-1); // Todos os anúncios foram concluídos
       }
 
       setCultoAtual({
         ...cultoAtual,
         announcements: updatedAnnouncements,
-      })
+      });
     }
 
     // Em uma implementação real, você enviaria uma requisição para a API
     // para atualizar o status do item
-  }
+  };
 
   // Renderização condicional para carregamento
   if (loading) {
@@ -399,7 +420,7 @@ export default function AcompanharCultoPage() {
           <p className="text-sm text-gray-500">Carregando dados do culto...</p>
         </div>
       </div>
-    )
+    );
   }
 
   // Renderização condicional para erro
@@ -409,13 +430,17 @@ export default function AcompanharCultoPage() {
         <Card className="w-full max-w-md">
           <CardContent className="flex flex-col items-center p-6">
             <XCircle className="h-16 w-16 text-red-500 mb-4" />
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Erro ao carregar</h2>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">
+              Erro ao carregar
+            </h2>
             <p className="text-gray-600 text-center mb-4">{error}</p>
-            <Button onClick={() => window.location.reload()}>Tentar novamente</Button>
+            <Button onClick={() => window.location.reload()}>
+              Tentar novamente
+            </Button>
           </CardContent>
         </Card>
       </div>
-    )
+    );
   }
 
   // Renderização condicional para quando não há culto em andamento
@@ -427,17 +452,22 @@ export default function AcompanharCultoPage() {
             <Card className="w-full max-w-2xl mx-auto">
               <CardContent className="flex flex-col items-center p-6">
                 <Calendar className="h-16 w-16 text-gray-400 mb-4" />
-                <h2 className="text-xl font-semibold text-gray-900 mb-2">Nenhum culto em andamento</h2>
+                <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                  Nenhum culto em andamento
+                </h2>
                 <p className="text-gray-600 text-center mb-4">
-                  Não há nenhum culto em andamento no momento. Verifique a programação ou volte mais tarde.
+                  Não há nenhum culto em andamento no momento. Verifique a
+                  programação ou volte mais tarde.
                 </p>
-                <Button onClick={() => router.push("/dashboard/culto")}>Ver programação</Button>
+                <Button onClick={() => router.push("/dashboard/culto")}>
+                  Ver programação
+                </Button>
               </CardContent>
             </Card>
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   // Renderização principal
@@ -447,14 +477,12 @@ export default function AcompanharCultoPage() {
         {/* Header */}
         <header className="bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Acompanhar Culto</h1>
-              <p className="text-gray-600">Acompanhe o andamento do culto em tempo real</p>
-            </div>
             <div className="flex items-center gap-2">
               <Badge
                 variant={isWorshipInProgress ? "default" : "outline"}
-                className={isWorshipInProgress ? "bg-green-500 hover:bg-green-600" : ""}
+                className={
+                  isWorshipInProgress ? "bg-green-500 hover:bg-green-600" : ""
+                }
               >
                 {isWorshipInProgress ? "Em andamento" : "Não iniciado"}
               </Badge>
@@ -484,10 +512,14 @@ export default function AcompanharCultoPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <h3 className="text-xl font-semibold text-gray-900">{cultoAtual.title}</h3>
+                    <h3 className="text-xl font-semibold text-gray-900">
+                      {cultoAtual.title}
+                    </h3>
                     <div className="flex items-center gap-2 mt-1 text-gray-600">
                       <Calendar className="h-4 w-4" />
-                      <span>{new Date(cultoAtual.date).toLocaleDateString("pt-BR")}</span>
+                      <span>
+                        {new Date(cultoAtual.date).toLocaleDateString("pt-BR")}
+                      </span>
                       <Clock className="h-4 w-4 ml-2" />
                       <span>{cultoAtual.time}</span>
                     </div>
@@ -507,13 +539,17 @@ export default function AcompanharCultoPage() {
                     <div className="flex items-center gap-2">
                       <Users className="h-4 w-4 text-gray-500" />
                       <span className="text-sm font-medium">Presentes:</span>
-                      <span className="text-sm">{cultoAtual.attendees} pessoas</span>
+                      <span className="text-sm">
+                        {cultoAtual.attendees} pessoas
+                      </span>
                     </div>
                   </div>
 
                   {cultoAtual.description && (
                     <div className="pt-2">
-                      <p className="text-sm text-gray-600">{cultoAtual.description}</p>
+                      <p className="text-sm text-gray-600">
+                        {cultoAtual.description}
+                      </p>
                     </div>
                   )}
                 </CardContent>
@@ -522,17 +558,31 @@ export default function AcompanharCultoPage() {
               {/* Coluna da Direita - Abas com Músicas, Leituras e Anúncios */}
               <Card className="lg:col-span-2">
                 <CardContent className="p-0">
-                  <Tabs defaultValue="musicas" value={activeTab} onValueChange={setActiveTab} className="w-full">
+                  <Tabs
+                    defaultValue="musicas"
+                    value={activeTab}
+                    onValueChange={setActiveTab}
+                    className="w-full"
+                  >
                     <TabsList className="w-full grid grid-cols-3">
-                      <TabsTrigger value="musicas" className="flex items-center gap-1">
+                      <TabsTrigger
+                        value="musicas"
+                        className="flex items-center gap-1"
+                      >
                         <Music className="h-4 w-4" />
                         <span className="hidden sm:inline">Músicas</span>
                       </TabsTrigger>
-                      <TabsTrigger value="leituras" className="flex items-center gap-1">
+                      <TabsTrigger
+                        value="leituras"
+                        className="flex items-center gap-1"
+                      >
                         <Book className="h-4 w-4" />
                         <span className="hidden sm:inline">Leituras</span>
                       </TabsTrigger>
-                      <TabsTrigger value="anuncios" className="flex items-center gap-1">
+                      <TabsTrigger
+                        value="anuncios"
+                        className="flex items-center gap-1"
+                      >
                         <MessageSquare className="h-4 w-4" />
                         <span className="hidden sm:inline">Anúncios</span>
                       </TabsTrigger>
@@ -546,18 +596,32 @@ export default function AcompanharCultoPage() {
                             key={song.id}
                             className={`
                             ${song.status === "completed" ? "bg-gray-50" : ""}
-                            ${song.status === "current" ? "border-green-500 border-2" : ""}
+                            ${
+                              song.status === "current"
+                                ? "border-green-500 border-2"
+                                : ""
+                            }
                           `}
                           >
                             <CardContent className="p-4">
                               <div className="flex items-center justify-between">
                                 <div className="flex-1">
                                   <div className="flex items-center gap-2">
-                                    <h3 className="font-semibold">{song.title}</h3>
-                                    {song.status === "completed" && <CheckCircle2 className="h-4 w-4 text-green-500" />}
-                                    {song.status === "current" && <Badge className="bg-green-500">Atual</Badge>}
+                                    <h3 className="font-semibold">
+                                      {song.title}
+                                    </h3>
+                                    {song.status === "completed" && (
+                                      <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                    )}
+                                    {song.status === "current" && (
+                                      <Badge className="bg-green-500">
+                                        Atual
+                                      </Badge>
+                                    )}
                                   </div>
-                                  <p className="text-sm text-gray-600">{song.artist}</p>
+                                  <p className="text-sm text-gray-600">
+                                    {song.artist}
+                                  </p>
                                   <div className="flex items-center gap-4 mt-1 text-xs text-gray-500">
                                     <span>Tom: {song.key}</span>
                                     <span>BPM: {song.bpm}</span>
@@ -565,18 +629,31 @@ export default function AcompanharCultoPage() {
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  {isWorshipInProgress && song.status === "pending" && (
-                                    <Button size="sm" variant="outline" onClick={() => startItem("songs", index)}>
-                                      <Play className="h-3 w-3 mr-1" />
-                                      Iniciar
-                                    </Button>
-                                  )}
-                                  {isWorshipInProgress && song.status === "current" && (
-                                    <Button size="sm" onClick={() => completeItem("songs", index)}>
-                                      <CheckCircle2 className="h-3 w-3 mr-1" />
-                                      Concluir
-                                    </Button>
-                                  )}
+                                  {isWorshipInProgress &&
+                                    song.status === "pending" && (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() =>
+                                          startItem("songs", index)
+                                        }
+                                      >
+                                        <Play className="h-3 w-3 mr-1" />
+                                        Iniciar
+                                      </Button>
+                                    )}
+                                  {isWorshipInProgress &&
+                                    song.status === "current" && (
+                                      <Button
+                                        size="sm"
+                                        onClick={() =>
+                                          completeItem("songs", index)
+                                        }
+                                      >
+                                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                                        Concluir
+                                      </Button>
+                                    )}
                                 </div>
                               </div>
                             </CardContent>
@@ -592,36 +669,65 @@ export default function AcompanharCultoPage() {
                           <Card
                             key={reading.id}
                             className={`
-                            ${reading.status === "completed" ? "bg-gray-50" : ""}
-                            ${reading.status === "current" ? "border-green-500 border-2" : ""}
+                            ${
+                              reading.status === "completed" ? "bg-gray-50" : ""
+                            }
+                            ${
+                              reading.status === "current"
+                                ? "border-green-500 border-2"
+                                : ""
+                            }
                           `}
                           >
                             <CardContent className="p-4">
                               <div className="flex items-center justify-between">
                                 <div className="flex-1">
                                   <div className="flex items-center gap-2">
-                                    <h3 className="font-semibold">{reading.title}</h3>
+                                    <h3 className="font-semibold">
+                                      {reading.title}
+                                    </h3>
                                     {reading.status === "completed" && (
                                       <CheckCircle2 className="h-4 w-4 text-green-500" />
                                     )}
-                                    {reading.status === "current" && <Badge className="bg-green-500">Atual</Badge>}
+                                    {reading.status === "current" && (
+                                      <Badge className="bg-green-500">
+                                        Atual
+                                      </Badge>
+                                    )}
                                   </div>
-                                  <p className="text-sm font-medium text-gray-700 mt-1">{reading.reference}</p>
-                                  <p className="text-sm text-gray-600 mt-2">{reading.text}</p>
+                                  <p className="text-sm font-medium text-gray-700 mt-1">
+                                    {reading.reference}
+                                  </p>
+                                  <p className="text-sm text-gray-600 mt-2">
+                                    {reading.text}
+                                  </p>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  {isWorshipInProgress && reading.status === "pending" && (
-                                    <Button size="sm" variant="outline" onClick={() => startItem("readings", index)}>
-                                      <Play className="h-3 w-3 mr-1" />
-                                      Iniciar
-                                    </Button>
-                                  )}
-                                  {isWorshipInProgress && reading.status === "current" && (
-                                    <Button size="sm" onClick={() => completeItem("readings", index)}>
-                                      <CheckCircle2 className="h-3 w-3 mr-1" />
-                                      Concluir
-                                    </Button>
-                                  )}
+                                  {isWorshipInProgress &&
+                                    reading.status === "pending" && (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() =>
+                                          startItem("readings", index)
+                                        }
+                                      >
+                                        <Play className="h-3 w-3 mr-1" />
+                                        Iniciar
+                                      </Button>
+                                    )}
+                                  {isWorshipInProgress &&
+                                    reading.status === "current" && (
+                                      <Button
+                                        size="sm"
+                                        onClick={() =>
+                                          completeItem("readings", index)
+                                        }
+                                      >
+                                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                                        Concluir
+                                      </Button>
+                                    )}
                                 </div>
                               </div>
                             </CardContent>
@@ -637,39 +743,64 @@ export default function AcompanharCultoPage() {
                           <Card
                             key={announcement.id}
                             className={`
-                            ${announcement.status === "completed" ? "bg-gray-50" : ""}
-                            ${announcement.status === "current" ? "border-green-500 border-2" : ""}
+                            ${
+                              announcement.status === "completed"
+                                ? "bg-gray-50"
+                                : ""
+                            }
+                            ${
+                              announcement.status === "current"
+                                ? "border-green-500 border-2"
+                                : ""
+                            }
                           `}
                           >
                             <CardContent className="p-4">
                               <div className="flex items-center justify-between">
                                 <div className="flex-1">
                                   <div className="flex items-center gap-2">
-                                    <h3 className="font-semibold">{announcement.title}</h3>
+                                    <h3 className="font-semibold">
+                                      {announcement.title}
+                                    </h3>
                                     {announcement.status === "completed" && (
                                       <CheckCircle2 className="h-4 w-4 text-green-500" />
                                     )}
-                                    {announcement.status === "current" && <Badge className="bg-green-500">Atual</Badge>}
+                                    {announcement.status === "current" && (
+                                      <Badge className="bg-green-500">
+                                        Atual
+                                      </Badge>
+                                    )}
                                   </div>
-                                  <p className="text-sm text-gray-600 mt-1">{announcement.content}</p>
+                                  <p className="text-sm text-gray-600 mt-1">
+                                    {announcement.content}
+                                  </p>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  {isWorshipInProgress && announcement.status === "pending" && (
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() => startItem("announcements", index)}
-                                    >
-                                      <Play className="h-3 w-3 mr-1" />
-                                      Iniciar
-                                    </Button>
-                                  )}
-                                  {isWorshipInProgress && announcement.status === "current" && (
-                                    <Button size="sm" onClick={() => completeItem("announcements", index)}>
-                                      <CheckCircle2 className="h-3 w-3 mr-1" />
-                                      Concluir
-                                    </Button>
-                                  )}
+                                  {isWorshipInProgress &&
+                                    announcement.status === "pending" && (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() =>
+                                          startItem("announcements", index)
+                                        }
+                                      >
+                                        <Play className="h-3 w-3 mr-1" />
+                                        Iniciar
+                                      </Button>
+                                    )}
+                                  {isWorshipInProgress &&
+                                    announcement.status === "current" && (
+                                      <Button
+                                        size="sm"
+                                        onClick={() =>
+                                          completeItem("announcements", index)
+                                        }
+                                      >
+                                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                                        Concluir
+                                      </Button>
+                                    )}
                                 </div>
                               </div>
                             </CardContent>
@@ -685,5 +816,5 @@ export default function AcompanharCultoPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

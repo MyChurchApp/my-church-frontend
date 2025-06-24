@@ -1,148 +1,30 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useRef,
+} from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import {
-  Home,
-  Users,
-  Calendar,
-  DollarSign,
-  MessageSquare,
-  Settings,
-  LogOut,
-  ChevronLeft,
-  ChevronRight,
-  X,
-  Package,
-  Heart,
-  Book,
-  BookHeart,
-} from "lucide-react";
+import { LogOut, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { logout } from "@/lib/auth-utils";
 import clsx from "clsx";
-import FocusTrap from "focus-trap-react";
+// CORREÇÃO 1: A importação agora é "nomeada" (com chaves)
+import { FocusTrap } from "focus-trap-react";
+import {
+  MenuItem,
+  SidebarContentProps,
+  SidebarContextProps,
+  SidebarProps,
+  SubItem,
+} from "./sidernar.types";
+import { rawMenu } from "./sidebar.constant";
 
-// TIPOS E DADOS
-type Role = "admin" | "member";
-interface User {
-  name: string;
-  accessLevel: Role;
-}
-interface Church {
-  name: string;
-}
-interface SubItem {
-  label: string;
-  href: string;
-  accessLevel?: Role;
-}
-interface MenuItem {
-  id: string;
-  icon: React.ElementType;
-  label: string;
-  href: string;
-  accessLevel: Role;
-  subItems?: SubItem[];
-}
-
-const rawMenu: MenuItem[] = [
-  {
-    id: "home",
-    icon: Home,
-    label: "Início",
-    href: "/dashboard",
-    accessLevel: "member",
-  },
-  {
-    id: "members",
-    icon: Users,
-    label: "Membros",
-    href: "/dashboard/membros",
-    accessLevel: "admin",
-  },
-  {
-    id: "events",
-    icon: Calendar,
-    label: "Eventos",
-    href: "/dashboard/eventos",
-    accessLevel: "member",
-  },
-  {
-    id: "service",
-    icon: Book,
-    label: "Culto",
-    href: "/dashboard/culto",
-    accessLevel: "member",
-    subItems: [
-      { label: "Acompanhar", href: "/dashboard/culto", accessLevel: "member" },
-      {
-        label: "Gestão",
-        href: "/dashboard/culto/gestao",
-        accessLevel: "admin",
-      },
-    ],
-  },
-  {
-    id: "donations",
-    icon: Heart,
-    label: "Doações",
-    href: "/dashboard/doacoes",
-    accessLevel: "member",
-    subItems: [
-      { label: "Ofertar", href: "/dashboard/doacoes", accessLevel: "member" },
-      {
-        label: "Histórico",
-        href: "/dashboard/doacoes/historico",
-        accessLevel: "admin",
-      },
-    ],
-  },
-  {
-    id: "bible",
-    icon: BookHeart,
-    label: "Bíblia",
-    href: "/biblia",
-    accessLevel: "member",
-  },
-  {
-    id: "communication",
-    icon: MessageSquare,
-    label: "Comunicação",
-    href: "/dashboard/comunicacao",
-    accessLevel: "admin",
-  },
-  {
-    id: "finance",
-    icon: DollarSign,
-    label: "Financeiro",
-    href: "/dashboard/financeiro",
-    accessLevel: "admin",
-  },
-  {
-    id: "assets",
-    icon: Package,
-    label: "Ativos",
-    href: "/dashboard/ativos",
-    accessLevel: "admin",
-  },
-  {
-    id: "settings",
-    icon: Settings,
-    label: "Configurações",
-    href: "/dashboard/configuracoes",
-    accessLevel: "admin",
-  },
-];
-
-// CONTEXTO INTERNO
-interface SidebarContextProps {
-  isCollapsed: boolean;
-  expandedMenus: string[];
-  toggleSubMenu: (id: string) => void;
-  isActive: (href: string, subs?: SubItem[]) => boolean;
-}
+// --- TIPOS E DADOS ---
 
 const SidebarContext = createContext<SidebarContextProps | undefined>(
   undefined
@@ -154,7 +36,7 @@ const useSidebar = () => {
   return context;
 };
 
-// SUBCOMPONENTES
+// --- SUBCOMPONENTES INTERNOS DA SIDEBAR ---
 const SidebarMenuItem = ({ item }: { item: MenuItem }) => {
   const { isCollapsed, isActive, expandedMenus, toggleSubMenu } = useSidebar();
   const pathname = usePathname();
@@ -255,7 +137,7 @@ const SidebarContent = ({
   church,
   isCollapsed,
   onToggleCollapse,
-}: any) => {
+}: SidebarContentProps) => {
   const router = useRouter();
   const handleLogout = () => {
     logout();
@@ -280,7 +162,10 @@ const SidebarContent = ({
           <Button
             variant="ghost"
             size="icon"
-            onClick={onToggleCollapse}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleCollapse();
+            }}
             aria-label={isCollapsed ? "Expandir menu" : "Recolher menu"}
             className="hidden md:flex text-gray-400 hover:text-white hover:bg-gray-700"
           >
@@ -294,7 +179,7 @@ const SidebarContent = ({
       </div>
       <nav className="flex-1 px-3 py-4 overflow-y-auto">
         <ul className="space-y-1.5">
-          {menuItems.map((item: MenuItem) => (
+          {menuItems.map((item) => (
             <SidebarMenuItem key={item.id} item={item} />
           ))}
         </ul>
@@ -323,17 +208,9 @@ const SidebarContent = ({
   );
 };
 
-// COMPONENTE PRINCIPAL DA SIDEBAR
-interface SidebarProps {
-  user: User | null;
-  church: Church | null;
-  isCollapsed: boolean;
-  setIsCollapsed: (isCollapsed: boolean) => void;
-  isMobileOpen: boolean;
-  setIsMobileOpen: (isOpen: boolean) => void;
-}
+// --- COMPONENTE PRINCIPAL DA SIDEBAR (EXPORTADO) ---
 
-export function Sidebar({
+export default function SidebarMenu({
   user,
   church,
   isCollapsed,
@@ -343,17 +220,12 @@ export function Sidebar({
 }: SidebarProps) {
   const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
   const pathname = usePathname();
+  const router = useRouter();
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     setIsMobileOpen(false);
   }, [pathname, setIsMobileOpen]);
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setIsMobileOpen(false);
-    };
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [setIsMobileOpen]);
 
   const filterByRole = (items: MenuItem[]): MenuItem[] =>
     items
@@ -419,8 +291,17 @@ export function Sidebar({
           onClick={() => setIsMobileOpen(false)}
           aria-hidden="true"
         />
-        <FocusTrap active={isMobileOpen}>
+        <FocusTrap
+          active={isMobileOpen}
+          focusTrapOptions={{
+            onDeactivate: () => setIsMobileOpen(false),
+            clickOutsideDeactivates: true,
+            initialFocus: () => closeButtonRef.current,
+            fallbackFocus: "#mobile-sidebar-content",
+          }}
+        >
           <div
+            id="mobile-sidebar-content"
             role="dialog"
             aria-modal="true"
             className={clsx(
@@ -437,6 +318,7 @@ export function Sidebar({
                     {church?.name || "MyChurch"}
                   </h2>
                   <Button
+                    ref={closeButtonRef}
                     variant="ghost"
                     size="icon"
                     onClick={() => setIsMobileOpen(false)}
@@ -458,6 +340,7 @@ export function Sidebar({
                     variant="ghost"
                     onClick={() => {
                       logout();
+                      router.push("/login");
                     }}
                     className="w-full justify-start text-red-500 hover:text-red-400 hover:bg-red-500/10 px-3"
                   >
