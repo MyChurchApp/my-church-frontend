@@ -1,25 +1,33 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Switch } from "@/components/ui/switch"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Loader2, AlertCircle, Plus } from "lucide-react"
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Loader2, AlertCircle, Plus } from "lucide-react";
 
 interface SimpleMemberModalProps {
-  onMemberCreated?: (member: any) => void
+  onMemberCreated?: (member: any) => void;
 }
 
-export default function SimpleMemberModal({ onMemberCreated }: SimpleMemberModalProps) {
-  const [isOpen, setIsOpen] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
+export default function SimpleMemberModal({
+  onMemberCreated,
+}: SimpleMemberModalProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -35,20 +43,19 @@ export default function SimpleMemberModal({ onMemberCreated }: SimpleMemberModal
     ministry: "",
     isActive: true,
     notes: "",
-  })
+  });
 
   const getAuthToken = () => {
-    if (typeof window === "undefined") return null
-    return localStorage.getItem("authToken")
-  }
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem("authToken");
+  };
 
   const createMember = async (memberData: any) => {
-    const token = getAuthToken()
+    const token = getAuthToken();
 
     if (!token) {
-      throw new Error("Token de autenticação não encontrado")
+      throw new Error("Token de autenticação não encontrado");
     }
-
 
     const response = await fetch("https://demoapp.top1soft.com.br/api/Member", {
       method: "POST",
@@ -58,48 +65,53 @@ export default function SimpleMemberModal({ onMemberCreated }: SimpleMemberModal
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify(memberData),
-    })
-
+    });
 
     if (!response.ok) {
-      const errorText = await response.text()
+      const errorText = await response.text();
 
-      let errorMessage = `Erro ${response.status}`
+      let errorMessage = `Erro ${response.status}`;
 
       try {
-        const errorJson = JSON.parse(errorText)
+        const errorJson = JSON.parse(errorText);
         if (errorJson.detail) {
-          errorMessage += `: ${errorJson.detail}`
+          errorMessage += `: ${errorJson.detail}`;
         }
         if (errorJson.errors) {
           const errors = Object.entries(errorJson.errors)
-            .map(([field, messages]) => `${field}: ${Array.isArray(messages) ? messages.join(", ") : messages}`)
-            .join("; ")
-          errorMessage += ` - ${errors}`
+            .map(
+              ([field, messages]) =>
+                `${field}: ${
+                  Array.isArray(messages) ? messages.join(", ") : messages
+                }`
+            )
+            .join("; ");
+          errorMessage += ` - ${errors}`;
         }
       } catch (e) {
-        errorMessage += `: ${errorText}`
+        errorMessage += `: ${errorText}`;
       }
 
-      throw new Error(errorMessage)
+      throw new Error(errorMessage);
     }
 
-    return await response.text()
-  }
+    return await response.text();
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    setError(null)
-    setSuccess(null)
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
 
     try {
       // Validações básicas
-      if (!formData.name.trim()) throw new Error("Nome é obrigatório")
-      if (!formData.email.trim()) throw new Error("Email é obrigatório")
-      if (!formData.document.trim()) throw new Error("Documento é obrigatório")
-      if (!formData.phone.trim()) throw new Error("Telefone é obrigatório")
-      if (!formData.birthDate) throw new Error("Data de nascimento é obrigatória")
+      if (!formData.name.trim()) throw new Error("Nome é obrigatório");
+      if (!formData.email.trim()) throw new Error("Email é obrigatório");
+      if (!formData.document.trim()) throw new Error("Documento é obrigatório");
+      if (!formData.phone.trim()) throw new Error("Telefone é obrigatório");
+      if (!formData.birthDate)
+        throw new Error("Data de nascimento é obrigatória");
 
       // Preparar dados EXATAMENTE como no exemplo do Swagger
       const memberData = {
@@ -111,22 +123,26 @@ export default function SimpleMemberModal({ onMemberCreated }: SimpleMemberModal
         birthDate: formData.birthDate + "T00:00:00",
         isBaptized: formData.isBaptized,
         baptizedDate:
-          formData.isBaptized && formData.baptizedDate ? formData.baptizedDate + "T00:00:00" : "2023-10-14T00:00:00",
+          formData.isBaptized && formData.baptizedDate
+            ? formData.baptizedDate + "T00:00:00"
+            : "2023-10-14T00:00:00",
         isTither: formData.isTither,
         roleMember: 0,
         maritalStatus: formData.maritalStatus || "Solteiro",
-        memberSince: formData.memberSince ? formData.memberSince + "T00:00:00" : "2020-01-01T00:00:00",
+        memberSince: formData.memberSince
+          ? formData.memberSince + "T00:00:00"
+          : "2020-01-01T00:00:00",
         ministry: formData.ministry || "Louvor",
         isActive: formData.isActive,
         notes: formData.notes || "Participa do grupo de jovens",
-      }
+      };
 
-      const result = await createMember(memberData)
+      const result = await createMember(memberData);
 
-      setSuccess("Membro cadastrado com sucesso!")
+      setSuccess("Membro cadastrado com sucesso!");
 
       if (onMemberCreated) {
-        onMemberCreated(result)
+        onMemberCreated(result);
       }
 
       // Reset form
@@ -144,19 +160,19 @@ export default function SimpleMemberModal({ onMemberCreated }: SimpleMemberModal
         ministry: "",
         isActive: true,
         notes: "",
-      })
+      });
 
       setTimeout(() => {
-        setIsOpen(false)
-        setSuccess(null)
-      }, 2000)
+        setIsOpen(false);
+        setSuccess(null);
+      }, 2000);
     } catch (error: any) {
-      console.error("Erro:", error)
-      setError(error.message)
+      console.error("Erro:", error);
+      setError(error.message);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -182,7 +198,9 @@ export default function SimpleMemberModal({ onMemberCreated }: SimpleMemberModal
         {success && (
           <Alert className="border-green-200 bg-green-50">
             <AlertCircle className="h-4 w-4 text-green-600" />
-            <AlertDescription className="text-green-800">{success}</AlertDescription>
+            <AlertDescription className="text-green-800">
+              {success}
+            </AlertDescription>
           </Alert>
         )}
 
@@ -193,7 +211,9 @@ export default function SimpleMemberModal({ onMemberCreated }: SimpleMemberModal
               <Input
                 id="name"
                 value={formData.name}
-                onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, name: e.target.value }))
+                }
                 placeholder="Fellipe"
                 required
               />
@@ -205,7 +225,9 @@ export default function SimpleMemberModal({ onMemberCreated }: SimpleMemberModal
                 id="email"
                 type="email"
                 value={formData.email}
-                onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, email: e.target.value }))
+                }
                 placeholder="fvsouza623@gmail.com"
                 required
               />
@@ -218,7 +240,9 @@ export default function SimpleMemberModal({ onMemberCreated }: SimpleMemberModal
               <Input
                 id="document"
                 value={formData.document}
-                onChange={(e) => setFormData((prev) => ({ ...prev, document: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, document: e.target.value }))
+                }
                 placeholder="45570179836"
                 required
               />
@@ -229,7 +253,9 @@ export default function SimpleMemberModal({ onMemberCreated }: SimpleMemberModal
               <Input
                 id="phone"
                 value={formData.phone}
-                onChange={(e) => setFormData((prev) => ({ ...prev, phone: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, phone: e.target.value }))
+                }
                 placeholder="19987250777"
                 required
               />
@@ -243,7 +269,12 @@ export default function SimpleMemberModal({ onMemberCreated }: SimpleMemberModal
                 id="birthDate"
                 type="date"
                 value={formData.birthDate}
-                onChange={(e) => setFormData((prev) => ({ ...prev, birthDate: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    birthDate: e.target.value,
+                  }))
+                }
                 required
               />
             </div>
@@ -253,7 +284,12 @@ export default function SimpleMemberModal({ onMemberCreated }: SimpleMemberModal
               <Input
                 id="maritalStatus"
                 value={formData.maritalStatus}
-                onChange={(e) => setFormData((prev) => ({ ...prev, maritalStatus: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    maritalStatus: e.target.value,
+                  }))
+                }
                 placeholder="Solteiro"
               />
             </div>
@@ -266,7 +302,12 @@ export default function SimpleMemberModal({ onMemberCreated }: SimpleMemberModal
                 id="memberSince"
                 type="date"
                 value={formData.memberSince}
-                onChange={(e) => setFormData((prev) => ({ ...prev, memberSince: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    memberSince: e.target.value,
+                  }))
+                }
               />
             </div>
 
@@ -275,7 +316,9 @@ export default function SimpleMemberModal({ onMemberCreated }: SimpleMemberModal
               <Input
                 id="ministry"
                 value={formData.ministry}
-                onChange={(e) => setFormData((prev) => ({ ...prev, ministry: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, ministry: e.target.value }))
+                }
                 placeholder="Louvor"
               />
             </div>
@@ -286,7 +329,9 @@ export default function SimpleMemberModal({ onMemberCreated }: SimpleMemberModal
               <Switch
                 id="isBaptized"
                 checked={formData.isBaptized}
-                onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, isBaptized: checked }))}
+                onCheckedChange={(checked) =>
+                  setFormData((prev) => ({ ...prev, isBaptized: checked }))
+                }
               />
               <Label htmlFor="isBaptized">Batizado</Label>
             </div>
@@ -298,7 +343,12 @@ export default function SimpleMemberModal({ onMemberCreated }: SimpleMemberModal
                   id="baptizedDate"
                   type="date"
                   value={formData.baptizedDate}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, baptizedDate: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      baptizedDate: e.target.value,
+                    }))
+                  }
                 />
               </div>
             )}
@@ -307,7 +357,9 @@ export default function SimpleMemberModal({ onMemberCreated }: SimpleMemberModal
               <Switch
                 id="isTither"
                 checked={formData.isTither}
-                onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, isTither: checked }))}
+                onCheckedChange={(checked) =>
+                  setFormData((prev) => ({ ...prev, isTither: checked }))
+                }
               />
               <Label htmlFor="isTither">Dizimista</Label>
             </div>
@@ -316,7 +368,9 @@ export default function SimpleMemberModal({ onMemberCreated }: SimpleMemberModal
               <Switch
                 id="isActive"
                 checked={formData.isActive}
-                onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, isActive: checked }))}
+                onCheckedChange={(checked) =>
+                  setFormData((prev) => ({ ...prev, isActive: checked }))
+                }
               />
               <Label htmlFor="isActive">Ativo</Label>
             </div>
@@ -327,7 +381,9 @@ export default function SimpleMemberModal({ onMemberCreated }: SimpleMemberModal
             <Input
               id="notes"
               value={formData.notes}
-              onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, notes: e.target.value }))
+              }
               placeholder="Participa do grupo de jovens"
             />
           </div>
@@ -345,5 +401,5 @@ export default function SimpleMemberModal({ onMemberCreated }: SimpleMemberModal
         </form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

@@ -21,8 +21,10 @@ import { Badge } from "@/components/ui/badge";
 import dynamic from "next/dynamic";
 import { VerseType } from "@/services/church/type";
 import { VerseOfDay } from "@/services/church/VerseOfDay";
-import { BirthdayMember } from "@/services/members.service";
-import { MembersBirthday } from "@/services/church/MembersBirthday";
+import {
+  BirthdayMember,
+  MembersBirthday,
+} from "@/services/church/MembersBirthday";
 
 const FeedSectionContainer = dynamic(
   () => import("./containers/feed/feed-section.container"),
@@ -70,12 +72,40 @@ export default function DashboardPage() {
   });
 
   const getBirthdayMessage = (member: BirthdayMember) => {
-    if (member.isToday)
-      return `🎉 HOJE É ANIVERSÁRIO! Fazendo ${member.ageWillTurn} anos`;
-    if (member.daysUntilBirthday > 0)
-      return `🎁 Faltam ${member.daysUntilBirthday} dias para o aniversário (${member.ageWillTurn} anos)`;
-    const daysPassed = Math.abs(member.daysUntilBirthday);
-    return `Foi aniversário há ${daysPassed} dia(s) (fez ${member.ageWillTurn} anos)`;
+    if (!member.birthDate) return "Informação de aniversário indisponível";
+
+    const today = new Date();
+    const birthDate = new Date(member.birthDate);
+
+    // Próximo aniversário
+    let nextBirthday = new Date(
+      today.getFullYear(),
+      birthDate.getMonth(),
+      birthDate.getDate()
+    );
+    if (
+      today.getMonth() > birthDate.getMonth() ||
+      (today.getMonth() === birthDate.getMonth() &&
+        today.getDate() > birthDate.getDate())
+    ) {
+      nextBirthday.setFullYear(today.getFullYear() + 1);
+    }
+
+    // Dias até o próximo aniversário
+    const msInDay = 1000 * 60 * 60 * 24;
+    const daysUntilBirthday = Math.ceil(
+      (nextBirthday.getTime() - today.setHours(0, 0, 0, 0)) / msInDay
+    );
+
+    // Idade que vai fazer
+    const ageWillTurn = nextBirthday.getFullYear() - birthDate.getFullYear();
+
+    if (daysUntilBirthday === 0)
+      return `🎉 HOJE É ANIVERSÁRIO! Fazendo ${ageWillTurn} anos`;
+    if (daysUntilBirthday > 0)
+      return `🎁 Faltam ${daysUntilBirthday} dias para o aniversário (${ageWillTurn} anos)`;
+    const daysPassed = Math.abs(daysUntilBirthday);
+    return `Foi aniversário há ${daysPassed} dia(s) (fez ${ageWillTurn} anos)`;
   };
 
   return (

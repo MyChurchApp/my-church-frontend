@@ -46,6 +46,32 @@ export interface MemberApiData {
 }
 
 export class MembersEditService {
+  static async createMember(apiData: any): Promise<any> {
+    // Garantir que o token está no header
+    const token =
+      typeof window !== "undefined" ? localStorage.getItem("authToken") : null;
+    if (!token) throw new Error("Token de autenticação não encontrado");
+
+    const response = await fetch(`${this.API_BASE_URL}/Member`, {
+      method: "POST",
+      headers: {
+        accept: "text/plain",
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(apiData),
+    });
+
+    if (!response.ok) {
+      if (response.status === 401)
+        throw new Error("Sessão expirada. Faça login novamente.");
+      if (response.status === 400)
+        throw new Error("Dados inválidos. Verifique os campos obrigatórios.");
+      throw new Error("Erro ao cadastrar membro. Tente novamente.");
+    }
+
+    return await response.text();
+  }
   private static readonly API_BASE_URL =
     process.env.NEXT_PUBLIC_API_URL || "https://demoapp.top1soft.com.br/api";
 

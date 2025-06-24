@@ -17,10 +17,10 @@ import {
   Edit,
   Trash2,
 } from "lucide-react";
-import ValidatedMemberModal from "@/components/validated-member-modal";
 import EditMemberModal from "./EditMemberModal";
 import { MembrosPageProps } from "@/containers/Membros/Membro.types";
 import { FileService } from "@/services/fileService/File";
+import CreatMembroModal from "./CreatMembroModal";
 
 // Avatar otimizado
 interface MemberAvatarProps {
@@ -156,7 +156,7 @@ export function MembrosComponent({
           </div>
           {isAdmin && (
             <div className="shrink-0 w-full sm:w-auto">
-              <ValidatedMemberModal onMemberCreated={loadMembers} />
+              <CreatMembroModal onMemberCreated={loadMembers} />
             </div>
           )}
         </header>
@@ -378,7 +378,7 @@ export function MembrosComponent({
                     : "Para começar, adicione um novo membro à sua lista."}
                 </p>
                 {isAdmin && !searchTerm && (
-                  <ValidatedMemberModal onMemberCreated={loadMembers} />
+                  <CreatMembroModal onMemberCreated={loadMembers} />
                 )}
               </CardContent>
             </Card>
