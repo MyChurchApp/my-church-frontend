@@ -347,16 +347,6 @@ export function FeedSection({
                         <p className="font-medium text-sm">
                           {post.member?.name || "Usuário"}
                         </p>
-                        <div className="flex items-center space-x-2 text-xs text-gray-500">
-                          <span>{formatTimeAgo(post.created)}</span>
-                          {post.memberId.toString() === currentUserId &&
-                            isRecent && (
-                              <div className="flex items-center space-x-1">
-                                <Clock className="h-3 w-3" />
-                                <span>{timeLeft}</span>
-                              </div>
-                            )}
-                        </div>
                       </div>
                     </div>
 
