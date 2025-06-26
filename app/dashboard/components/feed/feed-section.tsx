@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -23,6 +23,7 @@ import {
   type FeedItem,
   type PostLikeState,
 } from "@/services/feed.service";
+import { FileService } from "@/services/fileService/File";
 
 interface FeedSectionProps {
   feedItems: FeedItem[];
@@ -149,6 +150,79 @@ export function FeedSection({
   const isAdmin = getUserRole() === "Admin";
   const currentUserId = getCurrentUserId();
 
+  interface MemberAvatarProps {
+    photoFileName: string | null;
+    initials: string;
+    memberName: string;
+  }
+  function MemberAvatar({
+    photoFileName,
+    initials,
+    memberName,
+  }: MemberAvatarProps) {
+    const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const lastFileName = useRef<string | null>(null);
+
+    useEffect(() => {
+      let cancelled = false;
+      let objectUrl: string | null = null;
+
+      async function fetchPhoto() {
+        if (!photoFileName || photoFileName === "foto-padrao.jpg") {
+          setPhotoUrl(null);
+          setIsLoading(false);
+          lastFileName.current = photoFileName;
+          return;
+        }
+
+        if (photoFileName === lastFileName.current) return;
+
+        setIsLoading(true);
+        try {
+          const blob = await FileService.downloadFile(photoFileName);
+          if (cancelled) return;
+          objectUrl = URL.createObjectURL(blob);
+          setPhotoUrl(objectUrl);
+          lastFileName.current = photoFileName;
+        } catch {
+          setPhotoUrl(null);
+        } finally {
+          if (!cancelled) setIsLoading(false);
+        }
+      }
+
+      fetchPhoto();
+
+      return () => {
+        cancelled = true;
+        if (objectUrl) URL.revokeObjectURL(objectUrl);
+      };
+    }, [photoFileName]);
+
+    // **RETORNO JSX**
+    return photoUrl ? (
+      <img
+        src={photoUrl}
+        alt={memberName}
+        className="w-8 h-8 rounded-full object-cover"
+        title={memberName}
+      />
+    ) : (
+      <span className="w-8 h-8 flex items-center justify-center rounded-full bg-blue-200 text-blue-700 font-bold">
+        {initials}
+      </span>
+    );
+  }
+
+  const getInitials = (name: string) =>
+    name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase();
+
   if (error) {
     return (
       <Card>
@@ -258,10 +332,12 @@ export function FeedSection({
                     <div className="flex items-center space-x-2">
                       <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
                         {post.member?.photo ? (
-                          <img
-                            src={post.member.photo || "/placeholder.svg"}
-                            alt={post.member.name}
-                            className="w-8 h-8 rounded-full object-cover"
+                          <MemberAvatar
+                            photoFileName={
+                              post.member.photo || "foto-padrao.jpg"
+                            }
+                            initials={getInitials(post.member.name)}
+                            memberName={post.member.name}
                           />
                         ) : (
                           <User className="h-4 w-4 text-blue-600" />

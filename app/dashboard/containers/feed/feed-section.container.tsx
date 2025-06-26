@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { FeedSection } from "../../components/feed/feed-section";
 import {
   getFeed,
@@ -12,6 +12,8 @@ import {
   type FeedItem,
   type FeedResponse,
 } from "@/services/feed.service";
+import { CloudCog } from "lucide-react";
+import { FileService } from "@/services/fileService/File";
 
 export default function FeedSectionContainer() {
   const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
@@ -182,6 +184,7 @@ export default function FeedSectionContainer() {
     await loadFeed(1, false);
   };
 
+  console.log(feedItems);
   return (
     <FeedSection
       feedItems={feedItems}
