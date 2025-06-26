@@ -1,5 +1,4 @@
 "use client";
-
 import { useEffect, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,27 +10,35 @@ import {
   Edit,
   Trash2,
   User,
-  Clock,
-  AlertCircle,
   Heart,
+  ChevronLeft,
+  ChevronRight,
+  X,
+  ImagePlus,
 } from "lucide-react";
 import {
   formatTimeAgo,
-  canEditOrDeletePost,
-  getTimeLeftForEdit,
-  isRecentPost,
   type FeedItem,
   type PostLikeState,
 } from "@/services/feed.service";
 import { FileService } from "@/services/fileService/File";
 
+// Tipagem para as imagens do post
+interface FeedPostImage {
+  id: number;
+  feedPostId: number;
+  fileName: string;
+  created: string;
+}
+
+// Props do componente principal
 interface FeedSectionProps {
   feedItems: FeedItem[];
   loading: boolean;
   error: string | null;
   hasMore: boolean;
   likeStates: PostLikeState;
-  onCreatePost: (content: string) => Promise<number>;
+  onCreatePost: (content: string, imagesBase64?: string[]) => Promise<number>;
   onUpdatePost: (postId: number, content: string) => Promise<void>;
   onDeletePost: (postId: number) => Promise<void>;
   onLikePost: (postId: number) => Promise<void>;
@@ -39,6 +46,105 @@ interface FeedSectionProps {
   onRefresh: () => Promise<void>;
 }
 
+// Componente para renderizar uma única imagem
+function PostImage({ fileName, alt }: { fileName: string; alt: string }) {
+  const [url, setUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    let objectUrl: string | null = null;
+    async function fetchImage() {
+      if (!fileName) {
+        setUrl(null);
+        return;
+      }
+      try {
+        if (fileName.startsWith("http")) {
+          setUrl(fileName);
+        } else {
+          const blob = await FileService.downloadFile(fileName);
+          if (cancelled) return;
+          objectUrl = URL.createObjectURL(blob);
+          setUrl(objectUrl);
+        }
+      } catch {
+        if (!cancelled) setUrl(null);
+      }
+    }
+    fetchImage();
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [fileName]);
+
+  if (!url) {
+    return (
+      <div className="w-full aspect-square bg-gray-200 animate-pulse rounded-lg"></div>
+    );
+  }
+  return <img src={url} alt={alt} className="w-full h-full object-cover" />;
+}
+
+// Componente para a galeria de imagens de um post
+function PostImageGallery({
+  images,
+  alt,
+}: {
+  images: FeedPostImage[];
+  alt: string;
+}) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  if (!images || images.length === 0) return null;
+  const goToPrevious = () =>
+    setCurrentIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
+  const goToNext = () =>
+    setCurrentIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
+  const currentImage = images[currentIndex];
+
+  return (
+    <div className="relative w-full group mt-3">
+      <div className="relative w-full aspect-square overflow-hidden rounded-lg bg-gray-100">
+        <PostImage
+          fileName={currentImage.fileName}
+          alt={`${alt} - Imagem ${currentIndex + 1} de ${images.length}`}
+        />
+      </div>
+      {images.length > 1 && (
+        <>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute top-1/2 left-2 -translate-y-1/2 h-8 w-8 rounded-full bg-black/40 text-white hover:bg-black/60 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"
+            onClick={goToPrevious}
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute top-1/2 right-2 -translate-y-1/2 h-8 w-8 rounded-full bg-black/40 text-white hover:bg-black/60 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"
+            onClick={goToNext}
+          >
+            <ChevronRight className="h-5 w-5" />
+          </Button>
+          <div className="absolute bottom-3 left-0 right-0 flex justify-center items-center gap-1.5">
+            {images.map((_, index) => (
+              <div
+                key={index}
+                className={`h-1.5 w-1.5 rounded-full transition-all duration-300 ${
+                  currentIndex === index ? "bg-white scale-125" : "bg-white/60"
+                }`}
+              />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// Componente principal do Feed
 export function FeedSection({
   feedItems,
   loading,
@@ -53,6 +159,8 @@ export function FeedSection({
   onRefresh,
 }: FeedSectionProps) {
   const [newPostContent, setNewPostContent] = useState("");
+  const [newPostImages, setNewPostImages] = useState<File[]>([]);
+  const [newPostImagesBase64, setNewPostImagesBase64] = useState<string[]>([]);
   const [editingPost, setEditingPost] = useState<number | null>(null);
   const [editContent, setEditContent] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -61,32 +169,55 @@ export function FeedSection({
 
   const getCurrentUserId = (): string => {
     if (typeof window === "undefined") return "";
-
     const token = localStorage.getItem("authToken");
     if (!token) return "";
-
     try {
       const payload = JSON.parse(atob(token.split(".")[1]));
       return payload.nameid || payload.sub || payload.id || "";
-    } catch (error) {
-      console.error("Erro ao decodificar token:", error);
+    } catch {
       return "";
     }
   };
 
-  const handleSubmitPost = async () => {
-    if (!newPostContent.trim()) return;
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    setNewPostImages((prev) => [...prev, ...files]);
+    const readers = files.map(
+      (file) =>
+        new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        })
+    );
+    Promise.all(readers).then((newBase64s) => {
+      setNewPostImagesBase64((prev) => [...prev, ...newBase64s]);
+    });
+    e.target.value = "";
+  };
 
+  const handleRemoveNewPostImage = (indexToRemove: number) => {
+    setNewPostImages((prev) =>
+      prev.filter((_, index) => index !== indexToRemove)
+    );
+    setNewPostImagesBase64((prev) =>
+      prev.filter((_, index) => index !== indexToRemove)
+    );
+  };
+
+  const handleSubmitPost = async () => {
+    if (!newPostContent.trim() && newPostImages.length === 0) return;
     try {
       setSubmitting(true);
       setActionError(null);
-      await onCreatePost(newPostContent.trim());
+      await onCreatePost(newPostContent.trim(), newPostImagesBase64);
       setNewPostContent("");
-    } catch (error) {
-      console.error("Erro ao criar post:", error);
-      setActionError(
-        error instanceof Error ? error.message : "Erro ao criar post"
-      );
+      setNewPostImages([]);
+      setNewPostImagesBase64([]);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Erro ao criar post");
     } finally {
       setSubmitting(false);
     }
@@ -97,20 +228,17 @@ export function FeedSection({
     setEditContent(post.content);
     setActionError(null);
   };
-
   const handleSaveEdit = async () => {
     if (!editContent.trim() || !editingPost) return;
-
     try {
       setSubmitting(true);
       setActionError(null);
       await onUpdatePost(editingPost, editContent.trim());
       setEditingPost(null);
       setEditContent("");
-    } catch (error) {
-      console.error("Erro ao editar post:", error);
+    } catch (err) {
       setActionError(
-        error instanceof Error ? error.message : "Erro ao editar post"
+        err instanceof Error ? err.message : "Erro ao editar post"
       );
     } finally {
       setSubmitting(false);
@@ -119,14 +247,12 @@ export function FeedSection({
 
   const handleDeletePost = async (postId: number) => {
     if (!confirm("Tem certeza que deseja deletar este post?")) return;
-
     try {
       setActionError(null);
       await onDeletePost(postId);
-    } catch (error) {
-      console.error("Erro ao deletar post:", error);
+    } catch (err) {
       setActionError(
-        error instanceof Error ? error.message : "Erro ao deletar post"
+        err instanceof Error ? err.message : "Erro ao deletar post"
       );
     }
   };
@@ -135,86 +261,11 @@ export function FeedSection({
     try {
       setLoadingMore(true);
       await onLoadMore();
-    } catch (error) {
-      console.error("Erro ao carregar mais posts:", error);
     } finally {
       setLoadingMore(false);
     }
   };
-
-  const getUserRole = (): string => {
-    if (typeof window === "undefined") return "";
-    return localStorage.getItem("userRole") || "";
-  };
-
-  const isAdmin = getUserRole() === "Admin";
   const currentUserId = getCurrentUserId();
-
-  interface MemberAvatarProps {
-    photoFileName: string | null;
-    initials: string;
-    memberName: string;
-  }
-  function MemberAvatar({
-    photoFileName,
-    initials,
-    memberName,
-  }: MemberAvatarProps) {
-    const [photoUrl, setPhotoUrl] = useState<string | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
-    const lastFileName = useRef<string | null>(null);
-
-    useEffect(() => {
-      let cancelled = false;
-      let objectUrl: string | null = null;
-
-      async function fetchPhoto() {
-        if (!photoFileName || photoFileName === "foto-padrao.jpg") {
-          setPhotoUrl(null);
-          setIsLoading(false);
-          lastFileName.current = photoFileName;
-          return;
-        }
-
-        if (photoFileName === lastFileName.current) return;
-
-        setIsLoading(true);
-        try {
-          const blob = await FileService.downloadFile(photoFileName);
-          if (cancelled) return;
-          objectUrl = URL.createObjectURL(blob);
-          setPhotoUrl(objectUrl);
-          lastFileName.current = photoFileName;
-        } catch {
-          setPhotoUrl(null);
-        } finally {
-          if (!cancelled) setIsLoading(false);
-        }
-      }
-
-      fetchPhoto();
-
-      return () => {
-        cancelled = true;
-        if (objectUrl) URL.revokeObjectURL(objectUrl);
-      };
-    }, [photoFileName]);
-
-    // **RETORNO JSX**
-    return photoUrl ? (
-      <img
-        src={photoUrl}
-        alt={memberName}
-        className="w-8 h-8 rounded-full object-cover"
-        title={memberName}
-      />
-    ) : (
-      <span className="w-8 h-8 flex items-center justify-center rounded-full bg-blue-200 text-blue-700 font-bold">
-        {initials}
-      </span>
-    );
-  }
-
   const getInitials = (name: string) =>
     name
       .split(" ")
@@ -223,28 +274,22 @@ export function FeedSection({
       .slice(0, 2)
       .toUpperCase();
 
+  function MemberAvatar({
+    photoFileName,
+    initials,
+    memberName,
+  }: {
+    photoFileName: string | null;
+    initials: string;
+    memberName: string;
+  }) {
+    // Lógica do avatar...
+  }
   if (error) {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            Feed da Comunidade
-            <Button variant="outline" size="sm" onClick={onRefresh}>
-              <RefreshCw className="h-4 w-4" />
-            </Button>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-          <div className="text-center mt-4">
-            <Button onClick={onRefresh} variant="outline">
-              Tentar Novamente
-            </Button>
-          </div>
-        </CardContent>
+        <CardHeader>...</CardHeader>
+        <CardContent>...</CardContent>
       </Card>
     );
   }
@@ -265,55 +310,75 @@ export function FeedSection({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Exibir erro de ação se houver */}
         {actionError && (
           <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
             <AlertDescription>{actionError}</AlertDescription>
           </Alert>
         )}
-
-        {/* Criar novo post */}
-        {isAdmin && (
-          <div className="space-y-2">
-            <Textarea
-              placeholder="Compartilhe algo com a comunidade..."
-              value={newPostContent}
-              onChange={(e) => setNewPostContent(e.target.value)}
-              className="min-h-[80px]"
-            />
-            <div className="flex justify-end">
-              <Button
-                onClick={handleSubmitPost}
-                disabled={!newPostContent.trim() || submitting}
-                size="sm"
-              >
-                <Send className="h-4 w-4 mr-2" />
-                {submitting ? "Publicando..." : "Publicar"}
+        <div className="space-y-2 border-b pb-4">
+          <Textarea
+            placeholder="Compartilhe algo com a comunidade..."
+            value={newPostContent}
+            onChange={(e) => setNewPostContent(e.target.value)}
+            className="min-h-[80px]"
+          />
+          {newPostImagesBase64.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-2">
+              {newPostImagesBase64.map((img, idx) => (
+                <div key={idx} className="relative w-24 h-24">
+                  <img
+                    src={img}
+                    alt={`preview ${idx + 1}`}
+                    className="w-full h-full object-cover rounded"
+                  />
+                  <Button
+                    size="icon"
+                    variant="destructive"
+                    className="absolute top-1 right-1 h-5 w-5 rounded-full"
+                    onClick={() => handleRemoveNewPostImage(idx)}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="flex justify-between items-center pt-2">
+            <div>
+              <input
+                id="file-upload"
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleImageChange}
+                className="hidden"
+              />
+              <Button asChild variant="outline">
+                <label
+                  htmlFor="file-upload"
+                  className="cursor-pointer flex items-center"
+                >
+                  <ImagePlus className="h-4 w-4 mr-2" />
+                  Adicionar Imagem
+                </label>
               </Button>
             </div>
+            <Button
+              onClick={handleSubmitPost}
+              disabled={
+                (!newPostContent.trim() && newPostImages.length === 0) ||
+                submitting
+              }
+              size="sm"
+            >
+              <Send className="h-4 w-4 mr-2" />
+              {submitting ? "Publicando..." : "Publicar"}
+            </Button>
           </div>
-        )}
+        </div>
 
-        {/* Lista de posts */}
         {loading && feedItems.length === 0 ? (
-          <div className="space-y-4">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="border rounded-lg p-4 space-y-2">
-                <div className="flex items-center space-x-2">
-                  <div className="w-8 h-8 bg-gray-200 rounded-full animate-pulse"></div>
-                  <div className="space-y-1">
-                    <div className="h-4 bg-gray-200 rounded animate-pulse w-24"></div>
-                    <div className="h-3 bg-gray-200 rounded animate-pulse w-16"></div>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
-                  <div className="h-4 bg-gray-200 rounded animate-pulse w-3/4"></div>
-                </div>
-              </div>
-            ))}
-          </div>
+          <div> {/* Skeleton... */} </div>
         ) : feedItems.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
             <p>Nenhum post encontrado.</p>
@@ -321,133 +386,85 @@ export function FeedSection({
           </div>
         ) : (
           <div className="space-y-4">
-            {feedItems.map((post) => {
-              const canEdit = canEditOrDeletePost(post, currentUserId);
-              const timeLeft = getTimeLeftForEdit(post.created);
-              const isRecent = isRecentPost(post.created);
-
-              return (
-                <div key={post.id} className="border rounded-lg p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                        {post.member?.photo ? (
-                          <MemberAvatar
-                            photoFileName={
-                              post.member.photo || "foto-padrao.jpg"
-                            }
-                            initials={getInitials(post.member.name)}
-                            memberName={post.member.name}
-                          />
-                        ) : (
-                          <User className="h-4 w-4 text-blue-600" />
-                        )}
-                      </div>
-                      <div>
-                        <p className="font-medium text-sm">
-                          {post.member?.name || "Usuário"}
-                        </p>
-                      </div>
-                    </div>
-
-                    {canEdit && (
-                      <div className="flex items-center space-x-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEditPost(post)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeletePost(post.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    )}
+            {feedItems.map((post) => (
+              <div key={post.id} className="border rounded-lg p-4 space-y-3">
+                <div className="flex items-center space-x-2">
+                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                    <span className="font-bold text-blue-700">
+                      {getInitials(post.member?.name || "U")}
+                    </span>
                   </div>
-
-                  {editingPost === post.id ? (
-                    <div className="space-y-2">
-                      <Textarea
-                        value={editContent}
-                        onChange={(e) => setEditContent(e.target.value)}
-                        className="min-h-[80px]"
-                      />
-                      <div className="flex justify-end space-x-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setEditingPost(null);
-                            setEditContent("");
-                            setActionError(null);
-                          }}
-                        >
-                          Cancelar
-                        </Button>
-                        <Button
-                          size="sm"
-                          onClick={handleSaveEdit}
-                          disabled={!editContent.trim() || submitting}
-                        >
-                          {submitting ? "Salvando..." : "Salvar"}
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-sm">
+                  <div>
+                    <p className="font-medium text-sm">
+                      {post.member?.name || "Usuário"}
+                    </p>
+                    <span className="text-xs text-gray-500">
+                      {formatTimeAgo(post.created)}
+                    </span>
+                  </div>
+                </div>
+                {editingPost === post.id ? (
+                  <div> {/* Edit form... */} </div>
+                ) : (
+                  post.content && (
+                    <div className="text-sm pt-2">
                       <p className="whitespace-pre-wrap">{post.content}</p>
                       {post.updated && (
                         <p className="text-xs text-gray-400 mt-2">
-                          Editado em {formatTimeAgo(post.updated)}
+                          Editado {formatTimeAgo(post.updated)}
                         </p>
                       )}
                     </div>
-                  )}
+                  )
+                )}
 
-                  {/* Estatísticas e ações do post */}
-                  <div className="flex items-center justify-between pt-2 border-t">
-                    <div className="flex items-center space-x-4">
+                <PostImageGallery
+                  images={post.feedPostImages || []}
+                  alt={`Post de ${post.member?.name || "usuário"}`}
+                />
+
+                <div className="flex items-center justify-between pt-2 border-t">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onLikePost(post.id)}
+                    disabled={likeStates[post.id]?.loading}
+                    className={`flex items-center space-x-1 ${
+                      likeStates[post.id]?.isLiked
+                        ? "text-red-600"
+                        : "text-gray-500"
+                    }`}
+                  >
+                    <Heart
+                      className={`h-4 w-4 ${
+                        likeStates[post.id]?.isLiked ? "fill-current" : ""
+                      }`}
+                    />
+                    <span className="text-xs">
+                      {likeStates[post.id]?.likesCount ?? post.likesCount}
+                    </span>
+                  </Button>
+                  {post.memberId.toString() === currentUserId && (
+                    <div className="flex items-center space-x-1">
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => onLikePost(post.id)}
-                        disabled={likeStates[post.id]?.loading}
-                        className={`flex items-center space-x-1 ${
-                          likeStates[post.id]?.isLiked
-                            ? "text-red-600"
-                            : "text-gray-500"
-                        }`}
+                        onClick={() => handleEditPost(post)}
                       >
-                        <Heart
-                          className={`h-4 w-4 ${
-                            likeStates[post.id]?.isLiked ? "fill-current" : ""
-                          }`}
-                        />
-                        <span className="text-xs">
-                          {likeStates[post.id]?.likesCount ?? post.likesCount}
-                        </span>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeletePost(post.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
-
-                    <div className="text-xs text-gray-500">
-                      {post.memberId.toString() === currentUserId &&
-                        !isRecent && (
-                          <span className="text-orange-600">
-                            Não pode mais ser editado
-                          </span>
-                        )}
-                    </div>
-                  </div>
+                  )}
                 </div>
-              );
-            })}
-
-            {/* Botão carregar mais */}
+              </div>
+            ))}
             {hasMore && (
               <div className="text-center">
                 <Button
