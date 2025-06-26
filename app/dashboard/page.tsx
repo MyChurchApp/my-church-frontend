@@ -75,7 +75,10 @@ export default function DashboardPage() {
     if (!member.birthDate) return "Informação de aniversário indisponível";
 
     const today = new Date();
+    today.setHours(0, 0, 0, 0); // Normaliza hora
+
     const birthDate = new Date(member.birthDate);
+    birthDate.setHours(0, 0, 0, 0); // Normaliza hora
 
     // Próximo aniversário
     let nextBirthday = new Date(
@@ -91,21 +94,49 @@ export default function DashboardPage() {
       nextBirthday.setFullYear(today.getFullYear() + 1);
     }
 
-    // Dias até o próximo aniversário
-    const msInDay = 1000 * 60 * 60 * 24;
-    const daysUntilBirthday = Math.ceil(
-      (nextBirthday.getTime() - today.setHours(0, 0, 0, 0)) / msInDay
+    // Data do aniversário deste ano (pode ser passado)
+    const birthdayThisYear = new Date(
+      today.getFullYear(),
+      birthDate.getMonth(),
+      birthDate.getDate()
     );
 
-    // Idade que vai fazer
-    const ageWillTurn = nextBirthday.getFullYear() - birthDate.getFullYear();
+    // Calcula diferença de dias
+    const msInDay = 1000 * 60 * 60 * 24;
+    const diffDays = Math.round(
+      (birthdayThisYear.getTime() - today.getTime()) / msInDay
+    );
 
-    if (daysUntilBirthday === 0)
-      return `🎉 HOJE É ANIVERSÁRIO! Fazendo ${ageWillTurn} anos`;
-    if (daysUntilBirthday > 0)
-      return `🎁 Faltam ${daysUntilBirthday} dias para o aniversário (${ageWillTurn} anos)`;
-    const daysPassed = Math.abs(daysUntilBirthday);
-    return `Foi aniversário há ${daysPassed} dia(s) (fez ${ageWillTurn} anos)`;
+    // Pega o início e fim da semana (segunda a domingo)
+    const weekDay = today.getDay() || 7; // 1=segunda, 7=domingo
+    const weekStart = new Date(today);
+    weekStart.setDate(today.getDate() - (weekDay - 1));
+    weekStart.setHours(0, 0, 0, 0);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+
+    // O aniversário desse ano foi essa semana?
+    if (birthdayThisYear >= weekStart && birthdayThisYear <= weekEnd) {
+      if (diffDays === 0)
+        return `🎉 HOJE É ANIVERSÁRIO! Fazendo ${
+          today.getFullYear() - birthDate.getFullYear()
+        } anos`;
+      if (diffDays === -1)
+        return `Fez aniversário ontem (fez ${
+          today.getFullYear() - birthDate.getFullYear()
+        } anos)`;
+      if (diffDays < 0)
+        return `Foi aniversário há ${Math.abs(diffDays)} dias (fez ${
+          today.getFullYear() - birthDate.getFullYear()
+        } anos)`;
+      if (diffDays > 0)
+        return `🎁 Faltam ${diffDays} dias para o aniversário (${
+          today.getFullYear() - birthDate.getFullYear()
+        } anos)`;
+    }
+
+    // Fora da semana, não mostra nada
+    return null;
   };
 
   return (
