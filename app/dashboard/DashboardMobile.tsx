@@ -101,8 +101,8 @@ export function DashboardMobile() {
     return null;
   };
   return (
-    <div className="p-4">
-      <div className="space-y-6 mb-8">
+    <>
+      <div className="mb-8">
         {!verseError && verseOfDay && (
           <Card>
             <CardHeader>
@@ -156,6 +156,6 @@ export function DashboardMobile() {
         )}
       </div>
       <FeedSectionContainer />
-    </div>
+    </>
   );
 }

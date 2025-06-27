@@ -235,9 +235,7 @@ export default function DashboardLayout({
           user={user}
           onMenuClick={() => setIsMobileOpen(true)}
         />
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-          {children}
-        </main>
+        <main className="">{children}</main>
       </div>
     </div>
   );
