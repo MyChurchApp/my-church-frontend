@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { FeedSection } from "../../components/feed/feed-section";
 import {
   getFeed,
   createFeedPost,
@@ -12,6 +11,7 @@ import {
   type FeedItem,
   type FeedResponse,
 } from "@/services/feed.service";
+import { FeedSectionMobile } from "../../components/feed/FeedSectionMobile";
 
 export default function FeedSectionContainer() {
   const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
@@ -114,7 +114,7 @@ export default function FeedSectionContainer() {
   };
 
   return (
-    <FeedSection
+    <FeedSectionMobile
       feedItems={feedItems}
       loading={loading}
       error={error}
