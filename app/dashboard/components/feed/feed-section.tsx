@@ -11,10 +11,11 @@ import {
   Trash2,
   User,
   Heart,
-  ChevronLeft,
+  CircleChevronLeft,
   ChevronRight,
   X,
   ImagePlus,
+  ChevronLeft,
 } from "lucide-react";
 import {
   formatTimeAgo,
@@ -22,6 +23,16 @@ import {
   type PostLikeState,
 } from "@/services/feed.service";
 import { FileService } from "@/services/fileService/File";
+
+// Imports do Swiper
+import { Swiper, SwiperSlide } from "swiper/react";
+import { Navigation, Pagination } from "swiper/modules";
+
+// Estilos do Swiper - Importe-os no seu arquivo CSS global (ex: globals.css ou layout.tsx)
+// Se preferir, pode importar aqui, mas o ideal é ser global.
+import "swiper/css";
+import "swiper/css/navigation";
+import "swiper/css/pagination";
 
 // Tipagem para as imagens do post
 interface FeedPostImage {
@@ -86,7 +97,9 @@ function PostImage({ fileName, alt }: { fileName: string; alt: string }) {
   return <img src={url} alt={alt} className="w-full h-full object-cover" />;
 }
 
-// Componente para a galeria de imagens de um post
+// ==================================================================
+// | COMPONENTE DO CARROSSEL REFATORADO COM SWIPER                  |
+// ==================================================================
 function PostImageGallery({
   images,
   alt,
@@ -94,57 +107,57 @@ function PostImageGallery({
   images: FeedPostImage[];
   alt: string;
 }) {
-  const [currentIndex, setCurrentIndex] = useState(0);
   if (!images || images.length === 0) return null;
-  const goToPrevious = () =>
-    setCurrentIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
-  const goToNext = () =>
-    setCurrentIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
-  const currentImage = images[currentIndex];
 
   return (
     <div className="relative w-full group mt-3">
-      <div className="relative w-full aspect-square overflow-hidden rounded-lg bg-gray-100">
-        <PostImage
-          fileName={currentImage.fileName}
-          alt={`${alt} - Imagem ${currentIndex + 1} de ${images.length}`}
-        />
-      </div>
-      {images.length > 1 && (
-        <>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute top-1/2 left-2 -translate-y-1/2 h-8 w-8 rounded-full bg-black/40 text-white hover:bg-black/60 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"
-            onClick={goToPrevious}
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute top-1/2 right-2 -translate-y-1/2 h-8 w-8 rounded-full bg-black/40 text-white hover:bg-black/60 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"
-            onClick={goToNext}
-          >
-            <ChevronRight className="h-5 w-5" />
-          </Button>
-          <div className="absolute bottom-3 left-0 right-0 flex justify-center items-center gap-1.5">
-            {images.map((_, index) => (
-              <div
-                key={index}
-                className={`h-1.5 w-1.5 rounded-full transition-all duration-300 ${
-                  currentIndex === index ? "bg-white scale-125" : "bg-white/60"
-                }`}
+      <Swiper
+        modules={[Navigation, Pagination]}
+        navigation={{
+          nextEl: `.next-btn-${images[0]?.id}`,
+          prevEl: `.prev-btn-${images[0]?.id}`,
+        }}
+        pagination={{ clickable: true }}
+        loop={images.length > 1}
+        className="image-gallery-swiper"
+        spaceBetween={0}
+      >
+        {images.map((image, index) => (
+          <SwiperSlide key={image.id}>
+            <div className="relative w-full aspect-square overflow-hidden rounded-lg bg-gray-100 flex items-center justify-center">
+              <PostImage
+                fileName={image.fileName}
+                alt={`${alt} - Imagem ${index + 1} de ${images.length}`}
               />
-            ))}
-          </div>
-        </>
-      )}
+            </div>
+          </SwiperSlide>
+        ))}
+        {/* Botões customizados */}
+        {images.length > 1 && (
+          <>
+            <Button
+              className={`prev-btn-${images[0]?.id} absolute left-2 top-1/2 z-10 bg-white rounded-full w-5 h-5 flex items-center justify-center shadow`}
+              size="icon"
+              variant="outline"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+            <Button
+              className={`next-btn-${images[0]?.id} absolute right-2 top-1/2 z-10 bg-white rounded-full w-5 h-5 flex items-center justify-center shadow`}
+              size="icon"
+              variant="outline"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </Button>
+          </>
+        )}
+      </Swiper>
     </div>
   );
 }
 
-// Componente principal do Feed
+// O restante do seu componente continua igual...
+
 export function FeedSection({
   feedItems,
   loading,
