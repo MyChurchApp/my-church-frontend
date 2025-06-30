@@ -3,7 +3,7 @@
 import { DonationComponent } from "@/components/donation";
 import { useDonation } from "./useDonation";
 
-export function DonationContainer() {
+export default function DonationContainer() {
   const donationHook = useDonation();
 
   return <DonationComponent {...donationHook} />;
