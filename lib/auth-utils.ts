@@ -1,119 +1,131 @@
-// Função para obter o token do localStorage
+// ========================================================================
+//          ARQUIVO COMPLETO: /lib/auth-utils.ts
+//          Copie e cole todo este conteúdo no seu arquivo.
+// ========================================================================
+
+/**
+ * Obtém o token de autenticação do localStorage.
+ * @returns O token como string, ou null se não encontrado.
+ */
 export const getToken = (): string | null => {
-  if (typeof window === "undefined") return null
-  return localStorage.getItem("authToken")
-}
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("authToken");
+};
 
-// Função para obter o usuário do localStorage
-export const getUser = (): any | null => {
-  if (typeof window === "undefined") return null
-
-  const userData = localStorage.getItem("user")
-  if (userData) {
-    try {
-      return JSON.parse(userData)
-    } catch (error) {
-      console.error("Erro ao parsear dados do usuário:", error)
-      return null
-    }
-  }
-
-  // Tentar extrair informações básicas do token
-  const token = getToken()
-  if (token) {
-    try {
-      const payload = JSON.parse(atob(token.split(".")[1]))
-      return {
-        id: payload.nameid || payload.sub || "1",
-        name: payload.name || "Usuário",
-        email: payload.email || "",
-        role: payload.role || "Member",
-        accessLevel: payload.role === "Admin" ? "admin" : "member",
-      }
-    } catch (error) {
-      console.error("Erro ao decodificar token:", error)
-    }
-  }
-
-  return null
-}
-
-// Função para verificar se o usuário está autenticado
+/**
+ * VERIFICA SE O USUÁRIO ESTÁ AUTENTICADO.
+ * Retorna true se um token existir.
+ */
 export const isAuthenticated = (): boolean => {
-  return !!getToken()
-}
+  return !!getToken();
+};
 
-// Função para obter o papel/função do usuário
-export const getUserRole = (): string => {
-  const user = getUser()
-  if (user && user.role) {
-    return user.role
+/**
+ * FUNÇÃO PRINCIPAL PARA OBTER O USUÁRIO.
+ * Busca e decodifica os dados do usuário a partir do localStorage.
+ * Esta é a única função que deve ser usada para obter o objeto do usuário.
+ * @returns O objeto completo do usuário, ou null se não encontrado ou houver erro.
+ */
+export const getUser = (): any | null => {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const userString = localStorage.getItem("user");
+    if (userString) {
+      // Retorna o objeto do usuário completo parseado do localStorage
+      return JSON.parse(userString);
+    }
+    return null;
+  } catch (error) {
+    console.error(
+      "Erro ao decodificar dados do usuário do localStorage:",
+      error
+    );
+    // Em caso de erro (ex: JSON inválido), limpa a sessão para evitar problemas.
+    logout();
+    return null;
   }
+};
 
-  // Verificar no localStorage diretamente
-  if (typeof window !== "undefined") {
-    const role = localStorage.getItem("userRole")
-    if (role) return role
-  }
+/**
+ * Obtém as informações da igreja do localStorage.
+ * @returns O objeto com dados da igreja ou um objeto padrão.
+ */
+export const getChurchInfo = (): any => {
+  if (typeof window === "undefined") return null;
 
-  return "Member" // Valor padrão
-}
-
-// Função para verificar permissões
-export const hasPermission = (userRole: string, requiredRole: string): boolean => {
-  if (userRole === "Admin") return true
-  if (userRole === "Pastor" && requiredRole !== "Admin") return true
-  if (userRole === "Leader" && (requiredRole === "Member" || requiredRole === "Leader")) return true
-  if (userRole === "Member" && requiredRole === "Member") return true
-
-  return false
-}
-
-// Função para fazer logout
-export const logout = () => {
-  if (typeof window !== "undefined") {
-    localStorage.removeItem("authToken")
-    localStorage.removeItem("userRole")
-    localStorage.removeItem("user")
-    window.location.href = "/login"
-  }
-}
-
-// Função para obter dados básicos do usuário
-export const getUserData = () => {
-  if (typeof window === "undefined") return null
-
-  const token = getToken()
-  const role = getUserRole()
-  const user = getUser()
-
-  if (!token) return null
-
-  return {
-    id: user?.id || "1",
-    name: user?.name || "Usuário",
-    email: user?.email || "",
-    role: role,
-    accessLevel: role === "Admin" ? "admin" : "member",
-  }
-}
-
-// Função para obter informações da igreja
-export const getChurchInfo = () => {
-  if (typeof window === "undefined") return null
-
-  const churchData = localStorage.getItem("churchData")
-  if (churchData) {
+  const churchDataString = localStorage.getItem("churchData");
+  if (churchDataString) {
     try {
-      return JSON.parse(churchData)
+      return JSON.parse(churchDataString);
     } catch (error) {
-      console.error("Erro ao parsear dados da igreja:", error)
+      console.error("Erro ao decodificar dados da igreja:", error);
     }
   }
 
+  // Retorna um objeto padrão caso nada seja encontrado
   return {
     id: "1",
     name: "MyChurch",
     logo: "/mychurch-logo.png",
+  };
+};
+
+/**
+ * Hierarquia de papéis para verificação de permissões.
+ * Níveis mais altos têm permissão sobre níveis mais baixos.
+ */
+const ROLE_HIERARCHY: { [key: string]: number } = {
+  Admin: 4,
+  Pastor: 3,
+  Leader: 2,
+  Member: 1,
+};
+
+/**
+ * Verifica se um usuário tem a permissão necessária.
+ * @param userRole O papel/função do usuário atual (ex: 'Admin', 'Leader').
+ * @param requiredRole O papel/função mínimo necessário para acessar o recurso.
+ * @returns True se o usuário tiver permissão, false caso contrário.
+ */
+export const hasPermission = (
+  userRole: string,
+  requiredRole: string
+): boolean => {
+  const userLevel = ROLE_HIERARCHY[userRole] || 0;
+  const requiredLevel = ROLE_HIERARCHY[requiredRole] || 0;
+
+  if (!userLevel || !requiredLevel) {
+    // Se algum dos papéis não for reconhecido, nega o acesso por segurança.
+    return false;
   }
-}
+
+  return userLevel >= requiredLevel;
+};
+
+/**
+
+ * FAZ LOGOUT DO USUÁRIO.
+ * Remove todos os dados de sessão do localStorage e redireciona para a página de login.
+ */
+export const logout = () => {
+  if (typeof window !== "undefined") {
+    // Limpa todas as chaves relacionadas à sessão do usuário
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("user");
+
+    // Limpa também outras chaves que possam existir
+    localStorage.removeItem("userRole"); // Chave antiga, remover por segurança
+    localStorage.removeItem("churchData");
+
+    // Redireciona para a tela de login
+    window.location.href = "/login";
+  }
+};
+
+// ========================================================================
+//   As funções `getUserData` e `getUserRole` foram removidas
+//   propositalmente para evitar duplicidade e confusão.
+//   Use sempre `getUser()` para pegar o objeto do usuário
+//   e acesse as propriedades diretamente (ex: `getUser()?.role`).
+// ========================================================================

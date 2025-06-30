@@ -2,15 +2,10 @@
 
 import React, { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import {
-  getToken,
-  getUserData,
-  getChurchInfo,
-  getUser,
-} from "@/lib/auth-utils";
+import { getToken, getChurchInfo, getUser } from "@/lib/auth-utils";
 import clsx from "clsx";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Menu } from "lucide-react";
+import { Menu } from "lucide-react";
 import SidebarMenu from "@/components/sidebar/SidebarMenu";
 
 const useLocalStorage = (key: string, initialValue: boolean) => {
@@ -100,7 +95,7 @@ export const DashboardHeader = ({ user, onMenuClick }: any) => {
       return;
     }
   }, [router]);
-
+  console.log(user);
   return (
     <header className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 flex-shrink-0 sticky top-0 z-10">
       <div className="flex items-center justify-between">
@@ -130,10 +125,18 @@ export const DashboardHeader = ({ user, onMenuClick }: any) => {
               {user.accessLevel || "Membro"}
             </p>
           </div>
-          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-            <span className="text-blue-600 font-bold">
-              {getInitials(user.name)}
-            </span>
+          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
+            {user.photo ? (
+              <img
+                src={user.photo}
+                alt={user.name}
+                className="w-full h-full object-cover rounded-full"
+              />
+            ) : (
+              <span className="text-blue-600 font-bold">
+                {getInitials(user.name)}
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -166,24 +169,33 @@ export default function DashboardLayout({
           router.push("/login");
           return;
         }
-        const userData = getUserData();
-        const churchData = getChurchInfo();
+
+        // Use a função padronizada para obter TODOS os dados
+        const userData = getUser();
+        const churchData = getChurchInfo(); // Se tiver uma função para a igreja, verifique se ela também retorna os dados completos
+
         if (!userData) {
-          setError("Erro ao carregar dados do usuário");
+          setError("Sessão inválida ou dados do usuário não encontrados.");
+          router.push("/login"); // É mais seguro redirecionar se não houver usuário
           return;
         }
+
         setUser(userData);
         setChurch(churchData);
-      } catch (error) {
-        console.error("❌ Erro ao inicializar dashboard:", error);
-        setError("Erro ao inicializar dashboard");
+      } catch (err) {
+        const errorMessage =
+          err instanceof Error ? err.message : "Ocorreu um erro";
+        console.error("❌ Erro ao inicializar dashboard:", errorMessage);
+        setError(
+          "Erro ao inicializar dashboard. Tente fazer o login novamente."
+        );
       } finally {
         setIsLoading(false);
       }
     };
+
     initializeDashboard();
   }, [router]);
-
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">

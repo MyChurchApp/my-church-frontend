@@ -77,6 +77,7 @@ export function useLogin(): UseLoginResult {
             name: data.token.member?.name || "Usuário",
             email: data.token.member?.email || identifier,
             phone: data.token.member?.phone || "",
+            photo: data.token.member?.photo || "",
             role: data.token.role,
             accessLevel: data.token.role === "Admin" ? "admin" : "member",
             churchId: data.token.member?.churchId || null,
