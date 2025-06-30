@@ -1,3 +1,5 @@
+"use client";
+
 import { DonationContainer } from "../../../containers/Donation/Donation";
 import { Suspense } from "react";
 
