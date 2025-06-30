@@ -99,7 +99,6 @@ export const DashboardHeader = ({ user, onMenuClick }: any) => {
   return (
     <header className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 flex-shrink-0 sticky top-0 z-10">
       <div className="flex items-center justify-between">
-        {/* Lado Esquerdo: Alterna entre Botão e Título */}
         <div className="flex items-center gap-4">
           <Button
             variant="ghost"
@@ -119,7 +118,6 @@ export const DashboardHeader = ({ user, onMenuClick }: any) => {
           </div>
         </div>
 
-        {/* Lado Direito: Informações do Usuário */}
         <div className="flex items-center gap-4">
           <div className="hidden md:block text-right">
             <p className="font-medium text-gray-900 text-sm">{user.name}</p>
@@ -172,13 +170,12 @@ export default function DashboardLayout({
           return;
         }
 
-        // Use a função padronizada para obter TODOS os dados
         const userData = getUser();
-        const churchData = getChurchInfo(); // Se tiver uma função para a igreja, verifique se ela também retorna os dados completos
+        const churchData = getChurchInfo();
 
         if (!userData) {
           setError("Sessão inválida ou dados do usuário não encontrados.");
-          router.push("/login"); // É mais seguro redirecionar se não houver usuário
+          router.push("/login");
           return;
         }
 
@@ -230,7 +227,7 @@ export default function DashboardLayout({
   const mainContentClass = "";
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen">
       <SidebarMenu
         user={user}
         church={church}
