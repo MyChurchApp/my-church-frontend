@@ -6,7 +6,6 @@ import {
   getChurchDashboardStats,
   type ChurchDashboardStats,
 } from "@/services/church.service";
-
 import {
   Users,
   Calendar,
@@ -27,7 +26,7 @@ import {
 } from "@/services/church/MembersBirthday";
 
 const FeedSectionContainer = dynamic(
-  () => import("./containers/feed/feed-section.container"),
+  () => import("../../containers/feed/feed-section.container"),
   {
     ssr: false,
     loading: () => <p className="text-muted-foreground">Carregando feed…</p>,

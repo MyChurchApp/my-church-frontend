@@ -11,7 +11,7 @@ import {
   type FeedItem,
   type FeedResponse,
 } from "@/services/feed.service";
-import { FeedSectionMobile } from "../../components/feed/FeedSectionMobile";
+import { FeedSectionMobile } from "@/app/dashboard/components/feed/FeedSectionMobile";
 
 export default function FeedSectionContainer() {
   const [feedItems, setFeedItems] = useState<FeedItem[]>([]);

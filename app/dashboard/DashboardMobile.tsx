@@ -1,7 +1,6 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import FeedSectionContainer from "./containers/feed/feed-section.container";
 import { Badge, BookOpen, Gift } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useQuery } from "@tanstack/react-query";
@@ -11,6 +10,7 @@ import {
 } from "@/services/church/MembersBirthday";
 import { VerseOfDay } from "@/services/church/VerseOfDay";
 import { VerseType } from "@/services/church/type";
+import FeedSectionContainer from "@/containers/feed/feed-section.container";
 
 export function DashboardMobile() {
   const {
