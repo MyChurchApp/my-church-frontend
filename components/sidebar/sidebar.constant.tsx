@@ -76,6 +76,18 @@ export const rawMenu: MenuItem[] = [
     label: "Financeiro",
     href: "/dashboard/financeiro",
     accessLevel: "admin",
+    subItems: [
+      {
+        label: "Financeiro",
+        href: "/dashboard/financeiro",
+        accessLevel: "admin",
+      },
+      {
+        label: "Retirada do Saldo",
+        href: "/dashboard/financeiro/ofertas-realizadas",
+        accessLevel: "admin",
+      },
+    ],
   },
   {
     id: "assets",

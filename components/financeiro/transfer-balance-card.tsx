@@ -1,51 +1,50 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { DollarSign, RefreshCw } from "lucide-react"
-import { DonationTransferService } from "@/services/donation-transfer.service"
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { DollarSign, RefreshCw } from "lucide-react";
+import { DonationTransferService } from "@/services/donation/donation-transfer";
 
 interface TransferBalanceCardProps {
-  onRefresh?: () => void
+  onRefresh?: () => void;
 }
 
 export function TransferBalanceCard({ onRefresh }: TransferBalanceCardProps) {
-  const [balance, setBalance] = useState<number | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [balance, setBalance] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const loadBalance = async () => {
-    setIsLoading(true)
-    setError(null)
+    setIsLoading(true);
+    setError(null);
 
     try {
-      // A API retorna o valor direto (ex: 564.33)
-      const balance = await DonationTransferService.getTransferBalance()
-      setBalance(balance)
+      const balance = await DonationTransferService.getTransferBalance();
+      setBalance(balance);
     } catch (error) {
-      console.error("Erro ao carregar saldo:", error)
-      setError("Ops, tente mais tarde")
+      console.error("Erro ao carregar saldo:", error);
+      setError("Ops, tente mais tarde");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
-    loadBalance()
-  }, [])
+    loadBalance();
+  }, []);
 
   const handleRefresh = () => {
-    loadBalance()
-    onRefresh?.()
-  }
+    loadBalance();
+    onRefresh?.();
+  };
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
       style: "currency",
       currency: "BRL",
-    }).format(value)
-  }
+    }).format(value);
+  };
 
   return (
     <Card>
@@ -57,7 +56,9 @@ export function TransferBalanceCard({ onRefresh }: TransferBalanceCardProps) {
         <div className="flex items-center justify-between">
           <div>
             {isLoading ? (
-              <div className="text-2xl font-bold text-muted-foreground">Carregando...</div>
+              <div className="text-2xl font-bold text-muted-foreground">
+                Carregando...
+              </div>
             ) : error ? (
               <div className="text-sm text-red-600">{error}</div>
             ) : (
@@ -65,13 +66,22 @@ export function TransferBalanceCard({ onRefresh }: TransferBalanceCardProps) {
                 {balance !== null ? formatCurrency(balance) : "R$ 0,00"}
               </div>
             )}
-            <p className="text-xs text-muted-foreground">Valor disponível para transferência</p>
+            <p className="text-xs text-muted-foreground">
+              Valor disponível para transferência
+            </p>
           </div>
-          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isLoading}>
-            <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={isLoading}
+          >
+            <RefreshCw
+              className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
+            />
           </Button>
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }

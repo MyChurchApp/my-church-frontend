@@ -28,7 +28,7 @@ export type DonationFormData = {
   };
 };
 
-export const useDonation = () => {
+export function useDonation() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<DonationResponse | null>(null);
@@ -183,4 +183,4 @@ export const useDonation = () => {
     clearSuccess,
     validateForm,
   };
-};
+}
