@@ -1,16 +1,27 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Badge } from "@/components/ui/badge"
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import {
   Calendar,
   Clock,
@@ -24,105 +35,107 @@ import {
   ChevronRight,
   AlertTriangle,
   Loader2,
-} from "lucide-react"
-import { isAuthenticated, getUserRole } from "@/lib/auth-utils"
+} from "lucide-react";
+import { isAuthenticated, getUser } from "@/lib/auth-utils";
 
 // Tipos para a API
 interface WorshipService {
-  id: number
-  title: string
-  date: string
-  time: string
-  status: "scheduled" | "in-progress" | "completed"
-  preacher: string
-  theme: string
-  description: string
-  songs: Song[]
-  readings: Reading[]
-  announcements: Announcement[]
+  id: number;
+  title: string;
+  date: string;
+  time: string;
+  status: "scheduled" | "in-progress" | "completed";
+  preacher: string;
+  theme: string;
+  description: string;
+  songs: Song[];
+  readings: Reading[];
+  announcements: Announcement[];
 }
 
 interface Song {
-  id: number
-  title: string
-  artist: string
-  key: string
-  bpm: number
-  duration: string
+  id: number;
+  title: string;
+  artist: string;
+  key: string;
+  bpm: number;
+  duration: string;
 }
 
 interface Reading {
-  id: number
-  title: string
-  reference: string
-  text: string
+  id: number;
+  title: string;
+  reference: string;
+  text: string;
 }
 
 interface Announcement {
-  id: number
-  title: string
-  content: string
+  id: number;
+  title: string;
+  content: string;
 }
 
 export default function GestaoCultoPage() {
-  const router = useRouter()
-  const [cultos, setCultos] = useState<WorshipService[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [editingCulto, setEditingCulto] = useState<WorshipService | null>(null)
-  const [activeTab, setActiveTab] = useState("informacoes")
+  const router = useRouter();
+  const [cultos, setCultos] = useState<WorshipService[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingCulto, setEditingCulto] = useState<WorshipService | null>(null);
+  const [activeTab, setActiveTab] = useState("informacoes");
   const [formData, setFormData] = useState<Partial<WorshipService>>({
     songs: [],
     readings: [],
     announcements: [],
-  })
+  });
 
   // Estados para os formulários de itens
-  const [newSong, setNewSong] = useState<Partial<Song>>({})
-  const [newReading, setNewReading] = useState<Partial<Reading>>({})
-  const [newAnnouncement, setNewAnnouncement] = useState<Partial<Announcement>>({})
+  const [newSong, setNewSong] = useState<Partial<Song>>({});
+  const [newReading, setNewReading] = useState<Partial<Reading>>({});
+  const [newAnnouncement, setNewAnnouncement] = useState<Partial<Announcement>>(
+    {}
+  );
 
   // Função para obter o token de autenticação do localStorage
   const getAuthToken = (): string | null => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem("authToken")
+      return localStorage.getItem("authToken");
     }
-    return null
-  }
+    return null;
+  };
 
   // Função para fazer requisições autenticadas
   const authenticatedFetch = async (url: string, options: RequestInit = {}) => {
-    const token = getAuthToken()
+    const token = getAuthToken();
 
     if (!token) {
-      throw new Error("Token de autenticação não encontrado")
+      throw new Error("Token de autenticação não encontrado");
     }
 
     const headers = {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
       ...options.headers,
-    }
+    };
 
     const response = await fetch(url, {
       ...options,
       headers,
-    })
+    });
 
     if (response.status === 401) {
       // Token expirado ou inválido
-      localStorage.removeItem("authToken")
-      router.push("/login")
-      throw new Error("Sessão expirada. Por favor, faça login novamente.")
+      localStorage.removeItem("authToken");
+      router.push("/login");
+      throw new Error("Sessão expirada. Por favor, faça login novamente.");
     }
 
     if (!response.ok) {
-      throw new Error(`Erro na requisição: ${response.status}`)
+      throw new Error(`Erro na requisição: ${response.status}`);
     }
 
-    return response.json()
-  }
+    return response.json();
+  };
 
   // Função para buscar os cultos da API
   const fetchWorshipServices = async (): Promise<WorshipService[]> => {
@@ -141,11 +154,33 @@ export default function GestaoCultoPage() {
           status: "scheduled",
           preacher: "Pastor João Silva",
           theme: "Fé e Perseverança",
-          description: "Culto dominical sobre a importância da fé em tempos difíceis",
+          description:
+            "Culto dominical sobre a importância da fé em tempos difíceis",
           songs: [
-            { id: 1, title: "Grande é o Senhor", artist: "Adhemar de Campos", key: "G", bpm: 75, duration: "4:30" },
-            { id: 2, title: "Deus é Fiel", artist: "Diante do Trono", key: "D", bpm: 72, duration: "5:15" },
-            { id: 3, title: "Maravilhosa Graça", artist: "Ministério Ipiranga", key: "E", bpm: 68, duration: "4:45" },
+            {
+              id: 1,
+              title: "Grande é o Senhor",
+              artist: "Adhemar de Campos",
+              key: "G",
+              bpm: 75,
+              duration: "4:30",
+            },
+            {
+              id: 2,
+              title: "Deus é Fiel",
+              artist: "Diante do Trono",
+              key: "D",
+              bpm: 72,
+              duration: "5:15",
+            },
+            {
+              id: 3,
+              title: "Maravilhosa Graça",
+              artist: "Ministério Ipiranga",
+              key: "E",
+              bpm: 68,
+              duration: "4:45",
+            },
           ],
           readings: [
             {
@@ -165,12 +200,14 @@ export default function GestaoCultoPage() {
             {
               id: 1,
               title: "Encontro de Jovens",
-              content: "No próximo sábado às 19h teremos nosso encontro de jovens",
+              content:
+                "No próximo sábado às 19h teremos nosso encontro de jovens",
             },
             {
               id: 2,
               title: "Campanha de Arrecadação",
-              content: "Estamos arrecadando alimentos não perecíveis para famílias carentes",
+              content:
+                "Estamos arrecadando alimentos não perecíveis para famílias carentes",
             },
           ],
         },
@@ -184,8 +221,22 @@ export default function GestaoCultoPage() {
           theme: "Oração e Intercessão",
           description: "Culto de oração e intercessão pelas famílias",
           songs: [
-            { id: 4, title: "Teu Santo Nome", artist: "Gabriela Rocha", key: "A", bpm: 70, duration: "6:00" },
-            { id: 5, title: "Lugar Secreto", artist: "Gabriela Rocha", key: "G", bpm: 68, duration: "5:30" },
+            {
+              id: 4,
+              title: "Teu Santo Nome",
+              artist: "Gabriela Rocha",
+              key: "A",
+              bpm: 70,
+              duration: "6:00",
+            },
+            {
+              id: 5,
+              title: "Lugar Secreto",
+              artist: "Gabriela Rocha",
+              key: "G",
+              bpm: 68,
+              duration: "5:30",
+            },
           ],
           readings: [
             {
@@ -196,62 +247,68 @@ export default function GestaoCultoPage() {
             },
           ],
           announcements: [
-            { id: 3, title: "Jejum Congregacional", content: "No próximo domingo teremos jejum congregacional" },
+            {
+              id: 3,
+              title: "Jejum Congregacional",
+              content: "No próximo domingo teremos jejum congregacional",
+            },
           ],
         },
-      ]
+      ];
     } catch (error) {
-      console.error("Erro ao buscar cultos:", error)
-      throw error
+      console.error("Erro ao buscar cultos:", error);
+      throw error;
     }
-  }
+  };
 
   // Carregar dados iniciais
   useEffect(() => {
     const loadData = async () => {
-      setLoading(true)
-      setError(null)
+      setLoading(true);
+      setError(null);
 
       try {
         // Verificar se o usuário está autenticado
         if (!isAuthenticated()) {
-          router.push("/login")
-          return
+          router.push("/login");
+          return;
         }
 
         // Verificar se o usuário tem permissão
-        const role = getUserRole()
+        const role = getUser();
         if (role !== "Admin" && role !== "Pastor") {
-          router.push("/dashboard")
-          return
+          router.push("/dashboard");
+          return;
         }
 
         // Buscar dados dos cultos
-        const worshipData = await fetchWorshipServices()
-        setCultos(worshipData)
+        const worshipData = await fetchWorshipServices();
+        setCultos(worshipData);
       } catch (error) {
-        console.error("Erro ao carregar dados:", error)
-        setError("Não foi possível carregar os dados dos cultos. Por favor, tente novamente.")
+        console.error("Erro ao carregar dados:", error);
+        setError(
+          "Não foi possível carregar os dados dos cultos. Por favor, tente novamente."
+        );
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    loadData()
-  }, [router])
+    loadData();
+  }, [router]);
 
   // Função para abrir o diálogo de edição
   const openEditDialog = (culto: WorshipService | null) => {
     if (culto) {
-      setEditingCulto(culto)
+      setEditingCulto(culto);
       setFormData({
         ...culto,
         songs: [...culto.songs],
         readings: [...culto.readings],
         announcements: [...culto.announcements],
-      })
+      });
     } else {
-      setEditingCulto(null)
+      setEditingCulto(null);
       setFormData({
         title: "",
         date: new Date().toISOString().split("T")[0],
@@ -263,19 +320,21 @@ export default function GestaoCultoPage() {
         songs: [],
         readings: [],
         announcements: [],
-      })
+      });
     }
-    setActiveTab("informacoes")
-    setIsDialogOpen(true)
-  }
+    setActiveTab("informacoes");
+    setIsDialogOpen(true);
+  };
 
   // Função para salvar o culto
   const handleSaveCulto = async () => {
     try {
       // Validar dados obrigatórios
       if (!formData.title || !formData.date || !formData.time) {
-        alert("Por favor, preencha os campos obrigatórios: título, data e horário.")
-        return
+        alert(
+          "Por favor, preencha os campos obrigatórios: título, data e horário."
+        );
+        return;
       }
 
       // Em uma implementação real, você enviaria os dados para a API
@@ -289,46 +348,56 @@ export default function GestaoCultoPage() {
 
       // Simulação de resposta
       const savedCulto: WorshipService = {
-        id: editingCulto ? editingCulto.id : Math.floor(Math.random() * 1000) + 3,
+        id: editingCulto
+          ? editingCulto.id
+          : Math.floor(Math.random() * 1000) + 3,
         title: formData.title || "Sem título",
         date: formData.date || new Date().toISOString().split("T")[0],
         time: formData.time || "10:00",
-        status: (formData.status as "scheduled" | "in-progress" | "completed") || "scheduled",
+        status:
+          (formData.status as "scheduled" | "in-progress" | "completed") ||
+          "scheduled",
         preacher: formData.preacher || "",
         theme: formData.theme || "",
         description: formData.description || "",
         songs: formData.songs || [],
         readings: formData.readings || [],
         announcements: formData.announcements || [],
-      }
+      };
 
       // Atualizar a lista de cultos
       if (editingCulto) {
-        setCultos(cultos.map((c) => (c.id === editingCulto.id ? savedCulto : c)))
+        setCultos(
+          cultos.map((c) => (c.id === editingCulto.id ? savedCulto : c))
+        );
       } else {
-        setCultos([...cultos, savedCulto])
+        setCultos([...cultos, savedCulto]);
       }
 
       // Fechar o diálogo
-      setIsDialogOpen(false)
-      setEditingCulto(null)
+      setIsDialogOpen(false);
+      setEditingCulto(null);
       setFormData({
         songs: [],
         readings: [],
         announcements: [],
-      })
+      });
 
-      alert(editingCulto ? "Culto atualizado com sucesso!" : "Culto criado com sucesso!")
+      alert(
+        editingCulto
+          ? "Culto atualizado com sucesso!"
+          : "Culto criado com sucesso!"
+      );
     } catch (error) {
-      console.error("Erro ao salvar culto:", error)
-      alert("Erro ao salvar o culto. Por favor, tente novamente.")
+      console.error("Erro ao salvar culto:", error);
+      alert("Erro ao salvar o culto. Por favor, tente novamente.");
     }
-  }
+  };
 
   // Função para excluir um culto
   const handleDeleteCulto = async (id: number) => {
     if (!confirm("Tem certeza que deseja excluir este culto?")) {
-      return
+      return;
     }
 
     try {
@@ -338,19 +407,19 @@ export default function GestaoCultoPage() {
       // })
 
       // Atualizar a lista de cultos
-      setCultos(cultos.filter((c) => c.id !== id))
-      alert("Culto excluído com sucesso!")
+      setCultos(cultos.filter((c) => c.id !== id));
+      alert("Culto excluído com sucesso!");
     } catch (error) {
-      console.error("Erro ao excluir culto:", error)
-      alert("Erro ao excluir o culto. Por favor, tente novamente.")
+      console.error("Erro ao excluir culto:", error);
+      alert("Erro ao excluir o culto. Por favor, tente novamente.");
     }
-  }
+  };
 
   // Funções para adicionar itens ao culto
   const addSong = () => {
     if (!newSong.title || !newSong.artist) {
-      alert("Por favor, preencha pelo menos o título e o artista da música.")
-      return
+      alert("Por favor, preencha pelo menos o título e o artista da música.");
+      return;
     }
 
     const song: Song = {
@@ -360,20 +429,22 @@ export default function GestaoCultoPage() {
       key: newSong.key || "C",
       bpm: newSong.bpm || 0,
       duration: newSong.duration || "0:00",
-    }
+    };
 
     setFormData({
       ...formData,
       songs: [...(formData.songs || []), song],
-    })
+    });
 
-    setNewSong({})
-  }
+    setNewSong({});
+  };
 
   const addReading = () => {
     if (!newReading.title || !newReading.reference) {
-      alert("Por favor, preencha pelo menos o título e a referência da leitura.")
-      return
+      alert(
+        "Por favor, preencha pelo menos o título e a referência da leitura."
+      );
+      return;
     }
 
     const reading: Reading = {
@@ -381,63 +452,63 @@ export default function GestaoCultoPage() {
       title: newReading.title || "",
       reference: newReading.reference || "",
       text: newReading.text || "",
-    }
+    };
 
     setFormData({
       ...formData,
       readings: [...(formData.readings || []), reading],
-    })
+    });
 
-    setNewReading({})
-  }
+    setNewReading({});
+  };
 
   const addAnnouncement = () => {
     if (!newAnnouncement.title || !newAnnouncement.content) {
-      alert("Por favor, preencha o título e o conteúdo do anúncio.")
-      return
+      alert("Por favor, preencha o título e o conteúdo do anúncio.");
+      return;
     }
 
     const announcement: Announcement = {
       id: Math.floor(Math.random() * 1000) + 100,
       title: newAnnouncement.title || "",
       content: newAnnouncement.content || "",
-    }
+    };
 
     setFormData({
       ...formData,
       announcements: [...(formData.announcements || []), announcement],
-    })
+    });
 
-    setNewAnnouncement({})
-  }
+    setNewAnnouncement({});
+  };
 
   // Funções para remover itens do culto
   const removeSong = (id: number) => {
     setFormData({
       ...formData,
       songs: formData.songs?.filter((s) => s.id !== id) || [],
-    })
-  }
+    });
+  };
 
   const removeReading = (id: number) => {
     setFormData({
       ...formData,
       readings: formData.readings?.filter((r) => r.id !== id) || [],
-    })
-  }
+    });
+  };
 
   const removeAnnouncement = (id: number) => {
     setFormData({
       ...formData,
       announcements: formData.announcements?.filter((a) => a.id !== id) || [],
-    })
-  }
+    });
+  };
 
   // Função para formatar a data
   const formatDate = (dateString: string): string => {
-    const date = new Date(dateString)
-    return date.toLocaleDateString("pt-BR")
-  }
+    const date = new Date(dateString);
+    return date.toLocaleDateString("pt-BR");
+  };
 
   // Renderização condicional para carregamento
   if (loading) {
@@ -445,10 +516,12 @@ export default function GestaoCultoPage() {
       <div className="flex h-screen items-center justify-center bg-gray-50">
         <div className="flex flex-col items-center gap-2">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm text-gray-500">Carregando dados dos cultos...</p>
+          <p className="text-sm text-gray-500">
+            Carregando dados dos cultos...
+          </p>
         </div>
       </div>
-    )
+    );
   }
 
   // Renderização condicional para erro
@@ -458,13 +531,17 @@ export default function GestaoCultoPage() {
         <Card className="w-full max-w-md">
           <CardContent className="flex flex-col items-center p-6">
             <AlertTriangle className="h-16 w-16 text-red-500 mb-4" />
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Erro ao carregar</h2>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">
+              Erro ao carregar
+            </h2>
             <p className="text-gray-600 text-center mb-4">{error}</p>
-            <Button onClick={() => window.location.reload()}>Tentar novamente</Button>
+            <Button onClick={() => window.location.reload()}>
+              Tentar novamente
+            </Button>
           </CardContent>
         </Card>
       </div>
-    )
+    );
   }
 
   return (
@@ -474,8 +551,12 @@ export default function GestaoCultoPage() {
         <header className="bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Gestão de Cultos</h1>
-              <p className="text-gray-600">Gerencie os cultos e eventos da igreja</p>
+              <h1 className="text-2xl font-bold text-gray-900">
+                Gestão de Cultos
+              </h1>
+              <p className="text-gray-600">
+                Gerencie os cultos e eventos da igreja
+              </p>
             </div>
             <Button onClick={() => openEditDialog(null)}>
               <Plus className="h-4 w-4 mr-2" />
@@ -492,9 +573,12 @@ export default function GestaoCultoPage() {
                 <Card>
                   <CardContent className="flex flex-col items-center justify-center p-6">
                     <Calendar className="h-16 w-16 text-gray-300 mb-4" />
-                    <h3 className="text-xl font-medium text-gray-900 mb-2">Nenhum culto encontrado</h3>
+                    <h3 className="text-xl font-medium text-gray-900 mb-2">
+                      Nenhum culto encontrado
+                    </h3>
                     <p className="text-gray-600 text-center mb-4">
-                      Você ainda não tem nenhum culto cadastrado. Clique no botão abaixo para criar seu primeiro culto.
+                      Você ainda não tem nenhum culto cadastrado. Clique no
+                      botão abaixo para criar seu primeiro culto.
                     </p>
                     <Button onClick={() => openEditDialog(null)}>
                       <Plus className="h-4 w-4 mr-2" />
@@ -509,22 +593,28 @@ export default function GestaoCultoPage() {
                       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
-                            <h3 className="text-xl font-semibold text-gray-900">{culto.title}</h3>
+                            <h3 className="text-xl font-semibold text-gray-900">
+                              {culto.title}
+                            </h3>
                             <Badge
                               variant={
                                 culto.status === "completed"
                                   ? "secondary"
                                   : culto.status === "in-progress"
-                                    ? "default"
-                                    : "outline"
+                                  ? "default"
+                                  : "outline"
                               }
-                              className={culto.status === "in-progress" ? "bg-green-500 hover:bg-green-600" : ""}
+                              className={
+                                culto.status === "in-progress"
+                                  ? "bg-green-500 hover:bg-green-600"
+                                  : ""
+                              }
                             >
                               {culto.status === "completed"
                                 ? "Concluído"
                                 : culto.status === "in-progress"
-                                  ? "Em andamento"
-                                  : "Agendado"}
+                                ? "Em andamento"
+                                : "Agendado"}
                             </Badge>
                           </div>
 
@@ -543,20 +633,28 @@ export default function GestaoCultoPage() {
                             </div>
                           </div>
 
-                          <p className="text-gray-600 mb-4">{culto.description}</p>
+                          <p className="text-gray-600 mb-4">
+                            {culto.description}
+                          </p>
 
                           <div className="grid grid-cols-3 gap-4">
                             <div className="flex items-center gap-2">
                               <Music className="h-4 w-4 text-gray-500" />
-                              <span className="text-sm">{culto.songs.length} músicas</span>
+                              <span className="text-sm">
+                                {culto.songs.length} músicas
+                              </span>
                             </div>
                             <div className="flex items-center gap-2">
                               <Book className="h-4 w-4 text-gray-500" />
-                              <span className="text-sm">{culto.readings.length} leituras</span>
+                              <span className="text-sm">
+                                {culto.readings.length} leituras
+                              </span>
                             </div>
                             <div className="flex items-center gap-2">
                               <MessageSquare className="h-4 w-4 text-gray-500" />
-                              <span className="text-sm">{culto.announcements.length} anúncios</span>
+                              <span className="text-sm">
+                                {culto.announcements.length} anúncios
+                              </span>
                             </div>
                           </div>
                         </div>
@@ -564,12 +662,19 @@ export default function GestaoCultoPage() {
                         <div className="flex flex-col sm:flex-row gap-2">
                           <Button
                             variant="outline"
-                            onClick={() => router.push(`/dashboard/culto/acompanhar?id=${culto.id}`)}
+                            onClick={() =>
+                              router.push(
+                                `/dashboard/culto/acompanhar?id=${culto.id}`
+                              )
+                            }
                           >
                             Acompanhar
                             <ChevronRight className="h-4 w-4 ml-1" />
                           </Button>
-                          <Button variant="outline" onClick={() => openEditDialog(culto)}>
+                          <Button
+                            variant="outline"
+                            onClick={() => openEditDialog(culto)}
+                          >
                             <Edit className="h-4 w-4" />
                           </Button>
                           <Button
@@ -594,20 +699,22 @@ export default function GestaoCultoPage() {
       <Dialog
         open={isDialogOpen}
         onOpenChange={(open) => {
-          setIsDialogOpen(open)
+          setIsDialogOpen(open);
           if (!open) {
-            setEditingCulto(null)
+            setEditingCulto(null);
             setFormData({
               songs: [],
               readings: [],
               announcements: [],
-            })
+            });
           }
         }}
       >
         <DialogContent className="w-[95vw] max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingCulto ? "Editar Culto" : "Novo Culto"}</DialogTitle>
+            <DialogTitle>
+              {editingCulto ? "Editar Culto" : "Novo Culto"}
+            </DialogTitle>
           </DialogHeader>
 
           <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -626,7 +733,9 @@ export default function GestaoCultoPage() {
                   <Input
                     id="title"
                     value={formData.title || ""}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, title: e.target.value })
+                    }
                     placeholder="Ex: Culto de Domingo"
                     required
                   />
@@ -638,7 +747,10 @@ export default function GestaoCultoPage() {
                     onValueChange={(value) =>
                       setFormData({
                         ...formData,
-                        status: value as "scheduled" | "in-progress" | "completed",
+                        status: value as
+                          | "scheduled"
+                          | "in-progress"
+                          | "completed",
                       })
                     }
                   >
@@ -660,8 +772,12 @@ export default function GestaoCultoPage() {
                   <Input
                     type="date"
                     id="date"
-                    value={formData.date || new Date().toISOString().split("T")[0]}
-                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                    value={
+                      formData.date || new Date().toISOString().split("T")[0]
+                    }
+                    onChange={(e) =>
+                      setFormData({ ...formData, date: e.target.value })
+                    }
                     required
                   />
                 </div>
@@ -671,7 +787,9 @@ export default function GestaoCultoPage() {
                     type="time"
                     id="time"
                     value={formData.time || "10:00"}
-                    onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, time: e.target.value })
+                    }
                     required
                   />
                 </div>
@@ -682,7 +800,9 @@ export default function GestaoCultoPage() {
                 <Input
                   id="preacher"
                   value={formData.preacher || ""}
-                  onChange={(e) => setFormData({ ...formData, preacher: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, preacher: e.target.value })
+                  }
                   placeholder="Ex: Pastor João Silva"
                 />
               </div>
@@ -692,7 +812,9 @@ export default function GestaoCultoPage() {
                 <Input
                   id="theme"
                   value={formData.theme || ""}
-                  onChange={(e) => setFormData({ ...formData, theme: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, theme: e.target.value })
+                  }
                   placeholder="Ex: Fé e Perseverança"
                 />
               </div>
@@ -702,7 +824,9 @@ export default function GestaoCultoPage() {
                 <Textarea
                   id="description"
                   value={formData.description || ""}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, description: e.target.value })
+                  }
                   placeholder="Culto dominical sobre a importância da fé em tempos difíceis"
                 />
               </div>
@@ -716,7 +840,9 @@ export default function GestaoCultoPage() {
                   <Input
                     id="newSongTitle"
                     value={newSong.title || ""}
-                    onChange={(e) => setNewSong({ ...newSong, title: e.target.value })}
+                    onChange={(e) =>
+                      setNewSong({ ...newSong, title: e.target.value })
+                    }
                     placeholder="Ex: Grande é o Senhor"
                   />
                 </div>
@@ -725,7 +851,9 @@ export default function GestaoCultoPage() {
                   <Input
                     id="newSongArtist"
                     value={newSong.artist || ""}
-                    onChange={(e) => setNewSong({ ...newSong, artist: e.target.value })}
+                    onChange={(e) =>
+                      setNewSong({ ...newSong, artist: e.target.value })
+                    }
                     placeholder="Ex: Adhemar de Campos"
                   />
                 </div>
@@ -737,7 +865,9 @@ export default function GestaoCultoPage() {
                   <Input
                     id="newSongKey"
                     value={newSong.key || ""}
-                    onChange={(e) => setNewSong({ ...newSong, key: e.target.value })}
+                    onChange={(e) =>
+                      setNewSong({ ...newSong, key: e.target.value })
+                    }
                     placeholder="Ex: G"
                   />
                 </div>
@@ -747,7 +877,9 @@ export default function GestaoCultoPage() {
                     type="number"
                     id="newSongBpm"
                     value={newSong.bpm || ""}
-                    onChange={(e) => setNewSong({ ...newSong, bpm: Number(e.target.value) })}
+                    onChange={(e) =>
+                      setNewSong({ ...newSong, bpm: Number(e.target.value) })
+                    }
                     placeholder="Ex: 75"
                   />
                 </div>
@@ -756,7 +888,9 @@ export default function GestaoCultoPage() {
                   <Input
                     id="newSongDuration"
                     value={newSong.duration || ""}
-                    onChange={(e) => setNewSong({ ...newSong, duration: e.target.value })}
+                    onChange={(e) =>
+                      setNewSong({ ...newSong, duration: e.target.value })
+                    }
                     placeholder="Ex: 4:30"
                   />
                 </div>
@@ -769,11 +903,19 @@ export default function GestaoCultoPage() {
               {formData.songs && formData.songs.length > 0 ? (
                 <div className="space-y-2">
                   {formData.songs.map((song) => (
-                    <div key={song.id} className="flex items-center justify-between border rounded-md p-2">
+                    <div
+                      key={song.id}
+                      className="flex items-center justify-between border rounded-md p-2"
+                    >
                       <div>
-                        {song.title} - {song.artist} ({song.key}, {song.bpm} BPM, {song.duration})
+                        {song.title} - {song.artist} ({song.key}, {song.bpm}{" "}
+                        BPM, {song.duration})
                       </div>
-                      <Button type="button" variant="outline" onClick={() => removeSong(song.id)}>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => removeSong(song.id)}
+                      >
                         Remover
                       </Button>
                     </div>
@@ -792,7 +934,9 @@ export default function GestaoCultoPage() {
                   <Input
                     id="newReadingTitle"
                     value={newReading.title || ""}
-                    onChange={(e) => setNewReading({ ...newReading, title: e.target.value })}
+                    onChange={(e) =>
+                      setNewReading({ ...newReading, title: e.target.value })
+                    }
                     placeholder="Ex: Leitura Inicial"
                   />
                 </div>
@@ -801,7 +945,12 @@ export default function GestaoCultoPage() {
                   <Input
                     id="newReadingReference"
                     value={newReading.reference || ""}
-                    onChange={(e) => setNewReading({ ...newReading, reference: e.target.value })}
+                    onChange={(e) =>
+                      setNewReading({
+                        ...newReading,
+                        reference: e.target.value,
+                      })
+                    }
                     placeholder="Ex: Salmos 23"
                   />
                 </div>
@@ -812,7 +961,9 @@ export default function GestaoCultoPage() {
                 <Textarea
                   id="newReadingText"
                   value={newReading.text || ""}
-                  onChange={(e) => setNewReading({ ...newReading, text: e.target.value })}
+                  onChange={(e) =>
+                    setNewReading({ ...newReading, text: e.target.value })
+                  }
                   placeholder="O Senhor é meu pastor, nada me faltará..."
                 />
               </div>
@@ -824,11 +975,18 @@ export default function GestaoCultoPage() {
               {formData.readings && formData.readings.length > 0 ? (
                 <div className="space-y-2">
                   {formData.readings.map((reading) => (
-                    <div key={reading.id} className="flex items-center justify-between border rounded-md p-2">
+                    <div
+                      key={reading.id}
+                      className="flex items-center justify-between border rounded-md p-2"
+                    >
                       <div>
                         {reading.title} - {reading.reference}
                       </div>
-                      <Button type="button" variant="outline" onClick={() => removeReading(reading.id)}>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => removeReading(reading.id)}
+                      >
                         Remover
                       </Button>
                     </div>
@@ -843,11 +1001,18 @@ export default function GestaoCultoPage() {
             <TabsContent value="anuncios" className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="newAnnouncementTitle">Título do Anúncio</Label>
+                  <Label htmlFor="newAnnouncementTitle">
+                    Título do Anúncio
+                  </Label>
                   <Input
                     id="newAnnouncementTitle"
                     value={newAnnouncement.title || ""}
-                    onChange={(e) => setNewAnnouncement({ ...newAnnouncement, title: e.target.value })}
+                    onChange={(e) =>
+                      setNewAnnouncement({
+                        ...newAnnouncement,
+                        title: e.target.value,
+                      })
+                    }
                     placeholder="Ex: Encontro de Jovens"
                   />
                 </div>
@@ -856,7 +1021,12 @@ export default function GestaoCultoPage() {
                   <Input
                     id="newAnnouncementContent"
                     value={newAnnouncement.content || ""}
-                    onChange={(e) => setNewAnnouncement({ ...newAnnouncement, content: e.target.value })}
+                    onChange={(e) =>
+                      setNewAnnouncement({
+                        ...newAnnouncement,
+                        content: e.target.value,
+                      })
+                    }
                     placeholder="Ex: No próximo sábado às 19h teremos nosso encontro de jovens"
                   />
                 </div>
@@ -869,11 +1039,18 @@ export default function GestaoCultoPage() {
               {formData.announcements && formData.announcements.length > 0 ? (
                 <div className="space-y-2">
                   {formData.announcements.map((announcement) => (
-                    <div key={announcement.id} className="flex items-center justify-between border rounded-md p-2">
+                    <div
+                      key={announcement.id}
+                      className="flex items-center justify-between border rounded-md p-2"
+                    >
                       <div>
                         {announcement.title} - {announcement.content}
                       </div>
-                      <Button type="button" variant="outline" onClick={() => removeAnnouncement(announcement.id)}>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => removeAnnouncement(announcement.id)}
+                      >
                         Remover
                       </Button>
                     </div>
@@ -886,7 +1063,11 @@ export default function GestaoCultoPage() {
           </Tabs>
 
           <div className="flex justify-end mt-6">
-            <Button type="button" variant="secondary" onClick={() => setIsDialogOpen(false)}>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setIsDialogOpen(false)}
+            >
               Cancelar
             </Button>
             <Button type="button" className="ml-2" onClick={handleSaveCulto}>
@@ -896,5 +1077,5 @@ export default function GestaoCultoPage() {
         </DialogContent>
       </Dialog>
     </div>
-  )
+  );
 }

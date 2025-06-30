@@ -47,7 +47,7 @@ import {
   type CalendarEventResponse,
   type EventResponse,
 } from "@/services/events.service";
-import { isAuthenticated, getUserRole } from "@/lib/auth-utils";
+import { isAuthenticated, getUser } from "@/lib/auth-utils";
 
 const DAYS_OF_WEEK = ["D", "S", "T", "Q", "Q", "S", "S"];
 const DAYS_OF_WEEK_FULL = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
@@ -134,7 +134,7 @@ export default function EventosPage() {
   // Determinar o modo de visualização baseado no tamanho da tela
   const viewMode = isMobile ? "list" : desktopViewMode;
 
-  const userRole = getUserRole();
+  const userRole = getUser();
   const canManageEvents = userRole === "Admin" || userRole === "Pastor";
 
   useEffect(() => {

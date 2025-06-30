@@ -1,7 +1,6 @@
 "use client";
 
 import type React from "react";
-
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -54,9 +53,7 @@ import {
   convertApiDataToForm,
   type Asset,
 } from "@/services/assets.service";
-// Removendo a importação do fake-api
-import { getUserRole, isAuthenticated } from "@/lib/auth-utils";
-// Adicionar ao topo do arquivo, após os outros imports
+import { getUser, isAuthenticated } from "@/lib/auth-utils";
 import { exportAssetsToCSV } from "@/lib/export-utils";
 
 export default function AtivosPage() {
@@ -74,12 +71,11 @@ export default function AtivosPage() {
   const [formData, setFormData] = useState<Partial<Asset>>({});
   const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-
   const [dragActive, setDragActive] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
-  // Substituindo getUser() por getUserRole()
-  const userRole = getUserRole();
+
+  const userRole = getUser();
   const [hasAccess, setHasAccess] = useState(false);
   const [totalPages, setTotalPages] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);

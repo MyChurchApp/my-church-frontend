@@ -122,10 +122,3 @@ export const logout = () => {
     window.location.href = "/login";
   }
 };
-
-// ========================================================================
-//   As funções `getUserData` e `getUserRole` foram removidas
-//   propositalmente para evitar duplicidade e confusão.
-//   Use sempre `getUser()` para pegar o objeto do usuário
-//   e acesse as propriedades diretamente (ex: `getUser()?.role`).
-// ========================================================================

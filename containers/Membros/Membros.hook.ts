@@ -8,7 +8,7 @@ import {
   type MemberCountsResponse,
 } from "@/services/member/MemberCounts";
 import { useQuery } from "@tanstack/react-query";
-import { getUserRole } from "@/lib/auth-utils";
+import { getUser } from "@/lib/auth-utils";
 
 // Filtros disponíveis
 type SearchType = "Name" | "Email" | "Document";
@@ -29,7 +29,7 @@ export function useMembros() {
   const [totalPages, setTotalPages] = useState(1);
   const pageSize = 20;
 
-  const userRole = getUserRole();
+  const userRole = getUser();
   const isAdmin = userRole === "Admin";
 
   // Contagem dos membros (React Query)

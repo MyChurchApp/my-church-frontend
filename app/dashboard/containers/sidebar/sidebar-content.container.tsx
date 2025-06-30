@@ -1,38 +1,40 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { SidebarContent } from "../../components/sidebar/sidebar-content"
-import { getUserRole } from "@/lib/auth-utils"
-import { getChurchBasicInfo } from "@/services/church.service"
+import { useState, useEffect } from "react";
+import { SidebarContent } from "../../components/sidebar/sidebar-content";
+
+import { getUser } from "@/lib/auth-utils";
 
 export function SidebarContentContainer() {
-  const [churchName, setChurchName] = useState("")
-  const [churchLogo, setChurchLogo] = useState("")
-  const [userRole, setUserRole] = useState("")
-  const [loading, setLoading] = useState(true)
+  const [churchName, setChurchName] = useState("");
+  const [churchLogo, setChurchLogo] = useState("");
+  const [userRole, setUserRole] = useState("");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        setLoading(true)
+        setLoading(true);
 
         // Obter o papel do usuário
-        const role = getUserRole()
-        setUserRole(role)
-
-        // Obter informações básicas da igreja
-        const churchInfo = await getChurchBasicInfo()
-        setChurchName(churchInfo.name || "Minha Igreja")
-        setChurchLogo(churchInfo.logo || "/placeholder-logo.svg")
+        const role = getUser();
+        setUserRole(role);
       } catch (error) {
-        console.error("Erro ao carregar dados para o sidebar:", error)
+        console.error("Erro ao carregar dados para o sidebar:", error);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    loadData()
-  }, [])
+    loadData();
+  }, []);
 
-  return <SidebarContent churchName={churchName} churchLogo={churchLogo} userRole={userRole} loading={loading} />
+  return (
+    <SidebarContent
+      churchName={churchName}
+      churchLogo={churchLogo}
+      userRole={userRole}
+      loading={loading}
+    />
+  );
 }
