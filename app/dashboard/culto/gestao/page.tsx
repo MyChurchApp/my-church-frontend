@@ -261,27 +261,23 @@ export default function GestaoCultoPage() {
     }
   };
 
-  // Carregar dados iniciais
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
       setError(null);
 
       try {
-        // Verificar se o usuário está autenticado
         if (!isAuthenticated()) {
           router.push("/login");
           return;
         }
 
-        // Verificar se o usuário tem permissão
         const userRole = getUser();
         if (userRole.role !== "Admin" && userRole.role !== "Pastor") {
           router.push("/dashboard");
           return;
         }
 
-        // Buscar dados dos cultos
         const worshipData = await fetchWorshipServices();
         setCultos(worshipData);
       } catch (error) {
@@ -297,7 +293,6 @@ export default function GestaoCultoPage() {
     loadData();
   }, [router]);
 
-  // Função para abrir o diálogo de edição
   const openEditDialog = (culto: WorshipService | null) => {
     if (culto) {
       setEditingCulto(culto);
@@ -337,16 +332,6 @@ export default function GestaoCultoPage() {
         return;
       }
 
-      // Em uma implementação real, você enviaria os dados para a API
-      // const response = await authenticatedFetch(
-      //   editingCulto ? `https://demoapp.top1soft.com.br/api/Worship/${editingCulto.id}` : "https://demoapp.top1soft.com.br/api/Worship",
-      //   {
-      //     method: editingCulto ? "PUT" : "POST",
-      //     body: JSON.stringify(formData),
-      //   }
-      // )
-
-      // Simulação de resposta
       const savedCulto: WorshipService = {
         id: editingCulto
           ? editingCulto.id
@@ -365,7 +350,6 @@ export default function GestaoCultoPage() {
         announcements: formData.announcements || [],
       };
 
-      // Atualizar a lista de cultos
       if (editingCulto) {
         setCultos(
           cultos.map((c) => (c.id === editingCulto.id ? savedCulto : c))
@@ -374,7 +358,6 @@ export default function GestaoCultoPage() {
         setCultos([...cultos, savedCulto]);
       }
 
-      // Fechar o diálogo
       setIsDialogOpen(false);
       setEditingCulto(null);
       setFormData({
@@ -394,19 +377,12 @@ export default function GestaoCultoPage() {
     }
   };
 
-  // Função para excluir um culto
   const handleDeleteCulto = async (id: number) => {
     if (!confirm("Tem certeza que deseja excluir este culto?")) {
       return;
     }
 
     try {
-      // Em uma implementação real, você enviaria uma requisição para a API
-      // await authenticatedFetch(`https://demoapp.top1soft.com.br/api/Worship/${id}`, {
-      //   method: "DELETE",
-      // })
-
-      // Atualizar a lista de cultos
       setCultos(cultos.filter((c) => c.id !== id));
       alert("Culto excluído com sucesso!");
     } catch (error) {
@@ -415,7 +391,6 @@ export default function GestaoCultoPage() {
     }
   };
 
-  // Funções para adicionar itens ao culto
   const addSong = () => {
     if (!newSong.title || !newSong.artist) {
       alert("Por favor, preencha pelo menos o título e o artista da música.");
@@ -482,7 +457,6 @@ export default function GestaoCultoPage() {
     setNewAnnouncement({});
   };
 
-  // Funções para remover itens do culto
   const removeSong = (id: number) => {
     setFormData({
       ...formData,
@@ -504,13 +478,11 @@ export default function GestaoCultoPage() {
     });
   };
 
-  // Função para formatar a data
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
     return date.toLocaleDateString("pt-BR");
   };
 
-  // Renderização condicional para carregamento
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-50">
@@ -524,7 +496,6 @@ export default function GestaoCultoPage() {
     );
   }
 
-  // Renderização condicional para erro
   if (error) {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-50">

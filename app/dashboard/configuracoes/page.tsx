@@ -26,6 +26,7 @@ import {
   updateBankingInfo,
   type Church,
 } from "@/services/church.service";
+import { ChangePlanModal } from "@/components/configuracoes/ChangePlanModal";
 
 const fileToBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -78,6 +79,18 @@ export default function ConfiguracoesPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // 2. Adicionar estado para controlar o modal
+  const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
+
+  // ... (toda a sua lógica existente: useEffect, loadData, handleSave, etc.)
+
+  // Função que será chamada pelo modal após uma alteração bem-sucedida
+  const handlePlanSuccessfullyChanged = () => {
+    // Você pode adicionar uma notificação de sucesso aqui (usando react-hot-toast, por exemplo)
+    console.log("Plano alterado com sucesso! Recarregando dados...");
+    loadData(); // Recarrega os dados da igreja para exibir o novo plano
   };
 
   const handleSaveChurchData = async () => {
@@ -424,8 +437,108 @@ export default function ConfiguracoesPage() {
         </TabsContent>
 
         <TabsContent value="assinatura">
-          {/* ...código da aba assinatura sem alterações... */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Plano e Assinatura</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {churchData?.subscription ? (
+                <div className="space-y-6">
+                  {/* Seção de Status e Preço */}
+                  <div className="flex items-center justify-between rounded-lg border p-4">
+                    <div>
+                      <h3 className="text-lg font-medium">
+                        {churchData.subscription.plan.name}
+                      </h3>
+                      <div className="text-sm text-muted-foreground mt-1">
+                        Status:{" "}
+                        <Badge
+                          variant={
+                            churchData.subscription.isActive
+                              ? "default"
+                              : "destructive"
+                          }
+                        >
+                          {churchData.subscription.isActive
+                            ? "Ativa"
+                            : "Inativa"}
+                        </Badge>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-2xl font-bold">
+                        R$ {churchData.subscription.plan.price.toFixed(2)}
+                      </p>
+                      <p className="text-sm text-muted-foreground">por mês</p>
+                    </div>
+                  </div>
+
+                  {/* Seção de Datas */}
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div>
+                      <Label>Início da Assinatura</Label>
+                      <p className="text-sm font-medium">
+                        {new Date(
+                          churchData.subscription.startDate
+                        ).toLocaleDateString("pt-BR")}
+                      </p>
+                    </div>
+                    <div>
+                      <Label>Próxima Cobrança</Label>
+                      <p className="text-sm font-medium">
+                        {new Date(
+                          churchData.subscription.endDate
+                        ).toLocaleDateString("pt-BR")}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Seção de Recursos */}
+                  <div>
+                    <Label>Recursos Inclusos no seu Plano</Label>
+                    <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
+                      <li>
+                        • Até {churchData.subscription.plan.maxMembers} membros
+                      </li>
+                      <li>
+                        • Até {churchData.subscription.plan.maxEvents} eventos
+                        por mês
+                      </li>
+                      <li>
+                        • {churchData.subscription.plan.maxStorageGB}GB de
+                        armazenamento
+                      </li>
+                    </ul>
+                  </div>
+
+                  {/* Seção de Ações */}
+                  <div className="flex gap-2 border-t pt-4">
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsPlanModalOpen(true)}
+                    >
+                      Alterar Plano
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-muted-foreground">
+                  Nenhuma assinatura ativa encontrada.
+                </p>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
+
+        {churchData?.subscription && (
+          <ChangePlanModal
+            isOpen={isPlanModalOpen}
+            onClose={() => setIsPlanModalOpen(false)}
+            currentPlanId={churchData.subscription.plan.id}
+            subscriptionId={churchData.subscription.id}
+            onPlanChanged={handlePlanSuccessfullyChanged}
+          />
+        )}
 
         <TabsContent value="bancarios">
           <Card>

@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { DashboardMobile } from "./DashboardMobile";
 import { DashboardDesktop } from "./DashboardDesktop";
 
-// Hook simples para detectar mobile
 function useIsMobile(breakpoint = 1024) {
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {

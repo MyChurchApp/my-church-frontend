@@ -27,16 +27,12 @@ export function useSignalR(worshipServiceId: number) {
     const startConnection = async () => {
       try {
         await connection.start();
-
         await connection.invoke("JoinWorship", worshipServiceId);
 
-        // Evento de leitura bíblica destacada
         connection.on("BibleReadingHighlighted", async (data) => {
-          // Extrair dados com diferentes estruturas possíveis
           let versionId, bookId, chapterId, verseId;
 
           if (data && typeof data === "object") {
-            // Estrutura completa esperada: { versionId: 1, bookId: 1, chapterId: 1, verseId?: 1 }
             versionId =
               data.versionId ||
               data.VersionId ||
@@ -46,7 +42,6 @@ export function useSignalR(worshipServiceId: number) {
             chapterId = data.chapterId || data.ChapterId || data.chapter_id;
             verseId = data.verseId || data.VerseId || data.verse_id;
 
-            // Fallbacks para estruturas antigas
             if (!versionId) {
               versionId = data.version || 1;
             }
