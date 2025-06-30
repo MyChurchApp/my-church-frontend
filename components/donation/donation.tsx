@@ -22,7 +22,7 @@ import {
 
 import Link from "next/link";
 import Image from "next/image";
-import { DonationFormData } from "@/containers/Donation/useDonation";
+import { DonationFormData } from "@/containers/donation/useDonation";
 
 const Alert = ({ children }: { children: React.ReactNode }) => (
   <div
