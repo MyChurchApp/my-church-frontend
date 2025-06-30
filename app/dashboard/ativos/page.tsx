@@ -74,18 +74,18 @@ export default function AtivosPage() {
   const [dragActive, setDragActive] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
-
   const userRole = getUser();
+
   const [hasAccess, setHasAccess] = useState(false);
   const [totalPages, setTotalPages] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Redirecionar para home se não tiver permissão
   useEffect(() => {
-    if (!isAuthenticated() || userRole !== "Admin") {
+    if (!isAuthenticated() || userRole.role !== "Admin") {
       setHasAccess(false);
       const timer = setTimeout(() => {
-        router.push("/");
+        router.push("/dashboard");
       }, 2000);
 
       return () => clearTimeout(timer);

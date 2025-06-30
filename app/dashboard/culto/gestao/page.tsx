@@ -275,8 +275,8 @@ export default function GestaoCultoPage() {
         }
 
         // Verificar se o usuário tem permissão
-        const role = getUser();
-        if (role !== "Admin" && role !== "Pastor") {
+        const userRole = getUser();
+        if (userRole.role !== "Admin" && userRole.role !== "Pastor") {
           router.push("/dashboard");
           return;
         }

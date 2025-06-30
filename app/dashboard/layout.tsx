@@ -107,7 +107,9 @@ export const DashboardHeader = ({ user, onMenuClick }: any) => {
             onClick={onMenuClick}
             aria-label="Abrir menu"
           >
-            <Menu className="h-6 w-6 text-gray-700" />
+            <div className="block lg:hidden">
+              <Menu className="h-6 w-6 text-gray-700" />
+            </div>
           </Button>
           <div className="">
             <h1 className="text-xl font-semibold text-gray-800">{pageTitle}</h1>
