@@ -33,6 +33,7 @@ import {
   Loader2,
   PartyPopperIcon,
   CopyIcon,
+  Church,
 } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -299,19 +300,11 @@ export default function CadastroPage() {
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100">
       {/* ===== HEADER ===== */}
-      <header className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800 sticky top-0 z-50">
-        <div className="container mx-auto flex h-20 items-center justify-between px-4 sm:px-6">
-          <Logo size="md" />
-          {currentStep !== "confirmacao" && currentStep !== "pix-pagamento" && (
-            <Link
-              href="/"
-              className="text-base text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary flex items-center gap-2 transition-colors"
-            >
-              <ArrowLeft className="h-5 w-5" />
-              <span className="hidden sm:inline">Voltar</span>
-            </Link>
-          )}
-        </div>
+      <header className="w-full py-4 px-6 flex justify-center border-b border-gray-200 bg-white/80 backdrop-blur-sm">
+        <Link href="/" className="flex items-center gap-2">
+          <Church className="mr-2 h-6 w-6" />
+          MyChurch
+        </Link>
       </header>
 
       {/* ===== MAIN CONTENT ===== */}
@@ -1124,7 +1117,7 @@ export default function CadastroPage() {
         <div className="container mx-auto py-8 px-4 sm:px-6">
           <div className="flex flex-col md:flex-row justify-between items-center gap-6">
             <div className="flex flex-col sm:flex-row items-center gap-3 text-center md:text-left">
-              <Logo size="sm" />
+              <Church className="mr-2 h-6 w-6" />
               <p className="text-base text-gray-600 dark:text-gray-400">
                 &copy; {new Date().getFullYear()} MyChurch. Todos os direitos
                 reservados.
