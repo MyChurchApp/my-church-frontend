@@ -1,44 +1,49 @@
 "use client";
 
-import { KeyRound, PartyPopper, UserCheck } from "lucide-react";
-import { StepContainer, SubmitButton } from "./ui-components";
 import { useActionState, useEffect, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   createPassword,
   identifyMember,
+  registerUser,
   validateBirthDate,
+  type FormState,
 } from "@/app/onboarding/actions";
-
-interface FormState {
-  status: "idle" | "success" | "error";
-  message: string;
-  data: {
-    maskedName: string;
-    activationHash: string;
-  };
-}
+import { ProgressIndicator } from "./ui-components";
+import {
+  Step1_Identify,
+  Step_Register,
+  Step2_Validate,
+  Step3_Password,
+  Step4_Success,
+} from "./onboarding-steps";
 
 const initialState: FormState = {
   status: "idle",
   message: "",
-  data: {
-    maskedName: "",
-    activationHash: "",
-  },
+  data: {},
 };
 
 export function OnboardingForm({ churchId }: { churchId: string }) {
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState<
+    "identify" | "register" | "validate" | "password" | "success"
+  >("identify");
   const [contextData, setContextData] = useState<{
+    identifier: string;
     maskedName: string;
     activationHash: string;
   }>({
+    identifier: "",
     maskedName: "",
     activationHash: "",
   });
 
   const [identifyState, identifyAction] = useActionState(
     identifyMember,
+    initialState
+  );
+  const [registerState, registerAction] = useActionState(
+    registerUser,
     initialState
   );
   const [validateState, validateAction] = useActionState(
@@ -51,136 +56,115 @@ export function OnboardingForm({ churchId }: { churchId: string }) {
   );
 
   useEffect(() => {
-    if (identifyState.status === "success" && identifyState.data) {
+    if (
+      identifyState.status === "success_found" &&
+      identifyState.data &&
+      identifyState.data.maskedName
+    ) {
       setContextData((prev) => ({
         ...prev,
-        maskedName: identifyState.data.maskedName,
+        maskedName: identifyState.data.maskedName || "",
       }));
-      setStep(2);
+      setStep("validate");
+    }
+    if (
+      identifyState.status === "success_not_found" &&
+      identifyState.data &&
+      identifyState.data.identifier
+    ) {
+      setContextData((prev) => ({
+        ...prev,
+        identifier: identifyState.data.identifier || "",
+      }));
+      setStep("register");
     }
   }, [identifyState]);
 
   useEffect(() => {
-    if (validateState.status === "success" && validateState.data) {
+    if (registerState.status === "success_registered") {
+      setStep("success");
+    }
+  }, [registerState]);
+
+  useEffect(() => {
+    if (
+      validateState.status === "success_validated" &&
+      validateState.data &&
+      validateState.data.activationHash
+    ) {
       setContextData((prev) => ({
         ...prev,
-        activationHash: validateState.data.activationHash,
+        activationHash: validateState.data.activationHash || "",
       }));
-      setStep(3);
+      setStep("password");
     }
   }, [validateState]);
 
   useEffect(() => {
-    if (passwordState.status === "success") {
-      setStep(4);
+    if (passwordState.status === "success_password_set") {
+      setStep("success");
     }
   }, [passwordState]);
 
-  const renderStep = () => {
-    switch (step) {
-      case 1:
-        return (
-          <StepContainer title="Identificação" icon={<UserCheck />}>
-            <p className="mb-6 text-center text-gray-600">
-              Digite seu CPF para iniciar o cadastro.
-            </p>
-            <form action={identifyAction} className="space-y-4">
-              <input type="hidden" name="churchId" value={churchId} />
-              <input
-                type="text"
-                name="identifier"
-                placeholder="Seu CPF"
-                className="input-style"
-                required
-              />
-              <SubmitButton label="Continuar" />
-              {identifyState.status === "error" && (
-                <p className="error-message">{identifyState.message}</p>
-              )}
-            </form>
-          </StepContainer>
-        );
-      case 2:
-        return (
-          <StepContainer
-            title={`Olá, ${contextData.maskedName}!`}
-            icon={<UserCheck />}
-          >
-            <p className="mb-6 text-center text-gray-600">
-              Para confirmar, informe sua data de nascimento.
-            </p>
-            <form action={validateAction} className="space-y-4">
-              <input
-                type="hidden"
-                name="maskedName"
-                value={contextData.maskedName}
-              />
-              <input
-                type="date"
-                name="birthDate"
-                className="input-style"
-                required
-              />
-              <SubmitButton label="Validar" />
-              {validateState.status === "error" && (
-                <p className="error-message">{validateState.message}</p>
-              )}
-            </form>
-          </StepContainer>
-        );
-      case 3:
-        return (
-          <StepContainer title="Crie sua Senha" icon={<KeyRound />}>
-            <p className="mb-6 text-center text-gray-600">
-              Escolha uma senha segura para o aplicativo.
-            </p>
-            <form action={passwordAction} className="space-y-4">
-              <input
-                type="hidden"
-                name="activationHash"
-                value={contextData.activationHash}
-              />
-              <input
-                type="password"
-                name="password"
-                placeholder="Senha"
-                className="input-style"
-                required
-              />
-              <SubmitButton label="Finalizar Cadastro" />
-              {passwordState.status === "error" && (
-                <p className="error-message">{passwordState.message}</p>
-              )}
-            </form>
-          </StepContainer>
-        );
-      case 4:
-        return (
-          <StepContainer
-            title="Cadastro Concluído!"
-            icon={<PartyPopper className="text-green-500" />}
-          >
-            <p className="mb-6 text-center text-gray-600">
-              Seja bem-vindo(a)! Seu acesso foi liberado.
-            </p>
-            <button
-              onClick={() => {
-                window.location.href = "/login";
-              }}
-              className="button-primary"
-            >
-              Ir para o Login
-            </button>
-          </StepContainer>
-        );
-      default:
-        return <p>Página não encontrada.</p>;
-    }
+  const stepFlows: Record<string, { current: number; total: number }> = {
+    identify: { current: 1, total: 2 },
+    register: { current: 2, total: 2 },
+    validate: { current: 2, total: 3 },
+    password: { current: 3, total: 3 },
+    success: { current: 99, total: 99 },
   };
+  const progress = stepFlows[step] || { current: 0, total: 0 };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-4">
-      <div className="w-full max-w-md">{renderStep()}</div>
+    <div className="flex flex-col items-center justify-center min-h-screen bg-slate-100 p-4 font-sans">
+      <div className="w-full max-w-md">
+        {progress.current <= progress.total && (
+          <ProgressIndicator
+            currentStep={progress.current}
+            totalSteps={progress.total}
+          />
+        )}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={step}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            {step === "identify" && (
+              <Step1_Identify
+                action={identifyAction}
+                state={identifyState}
+                churchId={churchId}
+              />
+            )}
+            {step === "register" && (
+              <Step_Register
+                action={registerAction}
+                state={registerState}
+                churchId={churchId}
+                cpf={contextData.identifier}
+              />
+            )}
+            {step === "validate" && (
+              <Step2_Validate
+                action={validateAction}
+                state={validateState}
+                maskedName={contextData.maskedName}
+              />
+            )}
+            {step === "password" && (
+              <Step3_Password
+                action={passwordAction}
+                state={passwordState}
+                activationHash={contextData.activationHash}
+              />
+            )}
+            {step === "success" && <Step4_Success />}
+          </motion.div>
+        </AnimatePresence>
+      </div>
     </div>
   );
 }
