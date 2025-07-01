@@ -25,6 +25,14 @@ export const rawMenu: MenuItem[] = [
     label: "Membros",
     href: "/dashboard/membros",
     accessLevel: "admin",
+    subItems: [
+      { label: "Membros", href: "/dashboard/membros", accessLevel: "admin" },
+      {
+        label: "Pendentes para aprovação",
+        href: "/dashboard/membros/pendentes",
+        accessLevel: "admin",
+      },
+    ],
   },
   {
     id: "events",

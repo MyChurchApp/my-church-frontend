@@ -71,6 +71,7 @@ export interface Church {
   address: Address;
   members: Member[];
   bankingInfo: BankingInfo | null;
+  onboardingQrCode: string;
   subscription: {
     id: number;
     churchId: number;
