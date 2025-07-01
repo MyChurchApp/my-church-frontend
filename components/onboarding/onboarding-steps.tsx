@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { StepContainer, SubmitButton } from "./ui-components";
 import { brazilianStates } from "@/app/utils/UFs/uf";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 // STEP 1: Identificação
 interface Step1Props {
@@ -279,6 +279,47 @@ export function Step_Register({
   loading: boolean;
 }) {
   const [maritalStatus, setMaritalStatus] = useState("Solteiro");
+  const [password, setPassword] = useState("");
+  const [passwordAgain, setPasswordAgain] = useState("");
+  const [allFieldsFilled, setAllFieldsFilled] = useState(false);
+
+  // Checagem dos campos obrigatórios
+  function checkAllFields(e?: React.FormEvent<HTMLFormElement>) {
+    // Se não passar o evento, faz checagem no render inicial
+    let form: FormData;
+    if (e) {
+      form = new FormData(e.currentTarget);
+    } else {
+      // Busca pelo id do form
+      const formElem = document.getElementById(
+        "register-form"
+      ) as HTMLFormElement | null;
+      form = formElem ? new FormData(formElem) : new FormData();
+    }
+    let filled = true;
+    for (let field of [
+      "name",
+      "cpf",
+      "birthDate",
+      "email",
+      "phoneNumber",
+      "street",
+      "neighborhood",
+      "city",
+      "state",
+      "password",
+    ]) {
+      if (!form.get(field)) filled = false;
+    }
+    // Checa senha igual
+    if (password.length < 6 || password !== passwordAgain) filled = false;
+    setAllFieldsFilled(filled);
+  }
+
+  useEffect(() => {
+    checkAllFields();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [password, passwordAgain, maritalStatus]);
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -298,10 +339,15 @@ export function Step_Register({
         Não localizamos seu cadastro. Por favor, preencha seus dados para se
         tornar um membro.
       </p>
+
       <form
+        id="register-form"
         onSubmit={handleSubmit}
+        onChange={checkAllFields}
         className="space-y-8 max-h-[60vh] overflow-y-auto pr-2"
+        autoComplete="off"
       >
+        {/* Dados Pessoais */}
         <section className="space-y-6">
           <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-700 border-b pb-2">
             <User size={20} className="text-blue-600" />
@@ -365,6 +411,7 @@ export function Step_Register({
           </div>
         </section>
 
+        {/* Contato */}
         <section className="space-y-6">
           <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-700 border-b pb-2">
             <Mail size={20} className="text-blue-600" />
@@ -398,6 +445,7 @@ export function Step_Register({
           </div>
         </section>
 
+        {/* Endereço */}
         <section className="space-y-6">
           <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-700 border-b pb-2">
             <Home size={20} className="text-blue-600" />
@@ -466,6 +514,7 @@ export function Step_Register({
           </div>
         </section>
 
+        {/* Segurança */}
         <section className="space-y-6">
           <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-700 border-b pb-2">
             <Lock size={20} className="text-blue-600" />
@@ -481,17 +530,41 @@ export function Step_Register({
               name="password"
               className={inputClasses}
               required
+              minLength={6}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
             />
+          </div>
+          <div>
+            <label htmlFor="passwordAgain" className={labelClasses}>
+              Digite a senha novamente
+            </label>
+            <input
+              id="passwordAgain"
+              type="password"
+              className={inputClasses}
+              required
+              value={passwordAgain}
+              onChange={(e) => setPasswordAgain(e.target.value)}
+            />
+            {passwordAgain && password !== passwordAgain && (
+              <p className="text-red-500 text-xs mt-1">
+                As senhas não conferem.
+              </p>
+            )}
           </div>
         </section>
 
         <div className="pt-6">
           <button
             type="submit"
-            className="w-full text-lg font-bold py-4 px-6 rounded-lg text-white shadow-lg
-                bg-[linear-gradient(45deg,rgba(30,64,175,.95),rgba(59,130,246,.95))]
-                hover:brightness-110 transform hover:-translate-y-1 transition-all duration-300"
-            disabled={loading}
+            className={`w-full text-lg font-bold py-4 px-6 rounded-lg text-white shadow-lg
+                ${
+                  !allFieldsFilled || loading
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : "bg-[linear-gradient(45deg,rgba(30,64,175,.95),rgba(59,130,246,.95))] hover:brightness-110 transform hover:-translate-y-1 transition-all duration-300"
+                }`}
+            disabled={!allFieldsFilled || loading}
           >
             {loading ? (
               <svg className="animate-spin h-5 w-5 mx-auto" viewBox="0 0 24 24">

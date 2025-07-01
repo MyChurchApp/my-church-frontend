@@ -41,7 +41,6 @@ export const StepContainer = ({
   </div>
 );
 
-// SubmitButton permanece o mesmo
 export const SubmitButton = ({
   label,
   className,
@@ -53,14 +52,23 @@ export const SubmitButton = ({
 }) => {
   const { pending } = useFormStatus();
 
+  const isDisabled = pending || disabled;
   const defaultClasses =
-    "w-full flex items-center justify-center py-3 px-4 font-semibold rounded-md shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:cursor-not-allowed";
+    "w-full flex items-center justify-center py-3 px-4 font-semibold rounded-md shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-not-allowed";
+
+  // Classes para o botão ativo e desabilitado
+  const enabledClasses =
+    "text-white shadow-lg bg-[linear-gradient(45deg,rgba(30,64,175,.95),rgba(59,130,246,.95))] hover:brightness-110 transform hover:-translate-y-1 transition-all duration-300";
+  const disabledClasses =
+    "bg-gray-300 text-gray-500 shadow-none pointer-events-none";
 
   return (
     <button
       type="submit"
-      className={`${defaultClasses} ${className || "button-primary"}`.trim()}
-      disabled={pending || disabled}
+      className={`${defaultClasses} ${
+        isDisabled ? disabledClasses : enabledClasses
+      } ${className || ""}`.trim()}
+      disabled={isDisabled}
     >
       {pending ? <Loader2 className="animate-spin" /> : label}
     </button>

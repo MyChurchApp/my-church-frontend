@@ -142,6 +142,7 @@ export async function registerUser(form: any): Promise<FormState> {
     };
   }
 }
+
 // VALIDAR DATA DE NASCIMENTO
 export async function validateBirthDate({
   identifier,
