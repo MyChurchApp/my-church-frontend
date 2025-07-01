@@ -1,5 +1,3 @@
-// src/contexts/ChurchContext.tsx
-
 "use client";
 
 import {
@@ -9,9 +7,9 @@ import {
   useCallback,
   ReactNode,
   useEffect,
+  useRef,
 } from "react";
 import { getChurchData, type Church } from "@/services/church.service";
-
 import { isAuthenticated } from "@/lib/auth-utils";
 import { BankingInfoModal } from "@/components/church/BankingInfoModal";
 
@@ -29,6 +27,7 @@ export function ChurchProvider({ children }: { children: ReactNode }) {
   const [churchData, setChurchData] = useState<Church | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isBankingModalOpen, setIsBankingModalOpen] = useState(false);
+  const hasOpenedBankingModal = useRef(false); // controle de exibição do modal
 
   // Função para buscar os dados e verificar a condição
   const fetchAndCheckChurchData = useCallback(async () => {
@@ -42,11 +41,13 @@ export function ChurchProvider({ children }: { children: ReactNode }) {
       const data = await getChurchData();
       setChurchData(data);
 
-      // A LÓGICA PRINCIPAL ESTÁ AQUI!
-      // Se bankingInfo for nulo, indefinido ou um objeto vazio, abre o modal.
-      if (!data.bankingInfo || Object.keys(data.bankingInfo).length === 0) {
-        console.log("Dados bancários não encontrados, abrindo modal.");
+      // Só abre o modal se ainda não abriu nessa sessão
+      if (
+        !hasOpenedBankingModal.current &&
+        (!data.bankingInfo || Object.keys(data.bankingInfo).length === 0)
+      ) {
         setIsBankingModalOpen(true);
+        hasOpenedBankingModal.current = true;
       }
     } catch (error) {
       console.error("Erro no ChurchContext:", error);
@@ -55,13 +56,13 @@ export function ChurchProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Busca os dados na primeira vez que o provedor é montado
   useEffect(() => {
     fetchAndCheckChurchData();
   }, [fetchAndCheckChurchData]);
 
   const closeModalAndRefetch = async () => {
     setIsBankingModalOpen(false);
+    // Não reseta hasOpenedBankingModal
     await fetchAndCheckChurchData();
   };
 
@@ -74,7 +75,6 @@ export function ChurchProvider({ children }: { children: ReactNode }) {
   return (
     <ChurchContext.Provider value={value}>
       {children}
-      {/* O Modal vive aqui, mas é controlado pelo estado do provedor */}
       <BankingInfoModal
         isOpen={isBankingModalOpen}
         onClose={closeModalAndRefetch}

@@ -164,14 +164,6 @@ export default function LoginComponent({
                     Criar conta
                   </Link>
                 </p>
-                <p className="text-sm text-gray-600">
-                  <Link
-                    href="/recuperar-senha"
-                    className="text-xs font-medium text-gray-600 hover:text-gray-900 transition-colors"
-                  >
-                    Esqueceu a senha?
-                  </Link>
-                </p>
               </div>
             </div>
           </div>

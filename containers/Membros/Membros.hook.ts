@@ -30,7 +30,7 @@ export function useMembros() {
   const pageSize = 20;
 
   const userRole = getUser();
-  const isAdmin = userRole === "Admin";
+  const isAdmin = userRole.role === "Admin";
 
   // Contagem dos membros (React Query)
   const {
