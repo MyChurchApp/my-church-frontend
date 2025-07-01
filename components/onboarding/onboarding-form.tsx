@@ -16,6 +16,7 @@ import {
   registerUser,
   validateBirthDate,
 } from "@/app/onboarding/actions";
+import { ArrowLeft } from "lucide-react";
 
 export function OnboardingForm({ churchId }: { churchId: string }) {
   const [step, setStep] = useState<
@@ -107,10 +108,26 @@ export function OnboardingForm({ churchId }: { churchId: string }) {
     success: { current: 99, total: 99 },
   };
   const progress = stepFlows[step] || { current: 0, total: 0 };
-
+  const stepsOrder: Array<
+    "identify" | "register" | "validate" | "password" | "success"
+  > = ["identify", "register", "validate", "password", "success"];
+  function handleBackStep() {
+    const currentIdx = stepsOrder.indexOf(step);
+    if (currentIdx > 0) setStep(stepsOrder[currentIdx - 1]);
+  }
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-slate-100 p-4 font-sans">
       <div className="w-full max-w-md">
+        {step !== "identify" && step !== "success" && (
+          <button
+            onClick={handleBackStep}
+            type="button"
+            className="mb-4 flex items-center gap-2 text-blue-700 hover:underline"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            Voltar
+          </button>
+        )}
         {progress.current <= progress.total && (
           <ProgressIndicator
             currentStep={progress.current}
@@ -131,7 +148,6 @@ export function OnboardingForm({ churchId }: { churchId: string }) {
             onSubmit={handleRegister}
             state={registerState}
             churchId={churchId}
-            cpf={contextData.identifier}
             loading={loading}
           />
         )}

@@ -9,10 +9,11 @@ import {
   PartyPopper,
   UserCheck,
   UserPlus,
+  CalendarDays,
 } from "lucide-react";
 import { StepContainer, SubmitButton } from "./ui-components";
 import { brazilianStates } from "@/app/utils/UFs/uf";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 // STEP 1: Identificação
 interface Step1Props {
@@ -98,33 +99,106 @@ export const Step2_Validate = ({
   identifier,
   loading,
 }: Step2Props) => {
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  const monthRef = useRef<HTMLInputElement>(null);
+  const yearRef = useRef<HTMLInputElement>(null);
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const birthDate = (
-      e.currentTarget.elements.namedItem("birthDate") as HTMLInputElement
-    ).value;
+    const formElements = e.currentTarget.elements;
+
+    const day = (
+      formElements.namedItem("day") as HTMLInputElement
+    ).value.padStart(2, "0");
+    const month = (
+      formElements.namedItem("month") as HTMLInputElement
+    ).value.padStart(2, "0");
+    const year = (formElements.namedItem("year") as HTMLInputElement).value;
+
+    if (!day || !month || !year || year.length < 4) {
+      alert("Por favor, preencha a data completa.");
+      return;
+    }
+
+    const birthDate = `${year}-${month}-${day}`;
     onSubmit({ birthDate });
-  }
+  };
+
+  const handleDayChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.value.length === 2) {
+      monthRef.current?.focus();
+    }
+  };
+
+  const handleMonthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.value.length === 2) {
+      yearRef.current?.focus();
+    }
+  };
 
   return (
-    <StepContainer
-      title={`Confirme sua data de nascimento`}
-      icon={<UserCheck />}
-    >
-      <form className="space-y-4" onSubmit={handleSubmit}>
+    <StepContainer title="Quase lá!" icon={<CalendarDays />}>
+      <form className="w-full space-y-8" onSubmit={handleSubmit}>
         <input type="hidden" name="identifier" value={identifier} />
-        <input type="date" name="birthDate" className="input-style" required />
-        <button type="submit" className="button-primary" disabled={loading}>
-          {loading ? "Validando..." : "Validar"}
-        </button>
+        <div className="text-center">
+          <p className="text-gray-600 text-base">
+            Para sua segurança, por favor, confirme sua data de nascimento.
+          </p>
+        </div>
+        <div>
+          <label className="block text-base font-semibold text-slate-700 mb-2 text-center">
+            Data de Nascimento
+          </label>
+          <div className="flex items-center justify-center gap-2 md:gap-4">
+            <input
+              type="tel"
+              name="day"
+              placeholder="DD"
+              maxLength={2}
+              className="input-style-enhanced w-1/3 text-center text-2xl p-3"
+              required
+              onChange={handleDayChange}
+            />
+            <span className="text-2xl font-bold text-gray-300">/</span>
+            <input
+              ref={monthRef}
+              type="tel"
+              name="month"
+              placeholder="MM"
+              maxLength={2}
+              className="input-style-enhanced w-1/3 text-center text-2xl p-3"
+              required
+              onChange={handleMonthChange}
+            />
+            <span className="text-2xl font-bold text-gray-300">/</span>
+            <input
+              ref={yearRef}
+              type="tel"
+              name="year"
+              placeholder="AAAA"
+              maxLength={4}
+              className="input-style-enhanced w-1/3 text-center text-2xl p-3"
+              required
+            />
+          </div>
+        </div>
+        <div className="pt-4">
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full text-lg font-bold py-4 px-6 rounded-lg text-white shadow-lg
+                        bg-[linear-gradient(45deg,rgba(30,64,175,.95),rgba(59,130,246,.95))]
+                        hover:brightness-110 transform hover:-translate-y-1 transition-all duration-300"
+          >
+            {loading ? "Validando..." : "Validar"}
+          </button>
+        </div>
         {state?.status === "error" && (
-          <p className="error-message">{state.message}</p>
+          <p className="error-message text-center p-4">{state.message}</p>
         )}
       </form>
     </StepContainer>
   );
 };
-
 // STEP 3: Criação de senha
 
 export const Step3_Password = ({
@@ -152,7 +226,13 @@ export const Step3_Password = ({
           className="input-style"
           required
         />
-        <SubmitButton label="Finalizar Cadastro" disabled={loading} />
+        <SubmitButton
+          label="Finalizar Cadastro"
+          disabled={loading}
+          className="w-full text-lg font-bold py-4 px-6 rounded-lg text-white shadow-lg
+                     bg-[linear-gradient(45deg,rgba(30,64,175,.95),rgba(59,130,246,.95))]
+                     hover:brightness-110 transform hover:-translate-y-1 transition-all duration-300"
+        />
         {state?.status === "error" && (
           <p className="error-message">{state.message}</p>
         )}
@@ -174,14 +254,14 @@ export const Step4_Success = () => (
       onClick={() => {
         window.location.href = "/login";
       }}
-      className="button-primary"
+      className="w-full text-lg font-bold py-4 px-6 rounded-lg text-white shadow-lg
+      bg-[linear-gradient(45deg,rgba(30,64,175,.95),rgba(59,130,246,.95))]
+      hover:brightness-110 transform hover:-translate-y-1 transition-all duration-300"
     >
       Ir para o Login
     </button>
   </StepContainer>
 );
-
-// STEP Register (cadastro completo quando não encontra)
 
 const labelClasses = "block text-base font-semibold text-slate-700 mb-2";
 const inputClasses =
@@ -222,7 +302,6 @@ export function Step_Register({
         onSubmit={handleSubmit}
         className="space-y-8 max-h-[60vh] overflow-y-auto pr-2"
       >
-        {/* Dados Pessoais */}
         <section className="space-y-6">
           <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-700 border-b pb-2">
             <User size={20} className="text-blue-600" />
@@ -286,7 +365,6 @@ export function Step_Register({
           </div>
         </section>
 
-        {/* Contato */}
         <section className="space-y-6">
           <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-700 border-b pb-2">
             <Mail size={20} className="text-blue-600" />
@@ -320,7 +398,6 @@ export function Step_Register({
           </div>
         </section>
 
-        {/* Endereço */}
         <section className="space-y-6">
           <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-700 border-b pb-2">
             <Home size={20} className="text-blue-600" />
@@ -389,7 +466,6 @@ export function Step_Register({
           </div>
         </section>
 
-        {/* Segurança */}
         <section className="space-y-6">
           <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-700 border-b pb-2">
             <Lock size={20} className="text-blue-600" />
