@@ -10,8 +10,9 @@ import {
   useRef,
 } from "react";
 import { getChurchData, type Church } from "@/services/church.service";
-import { isAuthenticated } from "@/lib/auth-utils";
+import { getUser, isAuthenticated } from "@/lib/auth-utils";
 import { BankingInfoModal } from "@/components/church/BankingInfoModal";
+import { useRouter } from "next/navigation";
 
 // 1. Definir a "forma" do nosso contexto
 interface ChurchContextType {
@@ -28,6 +29,9 @@ export function ChurchProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isBankingModalOpen, setIsBankingModalOpen] = useState(false);
   const hasOpenedBankingModal = useRef(false); // controle de exibição do modal
+  const router = useRouter();
+  const user = getUser();
+  const isAdmin = user?.role !== "Member";
 
   // Função para buscar os dados e verificar a condição
   const fetchAndCheckChurchData = useCallback(async () => {
@@ -41,8 +45,8 @@ export function ChurchProvider({ children }: { children: ReactNode }) {
       const data = await getChurchData();
       setChurchData(data);
 
-      // Só abre o modal se ainda não abriu nessa sessão
       if (
+        isAdmin &&
         !hasOpenedBankingModal.current &&
         (!data.bankingInfo || Object.keys(data.bankingInfo).length === 0)
       ) {
