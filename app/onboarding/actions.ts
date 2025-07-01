@@ -59,22 +59,8 @@ export async function identifyMember({
 }
 
 // REGISTRAR USUÁRIO
-export async function registerUser(form: {
-  churchId: string;
-  name: string;
-  email: string;
-  phoneNumber: string;
-  cpf: string;
-  birthDate: string;
-  password: string;
-  street: string;
-  city: string;
-  state: string;
-  zipCode: string;
-  country: string;
-  neighborhood: string;
-}): Promise<FormState> {
-  // Validação opcional usando Zod
+
+export async function registerUser(form: any): Promise<FormState> {
   const RegisterSchema = z.object({
     churchId: z.string(),
     name: z.string().min(3, "Nome completo é obrigatório"),
@@ -82,6 +68,7 @@ export async function registerUser(form: {
     phoneNumber: z.string().min(10, "Telefone inválido"),
     cpf: z.string(),
     birthDate: z.string().min(1, "Data de nascimento é obrigatória"),
+    maritalStatus: z.string(),
     password: z.string().min(6, "A senha deve ter no mínimo 6 caracteres"),
     street: z.string().min(1, "Rua é obrigatória"),
     city: z.string().min(1, "Cidade é obrigatória"),
@@ -90,6 +77,7 @@ export async function registerUser(form: {
     country: z.string().min(1, "País é obrigatório"),
     neighborhood: z.string().min(1, "Bairro é obrigatório"),
   });
+
   const parsed = RegisterSchema.safeParse(form);
   if (!parsed.success) {
     return {
@@ -99,11 +87,30 @@ export async function registerUser(form: {
     };
   }
 
-  const { street, city, state, zipCode, country, neighborhood, ...rest } =
-    parsed.data;
+  // Formatar birthDate para padrão ISO completo
+  let birthDate = parsed.data.birthDate;
+  if (!birthDate.includes("T")) {
+    birthDate += "T00:00:00.000Z";
+  }
+
   const payload = {
-    ...rest,
-    address: { street, city, state, zipCode, country, neighborhood },
+    churchId: Number(parsed.data.churchId),
+    name: parsed.data.name,
+    email: parsed.data.email,
+    phoneNumber: parsed.data.phoneNumber,
+    cpf: parsed.data.cpf,
+    birthDate,
+    maritalStatus: parsed.data.maritalStatus,
+    password: parsed.data.password,
+    address: {
+      // Pode omitir "id", mas se precisar, envie id: 0,
+      street: parsed.data.street,
+      city: parsed.data.city,
+      state: parsed.data.state,
+      zipCode: parsed.data.zipCode,
+      country: parsed.data.country,
+      neighborhood: parsed.data.neighborhood,
+    },
   };
 
   try {
@@ -135,7 +142,6 @@ export async function registerUser(form: {
     };
   }
 }
-
 // VALIDAR DATA DE NASCIMENTO
 export async function validateBirthDate({
   identifier,

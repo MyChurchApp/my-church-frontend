@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { StepContainer, SubmitButton } from "./ui-components";
 import { brazilianStates } from "@/app/utils/UFs/uf";
+import { useState } from "react";
 
 // STEP 1: Identificação
 interface Step1Props {
@@ -20,6 +21,29 @@ interface Step1Props {
   churchId: string;
   loading?: boolean;
 }
+
+interface Step2Props {
+  onSubmit: (values: { birthDate: string }) => void;
+  state: any;
+  identifier: string;
+  loading: boolean;
+}
+
+interface Step3Props {
+  onSubmit: (values: { password: string }) => void;
+  state: any | null;
+  activationHash: string;
+  loading?: boolean;
+}
+
+interface StepRegisterProps {
+  onSubmit: (values: Record<string, string>) => void;
+  state: any | null;
+  churchId: string;
+  cpf: string;
+  loading?: boolean;
+}
+
 export const Step1_Identify = ({
   onSubmit,
   state,
@@ -67,12 +91,6 @@ export const Step1_Identify = ({
 };
 
 // STEP 2: Validação da data de nascimento
-interface Step2Props {
-  onSubmit: (values: { birthDate: string }) => void;
-  state: any;
-  identifier: string;
-  loading: boolean;
-}
 
 export const Step2_Validate = ({
   onSubmit,
@@ -108,12 +126,7 @@ export const Step2_Validate = ({
 };
 
 // STEP 3: Criação de senha
-interface Step3Props {
-  onSubmit: (values: { password: string }) => void;
-  state: any | null;
-  activationHash: string;
-  loading?: boolean;
-}
+
 export const Step3_Password = ({
   onSubmit,
   state,
@@ -169,32 +182,33 @@ export const Step4_Success = () => (
 );
 
 // STEP Register (cadastro completo quando não encontra)
-interface StepRegisterProps {
-  onSubmit: (values: Record<string, string>) => void;
-  state: any | null;
-  churchId: string;
-  cpf: string;
-  loading?: boolean;
-}
+
 const labelClasses = "block text-base font-semibold text-slate-700 mb-2";
 const inputClasses =
   "w-full p-3 text-lg text-slate-800 border-2 border-slate-300 rounded-md shadow-sm transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 overflow-hidden text-ellipsis whitespace-nowrap";
 
-export const Step_Register = ({
+export function Step_Register({
   onSubmit,
   state,
   churchId,
-  cpf,
   loading,
-}: StepRegisterProps) => {
+}: {
+  onSubmit: (values: Record<string, string>) => void;
+  state: any;
+  churchId: string;
+  loading: boolean;
+}) {
+  const [maritalStatus, setMaritalStatus] = useState("Solteiro");
+
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
-    // Converte para objeto plano para enviar ao service
     const values: Record<string, string> = {};
     form.forEach((value, key) => {
       values[key] = String(value);
     });
+    values.maritalStatus = maritalStatus;
+    values.churchId = churchId;
     onSubmit(values);
   }
 
@@ -204,12 +218,11 @@ export const Step_Register = ({
         Não localizamos seu cadastro. Por favor, preencha seus dados para se
         tornar um membro.
       </p>
-
       <form
         onSubmit={handleSubmit}
         className="space-y-8 max-h-[60vh] overflow-y-auto pr-2"
       >
-        {/* --- Seção 1: Dados Pessoais --- */}
+        {/* Dados Pessoais */}
         <section className="space-y-6">
           <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-700 border-b pb-2">
             <User size={20} className="text-blue-600" />
@@ -236,9 +249,8 @@ export const Step_Register = ({
                 id="cpf"
                 type="text"
                 name="cpf"
-                value={cpf}
-                readOnly
-                className={`${inputClasses} bg-slate-100 cursor-not-allowed`}
+                className={inputClasses}
+                required
               />
             </div>
             <div>
@@ -254,8 +266,27 @@ export const Step_Register = ({
               />
             </div>
           </div>
+          <div>
+            <label htmlFor="maritalStatus" className={labelClasses}>
+              Estado Civil
+            </label>
+            <select
+              id="maritalStatus"
+              name="maritalStatus"
+              value={maritalStatus}
+              className={inputClasses}
+              onChange={(e) => setMaritalStatus(e.target.value)}
+            >
+              <option value="Solteiro">Solteiro</option>
+              <option value="Casado">Casado</option>
+              <option value="Divorciado">Divorciado</option>
+              <option value="Viúvo">Viúvo</option>
+              <option value="Outro">Outro</option>
+            </select>
+          </div>
         </section>
-        {/* --- Seção 2: Contato --- */}
+
+        {/* Contato */}
         <section className="space-y-6">
           <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-700 border-b pb-2">
             <Mail size={20} className="text-blue-600" />
@@ -288,7 +319,8 @@ export const Step_Register = ({
             </div>
           </div>
         </section>
-        {/* --- Seção 3: Endereço --- */}
+
+        {/* Endereço */}
         <section className="space-y-6">
           <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-700 border-b pb-2">
             <Home size={20} className="text-blue-600" />
@@ -356,7 +388,8 @@ export const Step_Register = ({
             </div>
           </div>
         </section>
-        {/* --- Seção 4: Segurança --- */}
+
+        {/* Segurança */}
         <section className="space-y-6">
           <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-700 border-b pb-2">
             <Lock size={20} className="text-blue-600" />
@@ -375,14 +408,36 @@ export const Step_Register = ({
             />
           </div>
         </section>
+
         <div className="pt-6">
-          <SubmitButton
-            label="Finalizar meu Cadastro"
+          <button
+            type="submit"
             className="w-full text-lg font-bold py-4 px-6 rounded-lg text-white shadow-lg
-                       bg-[linear-gradient(45deg,rgba(30,64,175,.95),rgba(59,130,246,.95))]
-                       hover:brightness-110 transform hover:-translate-y-1 transition-all duration-300"
+                bg-[linear-gradient(45deg,rgba(30,64,175,.95),rgba(59,130,246,.95))]
+                hover:brightness-110 transform hover:-translate-y-1 transition-all duration-300"
             disabled={loading}
-          />
+          >
+            {loading ? (
+              <svg className="animate-spin h-5 w-5 mx-auto" viewBox="0 0 24 24">
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                  fill="none"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                />
+              </svg>
+            ) : (
+              "Finalizar meu Cadastro"
+            )}
+          </button>
         </div>
         {state?.status === "error" && (
           <p className="error-message text-center p-4">{state.message}</p>
@@ -390,4 +445,4 @@ export const Step_Register = ({
       </form>
     </StepContainer>
   );
-};
+}
