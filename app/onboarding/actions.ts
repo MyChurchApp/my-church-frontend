@@ -1,7 +1,6 @@
-"use server";
-
 import { z } from "zod";
 
+// (Opcional) Interface para o retorno
 export interface FormState {
   status:
     | "idle"
@@ -21,29 +20,20 @@ export interface FormState {
 
 const API_BASE_URL = "https://demoapp.top1soft.com.br/api/Onboarding";
 
-// Função utilitária para sempre retornar um JSON
-const toJson = (data: any, status = 200) => {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
-};
-
 // IDENTIFICAR MEMBRO
-export async function identifyMember(
-  prevState: FormState,
-  formData: FormData
-): Promise<FormState> {
-  const identifier = formData.get("identifier") as string;
-  const churchId = formData.get("churchId") as string;
-
+export async function identifyMember({
+  identifier,
+  churchId,
+}: {
+  identifier: string;
+  churchId: string;
+}): Promise<FormState> {
   try {
     const response = await fetch(`${API_BASE_URL}/identify`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ identifier, churchId }),
     });
-
     const data = await response.json();
 
     if (response.ok && data.status !== "NotFound" && data.maskedName) {
@@ -59,7 +49,7 @@ export async function identifyMember(
         data: { identifier },
       };
     }
-  } catch (error) {
+  } catch {
     return {
       status: "error",
       message: "Falha na conexão.",
@@ -69,12 +59,24 @@ export async function identifyMember(
 }
 
 // REGISTRAR USUÁRIO
-export async function registerUser(
-  prevState: FormState,
-  formData: FormData
-): Promise<FormState> {
+export async function registerUser(form: {
+  churchId: string;
+  name: string;
+  email: string;
+  phoneNumber: string;
+  cpf: string;
+  birthDate: string;
+  password: string;
+  street: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  country: string;
+  neighborhood: string;
+}): Promise<FormState> {
+  // Validação opcional usando Zod
   const RegisterSchema = z.object({
-    churchId: z.string().transform(Number),
+    churchId: z.string(),
     name: z.string().min(3, "Nome completo é obrigatório"),
     email: z.string().email("Email inválido"),
     phoneNumber: z.string().min(10, "Telefone inválido"),
@@ -88,9 +90,7 @@ export async function registerUser(
     country: z.string().min(1, "País é obrigatório"),
     neighborhood: z.string().min(1, "Bairro é obrigatório"),
   });
-
-  const parsed = RegisterSchema.safeParse(Object.fromEntries(formData));
-
+  const parsed = RegisterSchema.safeParse(form);
   if (!parsed.success) {
     return {
       status: "error",
@@ -99,14 +99,14 @@ export async function registerUser(
     };
   }
 
-  try {
-    const { street, city, state, zipCode, country, neighborhood, ...rest } =
-      parsed.data;
-    const payload = {
-      ...rest,
-      address: { street, city, state, zipCode, country, neighborhood },
-    };
+  const { street, city, state, zipCode, country, neighborhood, ...rest } =
+    parsed.data;
+  const payload = {
+    ...rest,
+    address: { street, city, state, zipCode, country, neighborhood },
+  };
 
+  try {
     const response = await fetch(`${API_BASE_URL}/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -127,7 +127,7 @@ export async function registerUser(
         data: {},
       };
     }
-  } catch (error) {
+  } catch {
     return {
       status: "error",
       message: "Falha na conexão.",
@@ -137,43 +137,28 @@ export async function registerUser(
 }
 
 // VALIDAR DATA DE NASCIMENTO
-export async function validateBirthDate(
-  prevState: FormState,
-  formData: FormData
-): Promise<FormState> {
-  const schema = z.object({
-    maskedName: z.string().min(1),
-    birthDate: z.string().min(1, "Data de nascimento é obrigatória"),
-  });
-
-  const parsed = schema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) {
-    return {
-      status: "error",
-      message: "Dados inválidos.",
-      data: {},
-    };
-  }
-
+export async function validateBirthDate({
+  identifier,
+  birthDate,
+}: {
+  identifier: string;
+  birthDate: string;
+}) {
   try {
-    const response = await fetch(`${API_BASE_URL}/activate/validate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        identifier: parsed.data.maskedName,
-        birthDate: parsed.data.birthDate,
-      }),
-    });
-
+    const response = await fetch(
+      "https://demoapp.top1soft.com.br/api/Onboarding/activate/validate",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier, birthDate }),
+      }
+    );
     const data = await response.json();
-
     if (response.ok) {
       return {
         status: "success_validated",
         message: "",
-        data: {
-          activationHash: data.hash ?? "",
-        },
+        data: { activationHash: data.hash ?? "" },
       };
     } else {
       return {
@@ -192,31 +177,20 @@ export async function validateBirthDate(
 }
 
 // CRIAR SENHA
-export async function createPassword(
-  prevState: FormState,
-  formData: FormData
-): Promise<FormState> {
-  const schema = z.object({
-    password: z.string().min(6, "A senha deve ter no mínimo 6 caracteres."),
-    activationHash: z.string().min(1),
-  });
-
-  const parsed = schema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) {
-    return {
-      status: "error",
-      message: parsed.error.issues[0].message,
-      data: {},
-    };
-  }
-
+export async function createPassword({
+  password,
+  activationHash,
+}: {
+  password: string;
+  activationHash: string;
+}): Promise<FormState> {
   try {
     const response = await fetch(
-      `${API_BASE_URL}/activate/password/${parsed.data.activationHash}`,
+      `${API_BASE_URL}/activate/password/${activationHash}`,
       {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: parsed.data.password }),
+        body: JSON.stringify({ password }),
       }
     );
 
@@ -233,7 +207,7 @@ export async function createPassword(
         data: {},
       };
     }
-  } catch (error) {
+  } catch {
     return {
       status: "error",
       message: "Falha na conexão. Tente novamente.",

@@ -1,14 +1,7 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import {
-  createPassword,
-  identifyMember,
-  registerUser,
-  validateBirthDate,
-  type FormState,
-} from "@/app/onboarding/actions";
+import { useState } from "react";
+
 import { ProgressIndicator } from "./ui-components";
 import {
   Step1_Identify,
@@ -17,95 +10,95 @@ import {
   Step3_Password,
   Step4_Success,
 } from "./onboarding-steps";
-
-const initialState: FormState = {
-  status: "idle",
-  message: "",
-  data: {},
-};
+import {
+  createPassword,
+  identifyMember,
+  registerUser,
+  validateBirthDate,
+} from "@/app/onboarding/actions";
 
 export function OnboardingForm({ churchId }: { churchId: string }) {
   const [step, setStep] = useState<
     "identify" | "register" | "validate" | "password" | "success"
   >("identify");
-  const [contextData, setContextData] = useState<{
-    identifier: string;
-    maskedName: string;
-    activationHash: string;
-  }>({
+  const [contextData, setContextData] = useState({
     identifier: "",
     maskedName: "",
     activationHash: "",
   });
 
-  const [identifyState, identifyAction] = useActionState(
-    identifyMember,
-    initialState
-  );
-  const [registerState, registerAction] = useActionState(
-    registerUser,
-    initialState
-  );
-  const [validateState, validateAction] = useActionState(
-    validateBirthDate,
-    initialState
-  );
-  const [passwordState, passwordAction] = useActionState(
-    createPassword,
-    initialState
-  );
+  const [loading, setLoading] = useState(false);
+  const [identifyState, setIdentifyState] = useState<any | null>(null);
+  const [registerState, setRegisterState] = useState<any | null>(null);
+  const [validateState, setValidateState] = useState<any | null>(null);
+  const [passwordState, setPasswordState] = useState<any | null>(null);
 
-  useEffect(() => {
-    if (
-      identifyState.status === "success_found" &&
-      identifyState.data &&
-      identifyState.data.maskedName
-    ) {
+  // 1. Identificar membro
+  async function handleIdentify(values: { identifier: string }) {
+    setLoading(true);
+    const res = await identifyMember({
+      identifier: values.identifier,
+      churchId,
+    });
+    setIdentifyState(res);
+    setLoading(false);
+
+    if (res.status === "success_found" && res.data?.maskedName) {
       setContextData((prev) => ({
         ...prev,
-        maskedName: identifyState.data.maskedName || "",
+        identifier: values.identifier,
+        maskedName: res.data.maskedName ?? "",
       }));
       setStep("validate");
-    }
-    if (
-      identifyState.status === "success_not_found" &&
-      identifyState.data &&
-      identifyState.data.identifier
-    ) {
+    } else if (res.status === "success_not_found" && res.data?.identifier) {
       setContextData((prev) => ({
         ...prev,
-        identifier: identifyState.data.identifier || "",
+        identifier: res.data.identifier ?? "",
       }));
       setStep("register");
     }
-  }, [identifyState]);
+  }
 
-  useEffect(() => {
-    if (registerState.status === "success_registered") {
-      setStep("success");
-    }
-  }, [registerState]);
+  // 2. Cadastro completo
+  async function handleRegister(form: any) {
+    setLoading(true);
+    const res = await registerUser(form);
+    setRegisterState(res);
+    setLoading(false);
+    if (res.status === "success_registered") setStep("success");
+  }
 
-  useEffect(() => {
-    if (
-      validateState.status === "success_validated" &&
-      validateState.data &&
-      validateState.data.activationHash
-    ) {
+  // 3. Validar nascimento
+  async function handleValidate(values: { birthDate: string }) {
+    setLoading(true);
+    const res = await validateBirthDate({
+      identifier: contextData.identifier,
+      birthDate: values.birthDate,
+    });
+    setValidateState(res);
+    setLoading(false);
+    if (res.status === "success_validated" && res.data?.activationHash) {
       setContextData((prev) => ({
         ...prev,
-        activationHash: validateState.data.activationHash || "",
+        activationHash: res.data.activationHash ?? "",
       }));
       setStep("password");
     }
-  }, [validateState]);
+  }
 
-  useEffect(() => {
-    if (passwordState.status === "success_password_set") {
-      setStep("success");
-    }
-  }, [passwordState]);
+  // 4. Senha
+  async function handlePassword(values: { password: string }) {
+    setLoading(true);
+    const res = await createPassword({
+      activationHash: contextData.activationHash,
+      password: values.password,
+    });
+    setPasswordState(res);
+    setLoading(false);
+    if (res.status === "success_password_set") setStep("success");
+  }
 
+  // Progresso
   const stepFlows: Record<string, { current: number; total: number }> = {
     identify: { current: 1, total: 2 },
     register: { current: 2, total: 2 },
@@ -124,46 +117,41 @@ export function OnboardingForm({ churchId }: { churchId: string }) {
             totalSteps={progress.total}
           />
         )}
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={step}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
-          >
-            {step === "identify" && (
-              <Step1_Identify
-                action={identifyAction}
-                state={identifyState}
-                churchId={churchId}
-              />
-            )}
-            {step === "register" && (
-              <Step_Register
-                action={registerAction}
-                state={registerState}
-                churchId={churchId}
-                cpf={contextData.identifier}
-              />
-            )}
-            {step === "validate" && (
-              <Step2_Validate
-                action={validateAction}
-                state={validateState}
-                maskedName={contextData.maskedName}
-              />
-            )}
-            {step === "password" && (
-              <Step3_Password
-                action={passwordAction}
-                state={passwordState}
-                activationHash={contextData.activationHash}
-              />
-            )}
-            {step === "success" && <Step4_Success />}
-          </motion.div>
-        </AnimatePresence>
+        {/* Render Step */}
+        {step === "identify" && (
+          <Step1_Identify
+            onSubmit={handleIdentify}
+            state={identifyState}
+            churchId={churchId}
+            loading={loading}
+          />
+        )}
+        {step === "register" && (
+          <Step_Register
+            onSubmit={handleRegister}
+            state={registerState}
+            churchId={churchId}
+            cpf={contextData.identifier}
+            loading={loading}
+          />
+        )}
+        {step === "validate" && (
+          <Step2_Validate
+            onSubmit={handleValidate}
+            state={validateState}
+            identifier={contextData.identifier}
+            loading={loading}
+          />
+        )}
+        {step === "password" && (
+          <Step3_Password
+            onSubmit={handlePassword}
+            state={passwordState}
+            activationHash={contextData.activationHash}
+            loading={loading}
+          />
+        )}
+        {step === "success" && <Step4_Success />}
       </div>
     </div>
   );

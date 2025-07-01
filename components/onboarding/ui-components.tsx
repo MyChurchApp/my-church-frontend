@@ -45,9 +45,11 @@ export const StepContainer = ({
 export const SubmitButton = ({
   label,
   className,
+  disabled,
 }: {
   label: string;
   className?: string;
+  disabled?: boolean;
 }) => {
   const { pending } = useFormStatus();
 
@@ -58,7 +60,7 @@ export const SubmitButton = ({
     <button
       type="submit"
       className={`${defaultClasses} ${className || "button-primary"}`.trim()}
-      disabled={pending}
+      disabled={pending || disabled}
     >
       {pending ? <Loader2 className="animate-spin" /> : label}
     </button>
