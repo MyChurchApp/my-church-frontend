@@ -24,9 +24,10 @@ export interface ChangePlanResponse {
 export const getAvailablePlans = async (): Promise<Plan[]> => {
   const url = `${API_BASE_URL}/api/Plan`;
   try {
-    // Usando sua função authFetchJson para a requisição GET
-    const plans = await authFetchJson(url, { method: "GET" });
-    return plans as Plan[]; // Fazendo a conversão de tipo para garantir a tipagem
+    const response = await fetch(url, { method: "GET" });
+    if (!response.ok) throw new Error("Erro na resposta da API");
+    const plans = await response.json();
+    return plans as Plan[];
   } catch (error) {
     console.error("Erro ao buscar planos disponíveis:", error);
     throw new Error("Não foi possível carregar os planos. Tente novamente.");

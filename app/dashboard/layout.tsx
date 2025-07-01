@@ -2,11 +2,12 @@
 
 import React, { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { getToken, getChurchInfo, getUser } from "@/lib/auth-utils";
+import { getToken, getUser } from "@/lib/auth-utils";
 import clsx from "clsx";
 import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
 import SidebarMenu from "@/components/sidebar/SidebarMenu";
+import { ChurchProvider, useChurch } from "@/contexts/Church/ChurchContext";
 
 const useLocalStorage = (key: string, initialValue: boolean) => {
   const [storedValue, setStoredValue] = useState(() => {
@@ -88,7 +89,6 @@ export const DashboardHeader = ({ user, onMenuClick }: any) => {
   const router = useRouter();
 
   useEffect(() => {
-    // Verificar se o usuário é admin
     const user = getUser();
     if (!user || user.accessLevel !== "admin") {
       router.push("/dashboard");
@@ -144,16 +144,11 @@ export const DashboardHeader = ({ user, onMenuClick }: any) => {
   );
 };
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const router = useRouter();
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [user, setUser] = useState<any>(null);
-  const [church, setChurch] = useState<any>(null);
+function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
+  const { push } = useRouter();
+
+  const { churchData, isLoading: isChurchLoading } = useChurch();
+  const user = getUser();
 
   const [isCollapsed, setIsCollapsed] = useLocalStorage(
     "sidebar-collapsed",
@@ -162,59 +157,29 @@ export default function DashboardLayout({
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   useEffect(() => {
-    const initializeDashboard = () => {
-      try {
-        const token = getToken();
-        if (!token) {
-          router.push("/login");
-          return;
-        }
+    if (!getToken() || !user) {
+      push("/login");
+    }
+  }, [user, push]);
 
-        const userData = getUser();
-        const churchData = getChurchInfo();
-
-        if (!userData) {
-          setError("Sessão inválida ou dados do usuário não encontrados.");
-          router.push("/login");
-          return;
-        }
-
-        setUser(userData);
-        setChurch(churchData);
-      } catch (err) {
-        const errorMessage =
-          err instanceof Error ? err.message : "Ocorreu um erro";
-        console.error("❌ Erro ao inicializar dashboard:", errorMessage);
-        setError(
-          "Erro ao inicializar dashboard. Tente fazer o login novamente."
-        );
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    initializeDashboard();
-  }, [router]);
-  if (isLoading) {
+  if (isChurchLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Carregando...</p>
+          <p className="text-gray-600">Carregando dados da igreja...</p>
         </div>
       </div>
     );
   }
 
-  if (error || !user) {
+  if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center p-8 bg-white shadow-md rounded-lg">
-          <p className="text-red-600 mb-4 font-semibold">
-            {error || "Erro ao carregar dados"}
-          </p>
+          <p className="text-red-600 mb-4 font-semibold">Sessão inválida.</p>
           <button
-            onClick={() => router.push("/login")}
+            onClick={() => push("/login")}
             className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
           >
             Voltar ao Login
@@ -224,13 +189,11 @@ export default function DashboardLayout({
     );
   }
 
-  const mainContentClass = "";
-
   return (
-    <div className="min-h-screen">
+    <>
       <SidebarMenu
         user={user}
-        church={church}
+        church={churchData}
         isCollapsed={isCollapsed}
         setIsCollapsed={setIsCollapsed}
         isMobileOpen={isMobileOpen}
@@ -246,8 +209,22 @@ export default function DashboardLayout({
           user={user}
           onMenuClick={() => setIsMobileOpen(true)}
         />
-        <main className="">{children}</main>
+        <main className="flex-1 overflow-y-auto bg-gray-50 p-6">
+          {children}
+        </main>
       </div>
-    </div>
+    </>
+  );
+}
+
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <ChurchProvider>
+      <DashboardLayoutContent>{children}</DashboardLayoutContent>
+    </ChurchProvider>
   );
 }

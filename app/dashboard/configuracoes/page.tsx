@@ -81,16 +81,11 @@ export default function ConfiguracoesPage() {
     }
   };
 
-  // 2. Adicionar estado para controlar o modal
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
 
-  // ... (toda a sua lógica existente: useEffect, loadData, handleSave, etc.)
-
-  // Função que será chamada pelo modal após uma alteração bem-sucedida
   const handlePlanSuccessfullyChanged = () => {
-    // Você pode adicionar uma notificação de sucesso aqui (usando react-hot-toast, por exemplo)
     console.log("Plano alterado com sucesso! Recarregando dados...");
-    loadData(); // Recarrega os dados da igreja para exibir o novo plano
+    loadData();
   };
 
   const handleSaveChurchData = async () => {

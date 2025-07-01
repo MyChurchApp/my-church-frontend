@@ -74,12 +74,11 @@ export function DashboardDesktop() {
     if (!member.birthDate) return "Informação de aniversário indisponível";
 
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // Normaliza hora
+    today.setHours(0, 0, 0, 0);
 
     const birthDate = new Date(member.birthDate);
-    birthDate.setHours(0, 0, 0, 0); // Normaliza hora
+    birthDate.setHours(0, 0, 0, 0);
 
-    // Próximo aniversário
     let nextBirthday = new Date(
       today.getFullYear(),
       birthDate.getMonth(),
@@ -100,21 +99,18 @@ export function DashboardDesktop() {
       birthDate.getDate()
     );
 
-    // Calcula diferença de dias
     const msInDay = 1000 * 60 * 60 * 24;
     const diffDays = Math.round(
       (birthdayThisYear.getTime() - today.getTime()) / msInDay
     );
 
-    // Pega o início e fim da semana (segunda a domingo)
-    const weekDay = today.getDay() || 7; // 1=segunda, 7=domingo
+    const weekDay = today.getDay() || 7;
     const weekStart = new Date(today);
     weekStart.setDate(today.getDate() - (weekDay - 1));
     weekStart.setHours(0, 0, 0, 0);
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekStart.getDate() + 6);
 
-    // O aniversário desse ano foi essa semana?
     if (birthdayThisYear >= weekStart && birthdayThisYear <= weekEnd) {
       if (diffDays === 0)
         return `🎉 HOJE É ANIVERSÁRIO! Fazendo ${
@@ -134,7 +130,6 @@ export function DashboardDesktop() {
         } anos)`;
     }
 
-    // Fora da semana, não mostra nada
     return null;
   };
 

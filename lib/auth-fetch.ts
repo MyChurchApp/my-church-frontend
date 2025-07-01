@@ -1,6 +1,3 @@
-// Função utilitária para fazer requisições autenticadas padronizadas
-// ✅ GARANTIA TOTAL de "Bearer " (com espaço) em TODAS as requisições
-
 import { getToken } from "./auth-utils";
 
 interface AuthFetchOptions extends RequestInit {
@@ -8,10 +5,6 @@ interface AuthFetchOptions extends RequestInit {
   skipAutoLogout?: boolean;
 }
 
-/**
- * Função para fazer requisições autenticadas
- * GARANTINDO formato correto: "Bearer TOKEN"
- */
 export async function authFetch(
   url: string,
   options: AuthFetchOptions = {}
@@ -24,7 +17,6 @@ export async function authFetch(
     ...((fetchOptions.headers as Record<string, string>) || {}),
   };
 
-  // Adicionar token de autenticação se não for skipAuth
   if (!skipAuth) {
     const token = getToken();
     if (!token) {
@@ -32,18 +24,11 @@ export async function authFetch(
       throw new Error("Token de autenticação não encontrado");
     }
 
-    // ✅ GARANTIR formato correto: "Bearer TOKEN" (com espaço obrigatório)
     let authHeader: string;
-
-    // Limpar o token de espaços extras
     const cleanToken = token.trim();
-
-    // Verificar se já tem "Bearer " no início (case insensitive)
     if (cleanToken.toLowerCase().startsWith("bearer ")) {
-      // Se já tem "Bearer ", usar como está
       authHeader = cleanToken;
     } else {
-      // Se não tem "Bearer ", adicionar "Bearer " + espaço + token
       authHeader = `Bearer ${cleanToken}`;
     }
 
@@ -56,7 +41,6 @@ export async function authFetch(
       headers,
     });
 
-    // O interceptor global já cuida do 401
     return response;
   } catch (error) {
     console.error("🚨 [authFetch] Erro na requisição:", error);
@@ -64,9 +48,6 @@ export async function authFetch(
   }
 }
 
-/**
- * ✅ Fazer requisição JSON autenticada
- */
 export async function authFetchJson(
   url: string,
   options: AuthFetchOptions = {}
@@ -99,12 +80,10 @@ export async function authFetchJson(
       throw new Error(`Erro na API: ${response.status} - ${errorText}`);
     }
 
-    // Se for 204 (No Content), retorna null
     if (response.status === 204) {
       return null;
     }
 
-    // Processar resposta baseada no content-type
     const contentType = response.headers.get("content-type");
 
     if (contentType && contentType.includes("text/plain")) {
@@ -125,7 +104,6 @@ export async function authFetchJson(
       return data;
     }
 
-    // Fallback para texto
     const text = await response.text();
 
     return text;
@@ -135,5 +113,4 @@ export async function authFetchJson(
   }
 }
 
-// Exportação padrão para compatibilidade
 export default authFetch;
