@@ -3,39 +3,53 @@
 import React, { useState, useEffect, Suspense, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, BookOpen, WifiOff, AlertTriangle, Zap } from "lucide-react";
+import {
+  Loader2,
+  BookOpen,
+  WifiOff,
+  AlertTriangle,
+  Zap,
+  Music,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-
-// Importando os services necessários
-import { worshipService } from "@/services/worship/worship";
-import { bibleService, type BibleVerse } from "@/services/biblia/biblia";
-
+import {
+  worshipService,
+  bibleService, // Importando o bibleService
+  hymnService, // Importando o hymnService
+  type BibleVerse,
+  type Hymn,
+} from "@/services/worship/worship";
 import { useSignalRForWorship } from "@/hooks/useSignalRForWorship";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 
-// --- Estilos CSS embutidos para o destaque ---
+// --- Estilos ---
 const styles = `
   .highlighted-verse {
-    background-color: rgba(250, 204, 21, 0.2); /* Amarelo bem suave */
-    color: #1f2937; /* Cor de texto um pouco mais escura */
+    background-color: rgba(250, 204, 21, 0.2);
+    color: #1f2937;
     padding: 12px 8px;
     margin: 4px -8px;
     border-radius: 8px;
-    border-left: 4px solid #facc15; /* Borda amarela mais forte */
+    border-left: 4px solid #facc15;
     transform: scale(1.01);
     transition: all 0.4s ease-in-out;
   }
 `;
 
-// --- Estrutura de dados para a leitura ao vivo ---
+// --- Tipos de Estado ---
+type DisplayMode = "bible" | "hymn" | "waiting";
+
 interface LiveReadingState {
   bookName: string;
   chapterNumber: number;
   highlightedVerseId: number;
-  chapterVerses: BibleVerse[];
+  verses: BibleVerse[];
 }
 
-// --- Componente de Exibição Principal ---
+// ===================================================================
+//   COMPONENTES DE EXIBIÇÃO
+// ===================================================================
+
 const LiveReadingDisplay = ({
   readingState,
 }: {
@@ -44,29 +58,25 @@ const LiveReadingDisplay = ({
   const highlightedVerseRef = useRef<HTMLParagraphElement>(null);
 
   useEffect(() => {
-    // Rola suavemente para o versículo destacado quando ele muda
     highlightedVerseRef.current?.scrollIntoView({
       behavior: "smooth",
       block: "center",
     });
   }, [readingState.highlightedVerseId]);
 
-  const { bookName, chapterNumber, highlightedVerseId, chapterVerses } =
-    readingState;
-
   return (
     <motion.div
-      key={chapterNumber}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="w-full max-w-4xl h-[70vh] flex flex-col p-6 md:p-8 bg-white rounded-2xl shadow-2xl border"
+      key="bible-display"
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="w-full max-w-4xl h-[75vh] flex flex-col p-6 md:p-8 bg-white rounded-2xl shadow-2xl border"
     >
       <h1 className="text-3xl md:text-5xl font-bold mb-6 text-center text-gray-800 sticky top-0 bg-white pb-4 z-10">
-        {bookName} {chapterNumber}
+        {readingState.bookName} {readingState.chapterNumber}
       </h1>
       <div className="overflow-y-auto pr-4 space-y-4">
-        {chapterVerses.map((verse) => {
-          const isHighlighted = verse.id === highlightedVerseId;
+        {readingState.verses.map((verse) => {
+          const isHighlighted = verse.id === readingState.highlightedVerseId;
           return (
             <p
               key={verse.id}
@@ -87,15 +97,53 @@ const LiveReadingDisplay = ({
   );
 };
 
-// --- Componentes de Estado da Página (Aguardando, Erro, etc.) ---
+const LiveHymnDisplay = ({ hymn }: { hymn: Hymn }) => {
+  const formatText = (text: string | null) => {
+    if (!text) return null;
+    return text.split("<br>").map((line, index) => (
+      <React.Fragment key={index}>
+        {line.trim()}
+        <br />
+      </React.Fragment>
+    ));
+  };
+
+  return (
+    <motion.div
+      key="hymn-display"
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="w-full max-w-4xl h-[75vh] flex flex-col p-6 md:p-8 bg-white rounded-2xl shadow-2xl border"
+    >
+      <h1 className="text-3xl md:text-5xl font-bold mb-6 text-center text-gray-800 sticky top-0 bg-white pb-4 z-10">
+        {hymn.title}
+      </h1>
+      <div className="overflow-y-auto pr-4 space-y-4">
+        {hymn.chorus && (
+          <div className="mb-4 italic bg-yellow-50 p-3 rounded-md">
+            <h4 className="font-semibold mb-1 not-italic">Coro</h4>
+            <p className="text-gray-700">{formatText(hymn.chorus)}</p>
+          </div>
+        )}
+        <div className="space-y-4">
+          {hymn.verses.map((verse) => (
+            <div key={verse.number}>
+              <h4 className="font-semibold mb-1">Verso {verse.number}</h4>
+              <p className="text-gray-700">{formatText(verse.text)}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
 const WaitingDisplay = () => (
   <div className="w-full max-w-4xl p-8 bg-white rounded-2xl shadow-lg min-h-[400px] flex items-center justify-center">
     <div className="text-center text-gray-500">
       <BookOpen className="h-16 w-16 mx-auto mb-4 text-gray-400" />
       <h2 className="text-2xl font-semibold">Aguardando transmissão...</h2>
-      <p className="mt-2 text-gray-400">
-        A leitura da Bíblia aparecerá aqui em tempo real.
-      </p>
+      <p className="mt-2 text-gray-400">O conteúdo do culto aparecerá aqui.</p>
     </div>
   </div>
 );
@@ -107,7 +155,9 @@ const LoadingDisplay = ({ text }: { text: string }) => (
   </div>
 );
 
-// --- Lógica Principal da Página ---
+// ===================================================================
+//   LÓGICA PRINCIPAL DA PÁGINA
+// ===================================================================
 function AcompanharCultoContent() {
   const searchParams = useSearchParams();
   const worshipIdFromUrl = searchParams.get("worshipId");
@@ -115,8 +165,10 @@ function AcompanharCultoContent() {
     worshipIdFromUrl ? Number(worshipIdFromUrl) : null
   );
 
+  const [displayMode, setDisplayMode] = useState<DisplayMode>("waiting");
   const [liveReading, setLiveReading] = useState<LiveReadingState | null>(null);
-  const [isLoadingChapter, setIsLoadingChapter] = useState(false);
+  const [liveHymn, setLiveHymn] = useState<Hymn | null>(null);
+  const [isLoadingContent, setIsLoadingContent] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const { data: activeWorship, isLoading: isLoadingWorship } = useQuery({
@@ -127,69 +179,85 @@ function AcompanharCultoContent() {
   });
 
   useEffect(() => {
-    const idFromUrl = worshipIdFromUrl ? Number(worshipIdFromUrl) : null;
-    // Garante que o ID ativo seja null ou um número
-    setActiveWorshipId(idFromUrl ?? activeWorship?.id ?? null);
+    setActiveWorshipId(
+      worshipIdFromUrl ? Number(worshipIdFromUrl) : activeWorship?.id ?? null
+    );
   }, [activeWorship, worshipIdFromUrl]);
 
   const { isConnected } = useSignalRForWorship(activeWorshipId);
 
   useEffect(() => {
-    // Definimos a função de callback com o tipo correto
+    // ✅ LÓGICA CORRIGIDA E OTIMIZADA PARA LEITURA BÍBLICA
     const handleReadingUpdate = async (event: Event) => {
-      // Fazemos a verificação de tipo para acessar 'detail' com segurança
       if (!(event instanceof CustomEvent)) return;
+      const readingEventData = event.detail.apiData; // Pega o objeto `apiData` de dentro do evento
+      console.log("Evento 'bibleReadingUpdated' recebido:", readingEventData);
 
-      const readingData = event.detail;
-      console.log("Evento recebido:", readingData);
+      // Extrai as informações necessárias diretamente do objeto do evento
+      const { bookName, chapterNumber, chapterId, verseId } = readingEventData;
 
-      if (readingData.error || !readingData.apiData) {
-        setError(readingData.errorMessage || "Ocorreu um erro na transmissão.");
-        return;
-      }
-      setError(null);
-
-      const { chapterId, verseId, bookName, chapterNumber } =
-        readingData.apiData;
-
-      if (
-        liveReading?.chapterNumber === chapterNumber &&
-        liveReading?.bookName === bookName
-      ) {
-        setLiveReading((prev) =>
-          prev ? { ...prev, highlightedVerseId: verseId } : null
-        );
+      if (!bookName || !chapterNumber || !chapterId || !verseId) {
+        setError("Dados da transmissão da Bíblia são insuficientes.");
         return;
       }
 
       try {
-        setIsLoadingChapter(true);
-        const chapterVerses = await bibleService.getVersesByChapterId(
-          chapterId
-        );
+        setIsLoadingContent(true);
+        // Faz APENAS a chamada para buscar todos os versículos do capítulo
+        const verses = await bibleService.getVersesByChapterId(chapterId);
+
         setLiveReading({
           bookName,
           chapterNumber,
           highlightedVerseId: verseId,
-          chapterVerses,
+          verses, // Usa a lista de versículos que acabamos de buscar
         });
-      } catch (err) {
-        console.error("Erro ao buscar capítulo:", err);
-        setError("Não foi possível carregar o texto do capítulo.");
+
+        setDisplayMode("bible");
+        setError(null);
+      } catch (err: any) {
+        console.error("Erro ao buscar dados da leitura:", err);
+        setError(
+          "Não foi possível carregar o texto da leitura: " + err.message
+        );
       } finally {
-        setIsLoadingChapter(false);
+        setIsLoadingContent(false);
       }
     };
 
+    // LÓGICA PARA HINOS (já estava correta)
+    const handleHymnUpdate = (event: Event) => {
+      if (!(event instanceof CustomEvent)) return;
+      const hymnData = event.detail;
+      console.log("Evento 'HymnPresented' processado:", hymnData);
+
+      if (!hymnData || !hymnData.number || !hymnData.verses) {
+        setError("Dados do hino recebidos são inválidos.");
+        return;
+      }
+
+      setLiveHymn(hymnData as Hymn);
+      setDisplayMode("hymn");
+      setError(null);
+    };
+
     window.addEventListener("bibleReadingUpdated", handleReadingUpdate);
+    window.addEventListener("HymnPresented", handleHymnUpdate);
+
     return () => {
       window.removeEventListener("bibleReadingUpdated", handleReadingUpdate);
+      window.removeEventListener("HymnPresented", handleHymnUpdate);
     };
-  }, [liveReading]);
+  }, []);
 
   const renderContent = () => {
     if (error)
-      return <AlertTriangle className="text-red-500">{error}</AlertTriangle>;
+      return (
+        <div className="text-center text-red-500">
+          <AlertTriangle className="mx-auto h-12 w-12" />
+          <p className="mt-4">{error}</p>
+        </div>
+      );
     if (isLoadingWorship)
       return <LoadingDisplay text="Procurando culto ao vivo..." />;
     if (!activeWorshipId)
@@ -201,11 +269,25 @@ function AcompanharCultoContent() {
       );
     if (!isConnected)
       return <LoadingDisplay text="Conectando à transmissão..." />;
-    if (isLoadingChapter)
-      return <LoadingDisplay text="Carregando capítulo..." />;
-    if (liveReading) return <LiveReadingDisplay readingState={liveReading} />;
+    if (isLoadingContent)
+      return <LoadingDisplay text="Carregando conteúdo..." />;
 
-    return <WaitingDisplay />;
+    switch (displayMode) {
+      case "bible":
+        return liveReading ? (
+          <LiveReadingDisplay readingState={liveReading} />
+        ) : (
+          <WaitingDisplay />
+        );
+      case "hymn":
+        return liveHymn ? (
+          <LiveHymnDisplay hymn={liveHymn} />
+        ) : (
+          <WaitingDisplay />
+        );
+      default:
+        return <WaitingDisplay />;
+    }
   };
 
   return (
@@ -215,7 +297,9 @@ function AcompanharCultoContent() {
   );
 }
 
-// --- Componente Raiz e de Fallback ---
+// ===================================================================
+//   COMPONENTE RAIZ E DE FALLBACK
+// ===================================================================
 export default function AcompanharCultoPage() {
   return (
     <Suspense
@@ -238,22 +322,17 @@ export default function AcompanharCultoPage() {
   );
 }
 
-// Hook isolado para o Badge de conexão
 function ConnectionBadge() {
   const searchParams = useSearchParams();
   const worshipIdFromUrl = searchParams.get("worshipId");
-
   const { data: activeWorship } = useQuery({
     queryKey: ["active-worship-service"],
     queryFn: () => worshipService.findActiveWorshipService(),
     enabled: !worshipIdFromUrl,
   });
-
-  // CORREÇÃO: Garante que o worshipId seja 'number' ou 'null'
   const worshipId: number | null = worshipIdFromUrl
     ? Number(worshipIdFromUrl)
     : activeWorship?.id ?? null;
-
   const { isConnected } = useSignalRForWorship(worshipId);
 
   return (

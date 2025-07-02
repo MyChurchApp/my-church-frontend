@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   DndContext,
@@ -31,7 +31,6 @@ import {
   Loader2,
   Calendar,
   Clock,
-  Mic,
   ChevronLeft,
   ChevronRight,
   MonitorPlay,
@@ -52,26 +51,24 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 import {
   worshipService,
+  bibleService,
   type WorshipService,
   WorshipStatus,
   type WorshipScheduleItem,
-} from "@/services/worship/worship";
-import {
-  bibleService,
   type BibleVersion,
   type BibleBook,
   type BibleChapter,
   type BibleVerse,
-} from "@/services/biblia/biblia";
-import { useSignalRForWorship } from "@/hooks/useSignalRForWorship";
+} from "@/services/worship/worship";
+import { HymnManager } from "@/components/hymn/HymnManager";
 
 // ===================================================================
-//   BIBLE SELECTOR COMPONENT (COM LAYOUT AJUSTADO)
+//   1. COMPONENTE DO SELETOR BÍBLICO
 // ===================================================================
-
 function BibleSelectorForWorship({ worshipId }: { worshipId: number }) {
   const [selectedVersion, setSelectedVersion] = useState<BibleVersion | null>(
     null
@@ -81,13 +78,11 @@ function BibleSelectorForWorship({ worshipId }: { worshipId: number }) {
     null
   );
   const [selectedVerse, setSelectedVerse] = useState<BibleVerse | null>(null);
-
-  const verseListRef = useRef<HTMLDivElement>(null);
   const activeVerseRef = useRef<HTMLDivElement>(null);
 
   const { data: versions = [] } = useQuery<BibleVersion[]>({
     queryKey: ["bible-versions"],
-    queryFn: () => bibleService.getVersions(),
+    queryFn: bibleService.getVersions,
   });
   const { data: books = [] } = useQuery<BibleBook[]>({
     queryKey: ["bible-books", selectedVersion?.id],
@@ -112,8 +107,7 @@ function BibleSelectorForWorship({ worshipId }: { worshipId: number }) {
       chapterId: number;
       verseId: number;
     }) => worshipService.highlightBibleReading(worshipId, params),
-    onSuccess: () => console.log("Comando para destacar versículo enviado!"),
-    onError: (err) => alert(`Erro ao transmitir: ${err.message}`),
+    onError: (err: any) => alert(`Erro ao transmitir: ${err.message}`),
   });
 
   useEffect(() => {
@@ -139,12 +133,17 @@ function BibleSelectorForWorship({ worshipId }: { worshipId: number }) {
   };
 
   const handleNavigation = (direction: "next" | "prev") => {
-    if (!selectedVerse || verses.length === 0) return;
+    if (!selectedVerse || verses.length === 0) {
+      if (verses.length > 0) {
+        const firstVerse = verses[0];
+        setSelectedVerse(firstVerse);
+        transmitVerse(firstVerse);
+      }
+      return;
+    }
     const currentIndex = verses.findIndex((v) => v.id === selectedVerse.id);
-
     let nextIndex = direction === "next" ? currentIndex + 1 : currentIndex - 1;
     if (nextIndex < 0 || nextIndex >= verses.length) return;
-
     const newSelectedVerse = verses[nextIndex];
     setSelectedVerse(newSelectedVerse);
     transmitVerse(newSelectedVerse);
@@ -224,10 +223,7 @@ function BibleSelectorForWorship({ worshipId }: { worshipId: number }) {
         </Select>
       </div>
 
-      <div
-        ref={verseListRef}
-        className="border rounded-md p-2 bg-gray-50 h-64 overflow-y-auto space-y-1"
-      >
+      <ScrollArea className="border rounded-md p-2 bg-gray-50 h-64 space-y-1">
         {verses.length > 0 ? (
           verses.map((verse) => {
             const isSelected = selectedVerse?.id === verse.id;
@@ -249,12 +245,11 @@ function BibleSelectorForWorship({ worshipId }: { worshipId: number }) {
           })
         ) : (
           <div className="flex items-center justify-center h-full text-gray-400">
-            <p>Selecione Livro e Capítulo para ver os versículos.</p>
+            <p>Selecione Livro e Capítulo.</p>
           </div>
         )}
-      </div>
+      </ScrollArea>
 
-      {/* ============== LAYOUT CORRIGIDO AQUI ============== */}
       <div className="flex items-center justify-center gap-4">
         <Button
           variant="outline"
@@ -263,7 +258,7 @@ function BibleSelectorForWorship({ worshipId }: { worshipId: number }) {
           disabled={!canGoPrev || isBroadcasting}
         >
           <ChevronLeft className="h-5 w-5" />
-          <span className="sr-only">Versículo Anterior</span>
+          <span className="sr-only">Anterior</span>
         </Button>
         <Button
           variant="outline"
@@ -272,7 +267,7 @@ function BibleSelectorForWorship({ worshipId }: { worshipId: number }) {
           disabled={!canGoNext || isBroadcasting}
         >
           <ChevronRight className="h-5 w-5" />
-          <span className="sr-only">Próximo Versículo</span>
+          <span className="sr-only">Próximo</span>
         </Button>
       </div>
 
@@ -284,13 +279,12 @@ function BibleSelectorForWorship({ worshipId }: { worshipId: number }) {
         {isBroadcasting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
         Transmitir Versículo Selecionado
       </Button>
-      {/* ===================================================== */}
     </div>
   );
 }
 
 // ===================================================================
-//   OUTROS COMPONENTES (SEM ALTERAÇÃO)
+//   2. COMPONENTE DO GERENCIADOR DE CRONOGRAMA
 // ===================================================================
 function SortableScheduleItem({
   item,
@@ -402,9 +396,8 @@ function ScheduleManager({ worshipId }: { worshipId: number }) {
       );
   }, [worship]);
 
-  const invalidateAndRefetch = () => {
+  const invalidateAndRefetch = () =>
     queryClient.invalidateQueries({ queryKey: ["worship-service", worshipId] });
-  };
 
   const { mutate: addItem, isPending: isAdding } = useMutation({
     mutationFn: (name: string) =>
@@ -416,19 +409,19 @@ function ScheduleManager({ worshipId }: { worshipId: number }) {
       setNewItemName("");
       invalidateAndRefetch();
     },
-    onError: (err) => alert(`Erro: ${err.message}`),
+    onError: (err: any) => alert(`Erro: ${err.message}`),
   });
   const { mutate: removeItem } = useMutation({
     mutationFn: (itemId: number) =>
       worshipService.removeScheduleItem(worshipId, itemId),
     onSuccess: () => invalidateAndRefetch(),
-    onError: (err) => alert(`Erro: ${err.message}`),
+    onError: (err: any) => alert(`Erro: ${err.message}`),
   });
   const { mutate: updateItem } = useMutation({
     mutationFn: (item: WorshipScheduleItem) =>
       worshipService.updateScheduleItem(worshipId, item.id, item),
     onSuccess: () => invalidateAndRefetch(),
-    onError: (err) => alert(`Erro: ${err.message}`),
+    onError: (err: any) => alert(`Erro: ${err.message}`),
   });
 
   const handleUpdateName = (itemId: number, newName: string) => {
@@ -513,6 +506,9 @@ function ScheduleManager({ worshipId }: { worshipId: number }) {
   );
 }
 
+// ===================================================================
+//   3. COMPONENTE DO PAINEL DE CONTROLE PRINCIPAL
+// ===================================================================
 function WorshipControlPanel({
   worshipId,
   onBack,
@@ -542,7 +538,7 @@ function WorshipControlPanel({
       });
       queryClient.invalidateQueries({ queryKey: ["worship-services-list"] });
     },
-    onError: (err) => alert(`Erro: ${err.message}`),
+    onError: (err: any) => alert(`Erro: ${err.message}`),
   });
 
   if (isLoading || !worship)
@@ -554,7 +550,7 @@ function WorshipControlPanel({
   if (isError)
     return (
       <div className="p-10 text-center text-red-500">
-        Erro ao carregar dados.
+        Erro ao carregar dados do culto.
       </div>
     );
 
@@ -595,7 +591,7 @@ function WorshipControlPanel({
               onClick={() => startWorshipMutation()}
               disabled={isStarting}
             >
-              {isStarting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isStarting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{" "}
               Iniciar Culto
             </Button>
           </div>
@@ -608,6 +604,7 @@ function WorshipControlPanel({
             <TabsTrigger value="hinos">Hinos</TabsTrigger>
             <TabsTrigger value="avisos">Avisos</TabsTrigger>
           </TabsList>
+
           <TabsContent value="cronograma">
             <Card>
               <CardHeader>
@@ -652,6 +649,7 @@ function WorshipControlPanel({
               </CardContent>
             </Card>
           </TabsContent>
+
           <TabsContent value="biblia">
             <Card>
               <CardContent className="p-6">
@@ -659,11 +657,18 @@ function WorshipControlPanel({
               </CardContent>
             </Card>
           </TabsContent>
+
           <TabsContent value="hinos">
-            <p className="p-4 text-center">Em breve...</p>
+            {/* ✅ O COMPONENTE DE HINOS É USADO AQUI */}
+            <HymnManager worshipId={worship.id} />
           </TabsContent>
+
           <TabsContent value="avisos">
-            <p className="p-4 text-center">Em breve...</p>
+            <Card>
+              <CardContent className="p-6 text-center text-gray-500 min-h-[50vh] flex items-center justify-center">
+                <p>Funcionalidade de Avisos em breve...</p>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       )}
@@ -671,11 +676,15 @@ function WorshipControlPanel({
   );
 }
 
+// ===================================================================
+//   4. COMPONENTE PRINCIPAL DA PÁGINA
+// ===================================================================
 export default function GestaoCultoPage() {
   const [selectedWorshipId, setSelectedWorshipId] = useState<number | null>(
     null
   );
   const queryClient = useQueryClient();
+
   const { data, isLoading, error } = useQuery<{ items: WorshipService[] }>({
     queryKey: ["worship-services-list"],
     queryFn: () => worshipService.listWorshipServices({ pageSize: 100 }),
@@ -691,7 +700,7 @@ export default function GestaoCultoPage() {
         });
         setSelectedWorshipId(null);
       },
-      onError: (err) => alert(`Erro: ${err.message}`),
+      onError: (err: any) => alert(`Erro: ${err.message}`),
     }
   );
 
@@ -772,7 +781,7 @@ export default function GestaoCultoPage() {
                 >
                   {isFinishing && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  )}
+                  )}{" "}
                   Encerrar
                 </Button>
               )}

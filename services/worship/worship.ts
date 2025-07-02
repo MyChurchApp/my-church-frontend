@@ -68,7 +68,7 @@ interface ListWorshipServicesParams {
   Status?: WorshipStatus;
 }
 
-// --- Classe de Serviço ---
+// --- Classe de Serviço de Culto ---
 
 class WorshipServiceManager {
   /**
@@ -203,9 +203,27 @@ class WorshipServiceManager {
       }
     );
   }
+
+  // ✅ NOVO MÉTODO ADICIONADO AQUI
+  /**
+   * Apresenta um hino para todos os membros do culto.
+   */
+  async presentHymn(
+    worshipServiceId: number,
+    hymnNumber: number
+  ): Promise<void> {
+    await authFetch(
+      `${API_BASE_URL}/WorshipActivity/${worshipServiceId}/hymn/${hymnNumber}/present`,
+      {
+        method: "POST",
+      }
+    );
+  }
 }
 
 export const worshipService = new WorshipServiceManager();
+
+// --- Serviço da Bíblia (existente) ---
 
 export interface BibleVersion {
   id: number;
@@ -270,7 +288,6 @@ class BibleService {
     chapterId: number;
   }): Promise<FullReadingData> {
     try {
-      // Faz as chamadas em paralelo para otimizar
       const [versionData, bookData, versesData] = await Promise.all([
         authFetchJson(`${API_BASE_URL}/Bible/versions/${versionId}`),
         authFetchJson(`${API_BASE_URL}/Bible/books/${bookId}`),
@@ -279,7 +296,6 @@ class BibleService {
 
       const book = bookData as BibleBook;
       const version = versionData as BibleVersion;
-      // Precisamos do número do capítulo, que pode não vir no payload, então buscamos a info do capítulo
       const chapterInfo = await authFetchJson(
         `${API_BASE_URL}/Bible/chapters/${chapterId}`
       );
@@ -298,3 +314,47 @@ class BibleService {
 }
 
 export const bibleService = new BibleService();
+
+// --- 🎶 NOVA CLASSE DE SERVIÇO DE HINOS ADICIONADA AQUI 🎶 ---
+
+export interface HymnSummary {
+  number: number;
+  title: string;
+}
+
+export interface HymnVerse {
+  number: number;
+  text: string;
+}
+
+export interface Hymn {
+  id: number;
+  title: string;
+  number: number;
+  language: string;
+  chorus: string;
+  lyricsAuthor: string;
+  melodyAuthor: string;
+  verses: HymnVerse[];
+}
+
+class HymnService {
+  /**
+   * Retorna uma lista de todos os hinos com número e título.
+   */
+  async getSummaries(): Promise<HymnSummary[]> {
+    const response = await authFetchJson(`${API_BASE_URL}/Hymn/summaries`);
+    return response as HymnSummary[];
+  }
+
+  /**
+   * Busca um hino pelo número, retornando o coro e os versos.
+   * @param hymnNumber O número do hino.
+   */
+  async getHymn(hymnNumber: number): Promise<Hymn> {
+    const response = await authFetchJson(`${API_BASE_URL}/Hymn/${hymnNumber}`);
+    return response as Hymn;
+  }
+}
+
+export const hymnService = new HymnService();
