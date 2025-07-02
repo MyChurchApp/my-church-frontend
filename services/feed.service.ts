@@ -31,6 +31,7 @@ export interface FeedMember {
 }
 
 export interface FeedItem {
+  likedForMember?: any;
   id: number;
   content: string;
   memberId: number;

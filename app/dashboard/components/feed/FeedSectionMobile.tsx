@@ -63,8 +63,6 @@ interface FeedSectionProps {
   onRefresh: () => Promise<void>;
 }
 
-// Componente para renderizar uma única imagem
-// Alterado para 'object-contain' para garantir que a imagem inteira seja visível
 function PostImage({ fileName, alt }: { fileName: string; alt: string }) {
   const [url, setUrl] = useState<string | null>(null);
 
@@ -104,8 +102,6 @@ function PostImage({ fileName, alt }: { fileName: string; alt: string }) {
   return <img src={url} alt={alt} className="w-full h-full object-contain" />;
 }
 
-// Componente da Galeria de Imagens com Swiper
-// **FIX APLICADO AQUI**: Adicionado max-h-[65vh] e md:max-h-[520px] para limitar a altura
 function PostImageGallery({
   images,
   alt,
@@ -161,24 +157,13 @@ function PostImageGallery({
   );
 }
 
-// Componente de Avatar
-function Avatar({ name }: { name: string }) {
-  const getInitials = (name: string) =>
-    name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase();
-
-  return (
-    <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center flex-shrink-0">
-      <span className="font-bold text-sm text-gray-600 dark:text-gray-300">
-        {getInitials(name || "U")}
-      </span>
-    </div>
-  );
-}
+const getInitials = (name: string) =>
+  name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
 // ==================================================================
 // | COMPONENTE PRINCIPAL DO FEED - FeedSectionMobile               |
@@ -491,7 +476,21 @@ export function FeedSectionMobile({
                   <div className="flex-1 overflow-hidden">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-1 text-sm text-gray-500 dark:text-gray-400 flex-shrink min-w-0">
-                        <Avatar name={post.member?.name || "Usuário"} />
+                        <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center flex-shrink-0">
+                          <span className="font-bold text-sm text-gray-600 dark:text-gray-300">
+                            {post.member.photo ? (
+                              <img
+                                src={post.member.photo}
+                                alt={post.member.name}
+                                className="w-10 h-10 rounded-full object-cover"
+                              />
+                            ) : (
+                              <span className="font-bold text-blue-600">
+                                {getInitials(post.member.name)}
+                              </span>
+                            )}
+                          </span>
+                        </div>
                         <p className="font-bold text-base text-black dark:text-white truncate">
                           {post.member?.name || "Usuário Anônimo"}
                         </p>

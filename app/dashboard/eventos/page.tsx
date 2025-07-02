@@ -135,7 +135,8 @@ export default function EventosPage() {
   const viewMode = isMobile ? "list" : desktopViewMode;
 
   const userRole = getUser();
-  const canManageEvents = userRole === "Admin" || userRole === "Pastor";
+  const canManageEvents =
+    userRole.role === "Admin" || userRole.role === "Pastor";
 
   useEffect(() => {
     if (!isAuthenticated()) {
