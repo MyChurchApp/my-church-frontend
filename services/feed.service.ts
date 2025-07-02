@@ -111,11 +111,18 @@ export const deleteFeedPost = async (postId: number): Promise<void> => {
   if (!response.ok) throw new Error("Erro ao deletar post");
 };
 
-// Mínimo dos outros helpers para funcionar:
-export const isPostLikedByUser = (_postId: number) => false; // ajuste para produção se quiser persistir
-export const toggleLikeFeedPost = async (_postId: number) => ({
-  isLiked: true,
-});
+export const toggleLikeFeedPost = async (
+  postId: number,
+  isCurrentlyLiked: boolean
+): Promise<void> => {
+  const method = isCurrentlyLiked ? "DELETE" : "POST";
+  const response = await authFetch(`${API_BASE_URL}/Feed/${postId}/like`, {
+    method,
+  });
+  if (!response.ok && response.status !== 204) {
+    throw new Error("Erro ao atualizar like");
+  }
+};
 
 export const canEditOrDeletePost = (
   post: FeedItem,

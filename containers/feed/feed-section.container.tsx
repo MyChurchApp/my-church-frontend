@@ -7,7 +7,6 @@ import {
   updateFeedPost,
   deleteFeedPost,
   toggleLikeFeedPost,
-  isPostLikedByUser,
   type FeedItem,
   type FeedResponse,
 } from "@/services/feed.service";
@@ -24,6 +23,7 @@ export default function FeedSectionContainer() {
     Record<number, { isLiked: boolean; likesCount: number; loading: boolean }>
   >({});
 
+  // Carrega o feed
   const loadFeed = async (page = 1, append = false) => {
     try {
       if (!append) setLoading(true);
@@ -38,23 +38,19 @@ export default function FeedSectionContainer() {
       setTotalPages(feedData.totalPages);
       setHasMore(feedData.pageNumber < feedData.totalPages);
 
-      // LikeStates mock - produção precisa melhorar
+      // Prepara estados de like (carrega do backend)
       const newLikeStates: Record<
         number,
         { isLiked: boolean; likesCount: number; loading: boolean }
       > = {};
       feedData.items.forEach((item) => {
-        if (!likeStates[item.id]) {
-          newLikeStates[item.id] = {
-            isLiked: isPostLikedByUser(item.id),
-            likesCount: item.likesCount,
-            loading: false,
-          };
-        }
+        newLikeStates[item.id] = {
+          isLiked: !!item.likedForMember,
+          likesCount: item.likesCount,
+          loading: false,
+        };
       });
-      if (Object.keys(newLikeStates).length > 0) {
-        setLikeStates((prev) => ({ ...prev, ...newLikeStates }));
-      }
+      setLikeStates((prev) => ({ ...prev, ...newLikeStates }));
     } catch (error) {
       setError("Erro ao carregar feed. Tente novamente.");
       if (!append) setFeedItems([]);
@@ -68,12 +64,14 @@ export default function FeedSectionContainer() {
     // eslint-disable-next-line
   }, []);
 
+  // Cria post
   const handleCreatePost = async (content: string, imagesBase64?: string[]) => {
     const postId = await createFeedPost(content, imagesBase64);
     await loadFeed(1, false);
     return postId;
   };
 
+  // Atualiza post
   const handleUpdatePost = async (postId: number, content: string) => {
     await updateFeedPost(postId, content);
     setFeedItems((prev) =>
@@ -85,28 +83,66 @@ export default function FeedSectionContainer() {
     );
   };
 
+  // Deleta post
   const handleDeletePost = async (postId: number) => {
     await deleteFeedPost(postId);
     setFeedItems((prev) => prev.filter((item) => item.id !== postId));
   };
 
+  // Toggle Like/Unlike
   const handleLikePost = async (postId: number) => {
-    // Mínimo viável para funcionar, ajuste para sua lógica real se quiser
+    const currentState = likeStates[postId] || {
+      isLiked: false,
+      likesCount: 0,
+    };
     setLikeStates((prev) => ({
       ...prev,
       [postId]: {
-        isLiked: !prev[postId]?.isLiked,
-        likesCount:
-          (prev[postId]?.likesCount || 0) + (prev[postId]?.isLiked ? -1 : 1),
-        loading: false,
+        ...currentState,
+        loading: true,
       },
     }));
+
+    try {
+      await toggleLikeFeedPost(postId, currentState.isLiked);
+      setLikeStates((prev) => ({
+        ...prev,
+        [postId]: {
+          isLiked: !currentState.isLiked,
+          likesCount: currentState.likesCount + (currentState.isLiked ? -1 : 1),
+          loading: false,
+        },
+      }));
+
+      setFeedItems((prev) =>
+        prev.map((item) =>
+          item.id === postId
+            ? {
+                ...item,
+                likesCount: item.likesCount + (currentState.isLiked ? -1 : 1),
+                // Se quiser, pode adicionar o campo likedForMember aqui também:
+                likedForMember: !currentState.isLiked,
+              }
+            : item
+        )
+      );
+    } catch {
+      setLikeStates((prev) => ({
+        ...prev,
+        [postId]: {
+          ...currentState,
+          loading: false,
+        },
+      }));
+    }
   };
 
+  // Carregar mais
   const handleLoadMore = async () => {
     if (hasMore && !loading) await loadFeed(currentPage + 1, true);
   };
 
+  // Refresh
   const handleRefresh = async () => {
     setCurrentPage(1);
     setFeedItems([]);
