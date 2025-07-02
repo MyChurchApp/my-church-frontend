@@ -9,12 +9,29 @@ import {
   RecurrenceType,
 } from "@/services/events.service";
 
+type CalendarView = "monthly" | "weekly" | "daily";
+
+// Função para obter a visualização inicial, verificando o localStorage e o tamanho da tela
+const getInitialView = (): CalendarView => {
+  if (typeof window === "undefined") {
+    return "monthly"; // Padrão para renderização no servidor
+  }
+  const savedView = localStorage.getItem("calendarView") as CalendarView;
+  if (savedView && ["monthly", "weekly", "daily"].includes(savedView)) {
+    return savedView;
+  }
+  // Se não houver nada salvo, define 'weekly' para telas menores (mobile)
+  return window.innerWidth < 768 ? "weekly" : "monthly";
+};
+
 // Componente principal da página de eventos
 export default function EventosPage() {
   // --- STATE MANAGEMENT ---
+  const [view, setView] = useState<CalendarView>("monthly"); // Será definido no useEffect
   const [events, setEvents] = useState<CalendarEventResponse[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [loading, setLoading] = useState(true);
+  const [isInitialLoad, setIsInitialLoad] = useState(true); // Controla o carregamento inicial
   const [error, setError] = useState<string | null>(null);
 
   // --- MODAL E FORMULÁRIO STATE ---
@@ -29,41 +46,98 @@ export default function EventosPage() {
 
   // --- LÓGICA DO CALENDÁRIO ---
   const eventsByDate = useMemo(() => {
-    const map = new Map<string, CalendarEventResponse[]>();
+    const map = new Map<
+      string,
+      (CalendarEventResponse & { occurrence: { start: string; end: string } })[]
+    >();
     events.forEach((event) => {
       event.occurrences.forEach((occurrence) => {
         const dateKey = new Date(occurrence.start).toISOString().split("T")[0];
         if (!map.has(dateKey)) {
           map.set(dateKey, []);
         }
-        map.get(dateKey)?.push(event);
+        map.get(dateKey)?.push({ ...event, occurrence });
       });
     });
     return map;
   }, [events]);
 
-  const calendarGrid = useMemo(() => {
+  const dateGrid = useMemo(() => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
-    const firstDayOfMonth = new Date(year, month, 1);
-    const lastDayOfMonth = new Date(year, month + 1, 0);
-    const daysInMonth = Array.from(
-      { length: lastDayOfMonth.getDate() },
-      (_, i) => new Date(year, month, i + 1)
-    );
-    const startingDayOfWeek = firstDayOfMonth.getDay();
-    return Array(startingDayOfWeek).fill(null).concat(daysInMonth);
-  }, [currentDate]);
 
-  // --- DATA FETCHING ---
+    if (view === "monthly") {
+      const firstDayOfMonth = new Date(year, month, 1);
+      const lastDayOfMonth = new Date(year, month + 1, 0);
+      const daysInMonth = Array.from(
+        { length: lastDayOfMonth.getDate() },
+        (_, i) => new Date(year, month, i + 1)
+      );
+      const startingDayOfWeek = firstDayOfMonth.getDay();
+      return Array(startingDayOfWeek).fill(null).concat(daysInMonth);
+    }
+
+    if (view === "weekly") {
+      const firstDayOfWeek = new Date(currentDate);
+      firstDayOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
+      return Array.from({ length: 7 }, (_, i) => {
+        const day = new Date(firstDayOfWeek);
+        day.setDate(day.getDate() + i);
+        return day;
+      });
+    }
+
+    if (view === "daily") {
+      return [new Date(currentDate)];
+    }
+
+    return [];
+  }, [currentDate, view]);
+
+  // --- DATA FETCHING E PERSISTÊNCIA DE VIEW ---
+
+  // Define a visualização inicial e carrega os eventos na primeira montagem do componente
+  useEffect(() => {
+    setView(getInitialView());
+    loadEvents();
+    setIsInitialLoad(false);
+  }, []); // Roda apenas uma vez
+
+  // Salva a visualização no localStorage sempre que ela for alterada pelo usuário
+  useEffect(() => {
+    // Evita salvar a view inicial antes que o usuário tenha interagido
+    if (!isInitialLoad) {
+      localStorage.setItem("calendarView", view);
+    }
+  }, [view, isInitialLoad]);
+
+  // Recarrega os eventos quando a data de navegação muda
+  useEffect(() => {
+    if (!isInitialLoad) {
+      loadEvents();
+    }
+  }, [currentDate, isInitialLoad]);
+
   const loadEvents = async () => {
     setLoading(true);
     setError(null);
     try {
       const year = currentDate.getFullYear();
-      const month = currentDate.getMonth() + 1;
-      const eventsData = await eventsService.getCalendarEvents(year, month);
-      setEvents(eventsData);
+      const month = currentDate.getMonth();
+      const datesToFetch = [
+        new Date(year, month - 1, 1),
+        new Date(year, month, 1),
+        new Date(year, month + 1, 1),
+      ];
+      const eventPromises = datesToFetch.map((date) =>
+        eventsService.getCalendarEvents(date.getFullYear(), date.getMonth() + 1)
+      );
+      const eventsArrays = await Promise.all(eventPromises);
+      const allEvents = eventsArrays.flat();
+      const uniqueEvents = Array.from(
+        new Map(allEvents.map((event) => [event.id, event])).values()
+      );
+      setEvents(uniqueEvents);
     } catch (err) {
       console.error("Erro ao carregar eventos:", err);
       setError("Não foi possível carregar os eventos.");
@@ -72,19 +146,40 @@ export default function EventosPage() {
     }
   };
 
-  useEffect(() => {
-    loadEvents();
-  }, [currentDate]);
-
   // --- HANDLERS ---
-  const handlePrevMonth = () =>
-    setCurrentDate(
-      new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1)
-    );
-  const handleNextMonth = () =>
-    setCurrentDate(
-      new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1)
-    );
+  const handleNavigate = (direction: "prev" | "next") => {
+    const newDate = new Date(currentDate);
+    const amount = direction === "prev" ? -1 : 1;
+    if (view === "monthly") newDate.setMonth(newDate.getMonth() + amount, 1);
+    else if (view === "weekly") newDate.setDate(newDate.getDate() + 7 * amount);
+    else newDate.setDate(newDate.getDate() + amount);
+    setCurrentDate(newDate);
+  };
+
+  const getHeaderText = () => {
+    if (view === "monthly")
+      return currentDate
+        .toLocaleString("pt-BR", { month: "long", year: "numeric" })
+        .toUpperCase();
+    if (view === "weekly") {
+      const startOfWeek = dateGrid[0] as Date;
+      const endOfWeek = dateGrid[6] as Date;
+      if (!startOfWeek || !endOfWeek) return "";
+      const startMonth = startOfWeek.toLocaleString("pt-BR", {
+        month: "short",
+      });
+      const endMonth = endOfWeek.toLocaleString("pt-BR", { month: "short" });
+      if (startMonth === endMonth)
+        return `${startOfWeek.getDate()} - ${endOfWeek.getDate()} de ${endMonth}. de ${endOfWeek.getFullYear()}`;
+      return `${startOfWeek.getDate()} de ${startMonth} - ${endOfWeek.getDate()} de ${endMonth} de ${endOfWeek.getFullYear()}`;
+    }
+    return currentDate.toLocaleDateString("pt-BR", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  };
 
   const handleCloseModal = () => {
     setShowModal(false);
@@ -92,9 +187,8 @@ export default function EventosPage() {
   };
 
   const handleModalClickOutside = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
+    if (modalRef.current && !modalRef.current.contains(e.target as Node))
       handleCloseModal();
-    }
   };
 
   const handleOpenCreateModal = (date?: Date) => {
@@ -121,12 +215,10 @@ export default function EventosPage() {
     setShowModal(true);
     try {
       const eventData = await eventsService.getEventById(eventId);
-
       const originalStartDate = new Date(eventData.date);
       const originalFinishDate = new Date(eventData.finishDate);
       const startTime = originalStartDate.toTimeString().substring(0, 5);
       const finishTime = originalFinishDate.toTimeString().substring(0, 5);
-
       const duration =
         originalFinishDate.getTime() - originalStartDate.getTime();
       const occurrenceEndDate = new Date(
@@ -134,7 +226,6 @@ export default function EventosPage() {
           `${occurrenceDate.toISOString().split("T")[0]}T${startTime}:00.000Z`
         ).getTime() + duration
       );
-
       setFormData({
         title: eventData.title,
         description: eventData.description,
@@ -176,14 +267,12 @@ export default function EventosPage() {
       setFormLoading(false);
       return;
     }
-
     const startDateISO = new Date(
       `${formData.date}T${formData.time}:00.000Z`
     ).toISOString();
     const finishDateISO = new Date(
       `${formData.finishDate || formData.date}T${formData.finishTime}:00.000Z`
     ).toISOString();
-
     const commonPayload = {
       title: formData.title || "",
       description: formData.description || "",
@@ -194,38 +283,170 @@ export default function EventosPage() {
       recurrenceType: Number(formData.recurrenceType),
       frequency: Number(formData.frequency) || 1,
     };
-
     try {
-      if (editingEventId) {
-        const payload: EventUpdateRequest = {
+      if (editingEventId)
+        await eventsService.updateEvent(editingEventId, {
           ...commonPayload,
           worshipTheme: "",
-        };
-        await eventsService.updateEvent(editingEventId, payload);
-      } else {
-        const payload: EventCreateRequest = commonPayload;
-        await eventsService.createEvent(payload);
-      }
+        });
+      else await eventsService.createEvent(commonPayload);
       handleCloseModal();
       loadEvents();
     } catch (err) {
-      console.error("Erro ao salvar o evento:", err);
-      setError(
-        "Não foi possível salvar o evento. Verifique os dados e tente novamente."
-      );
+      setError("Não foi possível salvar o evento.");
     } finally {
       setFormLoading(false);
     }
   };
 
-  // --- RENDERIZAÇÃO ---
+  // --- Sub-componentes de Renderização ---
+
+  const ViewSwitcher = () => (
+    <div className="flex bg-gray-200 rounded-lg p-1">
+      {(["monthly", "weekly", "daily"] as CalendarView[]).map((viewName) => (
+        <button
+          key={viewName}
+          onClick={() => setView(viewName)}
+          className={`px-4 py-1 text-sm font-semibold rounded-md transition-colors capitalize ${
+            view === viewName
+              ? "bg-white text-blue-600 shadow"
+              : "text-gray-600 hover:bg-gray-300"
+          }`}
+        >
+          {viewName === "monthly"
+            ? "Mês"
+            : viewName === "weekly"
+            ? "Semana"
+            : "Dia"}
+        </button>
+      ))}
+    </div>
+  );
+
+  const MonthlyView = () => (
+    <div className="grid grid-cols-7 border-t border-l border-gray-200 bg-white shadow-lg rounded-lg overflow-hidden">
+      {[
+        "Domingo",
+        "Segunda",
+        "Terça",
+        "Quarta",
+        "Quinta",
+        "Sexta",
+        "Sábado",
+      ].map((day) => (
+        <div
+          key={day}
+          className="text-center font-semibold text-gray-600 py-3 bg-gray-50 border-b border-r border-gray-200 text-sm"
+        >
+          {day}
+        </div>
+      ))}
+      {(dateGrid as (Date | null)[]).map((day, index) => {
+        if (!day)
+          return (
+            <div
+              key={index}
+              className="min-h-[120px] border-b border-r border-gray-200 bg-gray-50"
+            ></div>
+          );
+        const dateKey = day.toISOString().split("T")[0];
+        const dayEvents = eventsByDate.get(dateKey) || [];
+        return (
+          <div
+            key={index}
+            className="min-h-[120px] flex flex-col p-2 border-b border-r border-gray-200 hover:bg-blue-50 transition-colors"
+            onClick={() => handleOpenCreateModal(day)}
+          >
+            <div className="self-end font-semibold text-gray-700">
+              {day.getDate()}
+            </div>
+            <div className="flex-grow space-y-1 mt-1">
+              {dayEvents.map((event, eventIndex) => (
+                <div
+                  key={`${event.id}-${eventIndex}`}
+                  className="bg-blue-500 text-white text-xs font-semibold px-2 py-1 rounded-md cursor-pointer hover:bg-blue-600 whitespace-nowrap overflow-hidden text-ellipsis"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenEditModal(event.id, day);
+                  }}
+                >
+                  {event.title}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  const AgendaView = ({ days }: { days: Date[] }) => (
+    <div className="bg-white shadow-lg rounded-lg overflow-hidden border border-gray-200">
+      <div className="divide-y divide-gray-200">
+        {days.map((day) => {
+          const dateKey = day.toISOString().split("T")[0];
+          const dayEvents = eventsByDate.get(dateKey) || [];
+          return (
+            <div
+              key={dateKey}
+              className="p-4 hover:bg-blue-50 transition-colors cursor-pointer"
+              onClick={() => handleOpenCreateModal(day)}
+            >
+              <h3 className="font-bold text-blue-700 mb-2">
+                {day.toLocaleDateString("pt-BR", {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "long",
+                })}
+              </h3>
+              {dayEvents.length > 0 ? (
+                <div className="space-y-2">
+                  {dayEvents
+                    .sort(
+                      (a, b) =>
+                        new Date(a.occurrence.start).getTime() -
+                        new Date(b.occurrence.start).getTime()
+                    )
+                    .map((event, eventIndex) => (
+                      <div
+                        key={`${event.id}-${eventIndex}`}
+                        className="flex items-center bg-gray-100 p-3 rounded-lg cursor-pointer hover:bg-gray-200"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenEditModal(event.id, day);
+                        }}
+                      >
+                        <span className="font-bold text-gray-800 mr-4 w-16">
+                          {new Date(event.occurrence.start).toLocaleTimeString(
+                            "pt-BR",
+                            { hour: "2-digit", minute: "2-digit" }
+                          )}
+                        </span>
+                        <span className="font-semibold text-gray-900">
+                          {event.title}
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              ) : (
+                <p className="text-gray-500 italic px-3">
+                  Nenhum evento agendado.
+                </p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  // --- RENDERIZAÇÃO PRINCIPAL ---
   return (
     <div className="p-4 sm:p-6 lg:p-8 font-sans">
-      {/* Cabeçalho */}
-      <div className="flex flex-col sm:flex-row items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row items-center justify-between mb-6 gap-4">
         <div className="flex items-center">
           <button
-            onClick={handlePrevMonth}
+            onClick={() => handleNavigate("prev")}
             className="p-2 rounded-full hover:bg-gray-200 transition-colors"
           >
             <svg
@@ -242,13 +463,11 @@ export default function EventosPage() {
               />
             </svg>
           </button>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-800 mx-4 w-48 text-center">
-            {currentDate
-              .toLocaleString("pt-BR", { month: "long", year: "numeric" })
-              .toUpperCase()}
+          <h1 className="text-xl font-bold text-gray-800 mx-4 text-center min-w-[280px]">
+            {getHeaderText()}
           </h1>
           <button
-            onClick={handleNextMonth}
+            onClick={() => handleNavigate("next")}
             className="p-2 rounded-full hover:bg-gray-200 transition-colors"
           >
             <svg
@@ -266,12 +485,15 @@ export default function EventosPage() {
             </svg>
           </button>
         </div>
-        <button
-          onClick={() => handleOpenCreateModal()}
-          className="mt-4 sm:mt-0 bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg shadow-md hover:bg-blue-700 transition-colors"
-        >
-          Criar Evento
-        </button>
+        <div className="flex items-center gap-4">
+          <ViewSwitcher />
+          <button
+            onClick={() => handleOpenCreateModal(currentDate)}
+            className="bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg shadow-md hover:bg-blue-700 transition-colors"
+          >
+            Criar Evento
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -280,63 +502,18 @@ export default function EventosPage() {
         </p>
       )}
 
-      {/* Grid do Calendário */}
-      <div className="grid grid-cols-7 border-t border-l border-gray-200 bg-white shadow-lg rounded-lg overflow-hidden">
-        {[
-          "Domingo",
-          "Segunda",
-          "Terça",
-          "Quarta",
-          "Quinta",
-          "Sexta",
-          "Sábado",
-        ].map((day) => (
-          <div
-            key={day}
-            className="text-center font-semibold text-gray-600 py-3 bg-gray-50 border-b border-r border-gray-200 text-sm sm:text-base"
-          >
-            {day}
-          </div>
-        ))}
-        {calendarGrid.map((day, index) => {
-          if (!day)
-            return (
-              <div
-                key={index}
-                className="min-h-[120px] border-b border-r border-gray-200 bg-gray-50"
-              ></div>
-            );
-
-          const dateKey = day.toISOString().split("T")[0];
-          const dayEvents = eventsByDate.get(dateKey) || [];
-
-          return (
-            <div
-              key={index}
-              className="min-h-[120px] flex flex-col p-2 border-b border-r border-gray-200 hover:bg-blue-50 transition-colors"
-              onClick={() => handleOpenCreateModal(day)}
-            >
-              <div className="self-end font-semibold text-gray-700">
-                {day.getDate()}
-              </div>
-              <div className="flex-grow space-y-1 mt-1">
-                {dayEvents.map((event, eventIndex) => (
-                  <div
-                    key={`${event.id}-${eventIndex}`}
-                    className="bg-blue-500 text-white text-xs font-semibold px-2 py-1 rounded-md cursor-pointer hover:bg-blue-600 whitespace-nowrap overflow-hidden text-overflow-ellipsis"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleOpenEditModal(event.id, day);
-                    }}
-                  >
-                    {event.title}
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      {loading ? (
+        <div className="text-center p-10 font-semibold text-gray-500">
+          Carregando Calendário...
+        </div>
+      ) : (
+        <div>
+          {view === "monthly" && <MonthlyView />}
+          {(view === "weekly" || view === "daily") && (
+            <AgendaView days={dateGrid as Date[]} />
+          )}
+        </div>
+      )}
 
       {/* Modal */}
       {showModal && (
@@ -375,7 +552,6 @@ export default function EventosPage() {
                     </svg>
                   </button>
                 </div>
-
                 <form onSubmit={handleSubmit} className="p-6 space-y-5">
                   <div>
                     <label className="block text-lg font-semibold text-gray-700 mb-1">
