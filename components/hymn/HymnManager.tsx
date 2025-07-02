@@ -6,12 +6,26 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Music, Search, Send } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Loader2, Music, Search, Send, ChevronsUpDown } from "lucide-react";
 import {
   hymnService,
   type Hymn,
   type HymnSummary,
-} from "@/services/worship/worship"; // Usando o mesmo arquivo de serviço por enquanto
+  type HymnVerse,
+} from "@/services/worship/worship";
 import { worshipService } from "@/services/worship/worship";
 
 // Subcomponente para renderizar os detalhes de um hino
@@ -24,8 +38,8 @@ function HymnDetails({
   onPresent: () => void;
   isPresenting: boolean;
 }) {
-  // Função para tratar quebras de linha <br> no texto
-  const formatText = (text: string) => {
+  const formatText = (text: string | null) => {
+    if (!text) return null;
     return text.split("<br>").map((line, index) => (
       <React.Fragment key={index}>
         {line.trim()}
@@ -34,25 +48,43 @@ function HymnDetails({
     ));
   };
 
+  const displayItems: (HymnVerse | { type: "chorus"; text: string })[] = [];
+  if (hymn.verses) {
+    hymn.verses.forEach((verse) => {
+      displayItems.push(verse);
+      if (hymn.chorus) {
+        displayItems.push({ type: "chorus", text: hymn.chorus });
+      }
+    });
+  }
+
   return (
     <div className="flex flex-col h-full">
       <CardHeader>
         <CardTitle className="text-xl">{hymn.title}</CardTitle>
       </CardHeader>
       <ScrollArea className="flex-grow p-4">
-        {hymn.chorus && (
-          <div className="mb-4 italic bg-yellow-50 p-3 rounded-md">
-            <h4 className="font-semibold mb-1 not-italic">Coro</h4>
-            <p className="text-gray-700">{formatText(hymn.chorus)}</p>
-          </div>
-        )}
         <div className="space-y-4">
-          {hymn.verses.map((verse) => (
-            <div key={verse.number}>
-              <h4 className="font-semibold mb-1">Verso {verse.number}</h4>
-              <p className="text-gray-700">{formatText(verse.text)}</p>
-            </div>
-          ))}
+          {displayItems.map((item, index) => {
+            if ("type" in item && item.type === "chorus") {
+              return (
+                <div
+                  key={`chorus-${index}`}
+                  className="italic bg-yellow-50 p-3 rounded-md"
+                >
+                  <h4 className="font-semibold mb-1 not-italic">Coro</h4>
+                  <p className="text-gray-700">{formatText(item.text)}</p>
+                </div>
+              );
+            }
+            const verse = item as HymnVerse;
+            return (
+              <div key={`verse-${verse.number}`}>
+                <h4 className="font-semibold mb-1">Verso {verse.number}</h4>
+                <p className="text-gray-700">{formatText(verse.text)}</p>
+              </div>
+            );
+          })}
         </div>
       </ScrollArea>
       <div className="p-4 border-t mt-auto">
@@ -75,6 +107,7 @@ export function HymnManager({ worshipId }: { worshipId: number }) {
   const [selectedHymnNumber, setSelectedHymnNumber] = useState<number | null>(
     null
   );
+  const [popoverOpen, setPopoverOpen] = useState(false);
 
   const { data: allHymns = [], isLoading: isLoadingSummaries } = useQuery<
     HymnSummary[]
@@ -89,7 +122,7 @@ export function HymnManager({ worshipId }: { worshipId: number }) {
       queryFn: () =>
         selectedHymnNumber ? hymnService.getHymn(selectedHymnNumber) : null,
       enabled: !!selectedHymnNumber,
-      staleTime: 1000 * 60 * 5, // Cache de 5 minutos para os detalhes do hino
+      staleTime: 1000 * 60 * 5,
     });
 
   const { mutate: presentHymn, isPending: isPresenting } = useMutation({
@@ -114,8 +147,74 @@ export function HymnManager({ worshipId }: { worshipId: number }) {
 
   return (
     <Card>
-      <CardContent className="p-0 grid grid-cols-1 md:grid-cols-3 min-h-[60vh]">
-        {/* Coluna da Esquerda: Pesquisa e Lista */}
+      {/* ✅ Layout para Mobile: Combobox com pesquisa interna */}
+      <div className="block md:hidden">
+        <CardHeader>
+          <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={popoverOpen}
+                className="w-full justify-between"
+              >
+                {selectedHymnNumber
+                  ? allHymns.find((h) => h.number === selectedHymnNumber)?.title
+                  : "Selecione um hino..."}
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+              <Command>
+                <CommandInput
+                  placeholder="Buscar hino..."
+                  onValueChange={setSearchTerm}
+                />
+                <CommandEmpty>Nenhum hino encontrado.</CommandEmpty>
+                <CommandList>
+                  <CommandGroup>
+                    {isLoadingSummaries ? (
+                      <div className="p-4 text-center">
+                        <Loader2 className="h-5 w-5 animate-spin mx-auto" />
+                      </div>
+                    ) : (
+                      filteredHymns.map((hymn) => (
+                        <CommandItem
+                          key={hymn.number}
+                          value={hymn.title}
+                          onSelect={() => {
+                            setSelectedHymnNumber(hymn.number);
+                            setPopoverOpen(false);
+                          }}
+                        >
+                          {hymn.title}
+                        </CommandItem>
+                      ))
+                    )}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+        </CardHeader>
+        <CardContent>
+          {isLoadingDetails && (
+            <div className="flex items-center justify-center h-full py-10">
+              <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+            </div>
+          )}
+          {!isLoadingDetails && selectedHymn && (
+            <HymnDetails
+              hymn={selectedHymn}
+              onPresent={() => presentHymn()}
+              isPresenting={isPresenting}
+            />
+          )}
+        </CardContent>
+      </div>
+
+      {/* ✅ Layout para Desktop: Colunas lado a lado */}
+      <CardContent className="hidden md:grid p-0 md:grid-cols-3 min-h-[60vh]">
         <div className="col-span-1 border-r flex flex-col">
           <div className="p-4 border-b">
             <div className="relative">
@@ -129,7 +228,7 @@ export function HymnManager({ worshipId }: { worshipId: number }) {
               />
             </div>
           </div>
-          <ScrollArea className="flex-grow">
+          <ScrollArea className="flex-grow h-[50vh]">
             {isLoadingSummaries ? (
               <div className="p-4 text-center">
                 <Loader2 className="h-5 w-5 animate-spin mx-auto" />
@@ -153,8 +252,7 @@ export function HymnManager({ worshipId }: { worshipId: number }) {
           </ScrollArea>
         </div>
 
-        {/* Coluna da Direita: Detalhes do Hino */}
-        <div className="md:col-span-2">
+        <div className="md:col-span-2 flex flex-col">
           {isLoadingDetails && (
             <div className="flex items-center justify-center h-full">
               <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
