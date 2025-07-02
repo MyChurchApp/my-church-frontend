@@ -50,7 +50,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 
 import {
@@ -74,6 +73,10 @@ const HARPA_HYMNS: Record<string, string> = {
   "526": "Porque Ele vive...",
 };
 
+// ===================================================================
+//   COMPONENTES ANINHADOS
+// ===================================================================
+
 function BibleSelectorForWorship({ worshipId }: { worshipId: number }) {
   const [selectedVersion, setSelectedVersion] = useState<BibleVersion | null>(
     null
@@ -82,9 +85,7 @@ function BibleSelectorForWorship({ worshipId }: { worshipId: number }) {
   const [selectedChapter, setSelectedChapter] = useState<BibleChapter | null>(
     null
   );
-  const [startVerse, setStartVerse] = useState<number | null>(null);
-  const [endVerse, setEndVerse] = useState<number | null>(null);
-  const [verseText, setVerseText] = useState("");
+  const [selectedVerse, setSelectedVerse] = useState<BibleVerse | null>(null);
 
   const { data: versions = [] } = useQuery<BibleVersion[]>({
     queryKey: ["bible-versions"],
@@ -106,21 +107,6 @@ function BibleSelectorForWorship({ worshipId }: { worshipId: number }) {
     enabled: !!selectedChapter,
   });
 
-  useEffect(() => {
-    if (verses.length > 0 && startVerse) {
-      const end = endVerse || startVerse;
-      const selectedVerses = verses.filter(
-        (v) => v.verseNumber >= startVerse && v.verseNumber <= end
-      );
-      const text = selectedVerses
-        .map((v) => `${v.verseNumber} ${v.text}`)
-        .join("\n");
-      setVerseText(text);
-    } else {
-      setVerseText("");
-    }
-  }, [verses, startVerse, endVerse]);
-
   const { mutate: highlightVerse, isPending: isBroadcasting } = useMutation({
     mutationFn: (params: {
       versionId: number;
@@ -133,31 +119,27 @@ function BibleSelectorForWorship({ worshipId }: { worshipId: number }) {
   });
 
   const handleBroadcast = () => {
-    if (!selectedVersion || !selectedBook || !selectedChapter || !startVerse)
-      return alert("Selecione Versão, Livro, Capítulo e Versículo.");
-
-    // A API espera o ID do primeiro versículo selecionado.
-    const verseToSend = verses.find((v) => v.verseNumber === startVerse);
-    if (!verseToSend) return alert("Versículo selecionado não encontrado.");
-
+    if (!selectedVersion || !selectedBook || !selectedChapter || !selectedVerse)
+      return alert(
+        "Selecione Versão, Livro, Capítulo e um Versículo da lista."
+      );
     highlightVerse({
       versionId: selectedVersion.id,
       bookId: selectedBook.id,
       chapterId: selectedChapter.id,
-      verseId: verseToSend.id,
+      verseId: selectedVerse.id,
     });
   };
 
   const resetSelections = (level: "version" | "book" | "chapter") => {
     if (level === "version") setSelectedBook(null);
     if (level === "version" || level === "book") setSelectedChapter(null);
-    setStartVerse(null);
-    setEndVerse(null);
+    setSelectedVerse(null);
   };
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Select
           onValueChange={(v) => {
             setSelectedVersion(versions.find((ver) => ver.id === Number(v))!);
@@ -214,57 +196,41 @@ function BibleSelectorForWorship({ worshipId }: { worshipId: number }) {
             ))}
           </SelectContent>
         </Select>
-        <div className="grid grid-cols-2 gap-2">
-          <Select
-            onValueChange={(v) => setStartVerse(Number(v))}
-            value={startVerse?.toString()}
-            disabled={!selectedChapter}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="De" />
-            </SelectTrigger>
-            <SelectContent>
-              {verses.map((v) => (
-                <SelectItem key={v.id} value={String(v.verseNumber)}>
-                  {v.verseNumber}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select
-            onValueChange={(v) => setEndVerse(Number(v))}
-            value={endVerse?.toString()}
-            disabled={!startVerse}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Até" />
-            </SelectTrigger>
-            <SelectContent>
-              {verses
-                .filter((v) => v.verseNumber >= (startVerse || 0))
-                .map((v) => (
-                  <SelectItem key={v.id} value={String(v.verseNumber)}>
-                    {v.verseNumber}
-                  </SelectItem>
-                ))}
-            </SelectContent>
-          </Select>
-        </div>
       </div>
-      <Textarea
-        readOnly
-        value={verseText}
-        placeholder="O texto aparecerá aqui..."
-        rows={6}
-        className="bg-gray-100"
-      />
+
+      {/* ############################################################### */}
+      {/* ##               VISUALIZADOR DE VERSÍCULOS                  ## */}
+      {/* ############################################################### */}
+      <div className="border rounded-md p-2 bg-gray-50 h-64 overflow-y-auto space-y-1">
+        {verses.length > 0 ? (
+          verses.map((verse) => (
+            <div
+              key={verse.id}
+              onClick={() => setSelectedVerse(verse)}
+              className={`p-2 rounded-md cursor-pointer text-sm transition-colors ${
+                selectedVerse?.id === verse.id
+                  ? "bg-blue-100 text-blue-800 ring-2 ring-blue-300"
+                  : "hover:bg-gray-200"
+              }`}
+            >
+              <sup className="font-bold mr-2">{verse.verseNumber}</sup>
+              {verse.text}
+            </div>
+          ))
+        ) : (
+          <div className="flex items-center justify-center h-full text-gray-400">
+            <p>Selecione Livro e Capítulo para ver os versículos.</p>
+          </div>
+        )}
+      </div>
+
       <Button
         className="w-full"
         onClick={handleBroadcast}
-        disabled={!startVerse || isBroadcasting}
+        disabled={!selectedVerse || isBroadcasting}
       >
         {isBroadcasting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-        Transmitir
+        Transmitir Versículo Selecionado
       </Button>
     </div>
   );
@@ -326,6 +292,7 @@ function SortableScheduleItem({
             value={editedName}
             onChange={(e) => setEditedName(e.target.value)}
             onKeyDown={handleKeyDown}
+            onBlur={handleSave}
             className="h-9"
           />
         ) : (
@@ -334,14 +301,9 @@ function SortableScheduleItem({
       </div>
       <div className="flex items-center">
         {isEditing ? (
-          <>
-            <Button variant="ghost" size="icon" onClick={handleSave}>
-              <Check className="h-5 w-5 text-green-600" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={handleCancel}>
-              <X className="h-5 w-5 text-red-600" />
-            </Button>
-          </>
+          <Button variant="ghost" size="icon" onClick={handleSave}>
+            <Check className="h-5 w-5 text-green-600" />
+          </Button>
         ) : (
           <>
             <Button
@@ -503,6 +465,7 @@ function WorshipControlPanel({
   onBack: () => void;
 }) {
   const queryClient = useQueryClient();
+  const { broadcastMessage } = useSignalRForWorship(worshipId);
   const [currentActivityId, setCurrentActivityId] = useState<number | null>(
     null
   );
@@ -682,10 +645,9 @@ export default function GestaoCultoPage() {
   if (error)
     return (
       <div className="p-6 text-center text-red-500">
-        Erro ao carregar cultos.
+        Erro ao carregar cultos: {error.message}
       </div>
     );
-
   if (selectedWorshipId)
     return (
       <WorshipControlPanel
