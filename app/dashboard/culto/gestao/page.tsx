@@ -33,6 +33,7 @@ import {
   Clock,
   Mic,
   ChevronLeft,
+  ChevronRight,
   MonitorPlay,
   Plus,
   Trash2,
@@ -67,14 +68,8 @@ import {
 } from "@/services/biblia/biblia";
 import { useSignalRForWorship } from "@/hooks/useSignalRForWorship";
 
-// Mock de Hinos
-const HARPA_HYMNS: Record<string, string> = {
-  "15": "Vem...",
-  "526": "Porque Ele vive...",
-};
-
 // ===================================================================
-//   COMPONENTES ANINHADOS
+//   BIBLE SELECTOR COMPONENT (COM LAYOUT AJUSTADO)
 // ===================================================================
 
 function BibleSelectorForWorship({ worshipId }: { worshipId: number }) {
@@ -86,6 +81,9 @@ function BibleSelectorForWorship({ worshipId }: { worshipId: number }) {
     null
   );
   const [selectedVerse, setSelectedVerse] = useState<BibleVerse | null>(null);
+
+  const verseListRef = useRef<HTMLDivElement>(null);
+  const activeVerseRef = useRef<HTMLDivElement>(null);
 
   const { data: versions = [] } = useQuery<BibleVersion[]>({
     queryKey: ["bible-versions"],
@@ -118,17 +116,38 @@ function BibleSelectorForWorship({ worshipId }: { worshipId: number }) {
     onError: (err) => alert(`Erro ao transmitir: ${err.message}`),
   });
 
-  const handleBroadcast = () => {
-    if (!selectedVersion || !selectedBook || !selectedChapter || !selectedVerse)
-      return alert(
-        "Selecione Versão, Livro, Capítulo e um Versículo da lista."
-      );
+  useEffect(() => {
+    activeVerseRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
+  }, [selectedVerse]);
+
+  const transmitVerse = (verse: BibleVerse) => {
+    if (!selectedVersion || !selectedBook || !selectedChapter) return;
     highlightVerse({
       versionId: selectedVersion.id,
       bookId: selectedBook.id,
       chapterId: selectedChapter.id,
-      verseId: selectedVerse.id,
+      verseId: verse.id,
     });
+  };
+
+  const handleBroadcast = () => {
+    if (!selectedVerse) return alert("Selecione um Versículo da lista.");
+    transmitVerse(selectedVerse);
+  };
+
+  const handleNavigation = (direction: "next" | "prev") => {
+    if (!selectedVerse || verses.length === 0) return;
+    const currentIndex = verses.findIndex((v) => v.id === selectedVerse.id);
+
+    let nextIndex = direction === "next" ? currentIndex + 1 : currentIndex - 1;
+    if (nextIndex < 0 || nextIndex >= verses.length) return;
+
+    const newSelectedVerse = verses[nextIndex];
+    setSelectedVerse(newSelectedVerse);
+    transmitVerse(newSelectedVerse);
   };
 
   const resetSelections = (level: "version" | "book" | "chapter") => {
@@ -136,6 +155,13 @@ function BibleSelectorForWorship({ worshipId }: { worshipId: number }) {
     if (level === "version" || level === "book") setSelectedChapter(null);
     setSelectedVerse(null);
   };
+
+  const currentVerseIndex = selectedVerse
+    ? verses.findIndex((v) => v.id === selectedVerse.id)
+    : -1;
+  const canGoPrev = currentVerseIndex > 0;
+  const canGoNext =
+    selectedVerse != null && currentVerseIndex < verses.length - 1;
 
   return (
     <div className="space-y-4">
@@ -198,30 +224,56 @@ function BibleSelectorForWorship({ worshipId }: { worshipId: number }) {
         </Select>
       </div>
 
-      {/* ############################################################### */}
-      {/* ##               VISUALIZADOR DE VERSÍCULOS                  ## */}
-      {/* ############################################################### */}
-      <div className="border rounded-md p-2 bg-gray-50 h-64 overflow-y-auto space-y-1">
+      <div
+        ref={verseListRef}
+        className="border rounded-md p-2 bg-gray-50 h-64 overflow-y-auto space-y-1"
+      >
         {verses.length > 0 ? (
-          verses.map((verse) => (
-            <div
-              key={verse.id}
-              onClick={() => setSelectedVerse(verse)}
-              className={`p-2 rounded-md cursor-pointer text-sm transition-colors ${
-                selectedVerse?.id === verse.id
-                  ? "bg-blue-100 text-blue-800 ring-2 ring-blue-300"
-                  : "hover:bg-gray-200"
-              }`}
-            >
-              <sup className="font-bold mr-2">{verse.verseNumber}</sup>
-              {verse.text}
-            </div>
-          ))
+          verses.map((verse) => {
+            const isSelected = selectedVerse?.id === verse.id;
+            return (
+              <div
+                key={verse.id}
+                ref={isSelected ? activeVerseRef : null}
+                onClick={() => setSelectedVerse(verse)}
+                className={`p-2 rounded-md cursor-pointer text-sm transition-colors ${
+                  isSelected
+                    ? "bg-blue-100 text-blue-800 ring-2 ring-blue-300"
+                    : "hover:bg-gray-200"
+                }`}
+              >
+                <sup className="font-bold mr-2">{verse.verseNumber}</sup>
+                {verse.text}
+              </div>
+            );
+          })
         ) : (
           <div className="flex items-center justify-center h-full text-gray-400">
             <p>Selecione Livro e Capítulo para ver os versículos.</p>
           </div>
         )}
+      </div>
+
+      {/* ============== LAYOUT CORRIGIDO AQUI ============== */}
+      <div className="flex items-center justify-center gap-4">
+        <Button
+          variant="outline"
+          size="lg"
+          onClick={() => handleNavigation("prev")}
+          disabled={!canGoPrev || isBroadcasting}
+        >
+          <ChevronLeft className="h-5 w-5" />
+          <span className="sr-only">Versículo Anterior</span>
+        </Button>
+        <Button
+          variant="outline"
+          size="lg"
+          onClick={() => handleNavigation("next")}
+          disabled={!canGoNext || isBroadcasting}
+        >
+          <ChevronRight className="h-5 w-5" />
+          <span className="sr-only">Próximo Versículo</span>
+        </Button>
       </div>
 
       <Button
@@ -232,10 +284,14 @@ function BibleSelectorForWorship({ worshipId }: { worshipId: number }) {
         {isBroadcasting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
         Transmitir Versículo Selecionado
       </Button>
+      {/* ===================================================== */}
     </div>
   );
 }
 
+// ===================================================================
+//   OUTROS COMPONENTES (SEM ALTERAÇÃO)
+// ===================================================================
 function SortableScheduleItem({
   item,
   onRemove,
@@ -380,8 +436,8 @@ function ScheduleManager({ worshipId }: { worshipId: number }) {
     if (itemToUpdate) updateItem({ ...itemToUpdate, name: newName });
   };
   const handleAddItem = (e: React.FormEvent) => {
-    if (newItemName.trim()) addItem(newItemName.trim());
     e.preventDefault();
+    if (newItemName.trim()) addItem(newItemName.trim());
   };
 
   function handleDragEnd(event: DragEndEvent) {
@@ -443,7 +499,7 @@ function ScheduleManager({ worshipId }: { worshipId: number }) {
             placeholder="Ex: Hino de Abertura"
             disabled={isAdding}
           />
-          <Button type="submit" disabled={isAdding}>
+          <Button type="submit" disabled={!newItemName.trim() || isAdding}>
             {isAdding ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
@@ -465,7 +521,6 @@ function WorshipControlPanel({
   onBack: () => void;
 }) {
   const queryClient = useQueryClient();
-  const { broadcastMessage } = useSignalRForWorship(worshipId);
   const [currentActivityId, setCurrentActivityId] = useState<number | null>(
     null
   );
@@ -493,7 +548,7 @@ function WorshipControlPanel({
   if (isLoading || !worship)
     return (
       <div className="p-10 text-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
+        <Loader2 className="h-8 w-8 animate-spin mx-auto" />
       </div>
     );
   if (isError)
@@ -540,7 +595,7 @@ function WorshipControlPanel({
               onClick={() => startWorshipMutation()}
               disabled={isStarting}
             >
-              {isStarting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{" "}
+              {isStarting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Iniciar Culto
             </Button>
           </div>
@@ -604,8 +659,12 @@ function WorshipControlPanel({
               </CardContent>
             </Card>
           </TabsContent>
-          <TabsContent value="hinos">{/* Hinos */}</TabsContent>
-          <TabsContent value="avisos">{/* Avisos */}</TabsContent>
+          <TabsContent value="hinos">
+            <p className="p-4 text-center">Em breve...</p>
+          </TabsContent>
+          <TabsContent value="avisos">
+            <p className="p-4 text-center">Em breve...</p>
+          </TabsContent>
         </Tabs>
       )}
     </div>
@@ -676,11 +735,11 @@ export default function GestaoCultoPage() {
                       : "outline"
                   }
                 >
-                  {worship.status === 0
-                    ? "Não Iniciado"
-                    : worship.status === 1
+                  {worship.status === WorshipStatus.InProgress
                     ? "Em Andamento"
-                    : "Finalizado"}
+                    : worship.status === WorshipStatus.Finished
+                    ? "Finalizado"
+                    : "Não Iniciado"}
                 </Badge>
               </div>
               <CardDescription>
@@ -713,7 +772,7 @@ export default function GestaoCultoPage() {
                 >
                   {isFinishing && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  )}{" "}
+                  )}
                   Encerrar
                 </Button>
               )}
