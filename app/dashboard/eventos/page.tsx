@@ -96,28 +96,26 @@ export default function EventosPage() {
 
   // --- DATA FETCHING E PERSISTÊNCIA DE VIEW ---
 
-  // Define a visualização inicial e carrega os eventos na primeira montagem do componente
   useEffect(() => {
     setView(getInitialView());
-    loadEvents();
     setIsInitialLoad(false);
-  }, []); // Roda apenas uma vez
+  }, []);
 
-  // Salva a visualização no localStorage sempre que ela for alterada pelo usuário
   useEffect(() => {
-    // Evita salvar a view inicial antes que o usuário tenha interagido
     if (!isInitialLoad) {
       localStorage.setItem("calendarView", view);
     }
   }, [view, isInitialLoad]);
 
-  // Recarrega os eventos quando a data de navegação muda
   useEffect(() => {
     if (!isInitialLoad) {
       loadEvents();
     }
   }, [currentDate, isInitialLoad]);
 
+  // ###############################################################
+  // ##                CORREÇÃO APLICADA AQUI                     ##
+  // ###############################################################
   const loadEvents = async () => {
     setLoading(true);
     setError(null);
@@ -129,15 +127,39 @@ export default function EventosPage() {
         new Date(year, month, 1),
         new Date(year, month + 1, 1),
       ];
+
       const eventPromises = datesToFetch.map((date) =>
         eventsService.getCalendarEvents(date.getFullYear(), date.getMonth() + 1)
       );
+
       const eventsArrays = await Promise.all(eventPromises);
       const allEvents = eventsArrays.flat();
-      const uniqueEvents = Array.from(
-        new Map(allEvents.map((event) => [event.id, event])).values()
-      );
-      setEvents(uniqueEvents);
+
+      // Lógica para combinar ocorrências de eventos recorrentes sem duplicatas
+      const eventsMap = new Map<number, CalendarEventResponse>();
+      allEvents.forEach((event) => {
+        if (eventsMap.has(event.id)) {
+          // Se o evento já existe, mescla as ocorrências
+          const existingEvent = eventsMap.get(event.id)!;
+          const existingOccurrences = new Set(
+            existingEvent.occurrences.map((o) => o.start)
+          );
+          event.occurrences.forEach((newOccurrence) => {
+            if (!existingOccurrences.has(newOccurrence.start)) {
+              existingEvent.occurrences.push(newOccurrence);
+            }
+          });
+        } else {
+          // Se é a primeira vez que vemos o evento, adiciona ao mapa
+          eventsMap.set(event.id, {
+            ...event,
+            occurrences: [...event.occurrences],
+          });
+        }
+      });
+
+      const uniqueAndMergedEvents = Array.from(eventsMap.values());
+      setEvents(uniqueAndMergedEvents);
     } catch (err) {
       console.error("Erro ao carregar eventos:", err);
       setError("Não foi possível carregar os eventos.");
