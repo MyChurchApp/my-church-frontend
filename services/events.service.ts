@@ -1,359 +1,316 @@
-import { authFetch } from "@/lib/auth-fetch"
+import { authFetch, authFetchJson } from "@/lib/auth-fetch";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://demoapp.top1soft.com.br/api"
+// URL base da sua API.
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || "https://demoapp.top1soft.com.br/api";
 
-export interface EventRequest {
-  title: string
-  description: string
-  date: string // ISO string
-  finishDate: string // ISO string
-  location: string
-  requiresParticipantList: boolean
-  recurrenceType: number
-  frequency: number
-  eventType: number
-  worshipTheme?: string
-}
-
-export interface EventUpdateRequest extends EventRequest {
-  id: number
-}
-
-export interface EventResponse {
-  id: number
-  title: string
-  description: string
-  date: string
-  finishDate: string
-  location: string
-  churchId: number
-  church: {
-    id: number
-    name: string
-    logo: string
-    address: {
-      id: number
-      street: string
-      city: string
-      state: string
-      zipCode: string
-      country: string
-      neighborhood: string
-    }
-    phone: string
-    description: string
-    members: any[]
-    subscription: any
-  }
-  requiresParticipantList: boolean
-  participants: any[]
-  recurrence: {
-    id: number
-    eventId: number
-    recurrenceType: number
-    frequency: number
-    recurrenceEndDate: string
-  }
-  notifications: any[]
-}
-
-export interface CalendarEventResponse {
-  id: number
-  title: string
-  description: string
-  location: string
-  churchId: number
-  isRecurring: boolean
-  recurrenceType: number
-  frequency: number
-  occurrences: {
-    start: string
-    end: string
-  }[]
-}
-
-// Enums para tipos
+// --- ENUMS E TIPOS AUXILIARES ---
 export enum EventType {
-  Culto = 0,
-  Reuniao = 1,
-  Evento = 2,
-  Conferencia = 3,
-  Retiro = 4,
-  Casamento = 5,
-  Funeral = 6,
-  Batismo = 7,
-  Outro = 8,
+  General = 0,
+  WorshipService = 1,
+  Meeting = 2,
 }
 
+// ENUM CORRIGIDO AQUI
 export enum RecurrenceType {
-  None = 0,
-  Weekly = 1,
-  Monthly = 2,
-  Yearly = 3,
+  None = 0, // Não recorrente
+  Daily = 1, // Diário
+  Weekly = 2, // Semanal
+  Monthly = 3, // Mensal
+  Yearly = 4, // Anual
 }
 
+// --- INTERFACES COMPLETAS BASEADAS NO SWAGGER ---
+export interface Address {
+  id: number;
+  street: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  country: string;
+  neighborhood: string;
+}
+export interface Plan {
+  id: number;
+  name: string;
+  price: number;
+  maxMembers: number;
+  maxEvents: number;
+  maxStorageGB: number;
+}
+export interface Payment {
+  id: number;
+  subscriptionId: number;
+  subscription: string;
+  amount: number;
+  date: string;
+  paymentStatus: string;
+  transactionId: string;
+}
+export interface Subscription {
+  id: number;
+  churchId: number;
+  church: string;
+  planId: number;
+  plan: Plan;
+  startDate: string;
+  endDate: string;
+  isActive: boolean;
+  payments: Payment[];
+}
+export interface BankingInfo {
+  id: number;
+  bankName: string;
+  bankDigit: string;
+  agency: string;
+  account: string;
+  accountType: string;
+  holderName: string;
+  holderDocument: string;
+  pixKey: string;
+  pixKeyType: string;
+}
+export interface Church {
+  id: number;
+  name: string;
+  logo: string;
+  address: Address;
+  phone: string;
+  description: string;
+  members: string[];
+  subscription: Subscription;
+  bankingInfo: BankingInfo;
+  onboardingQrCode: string;
+}
+export interface Document {
+  id: number;
+  memberId: number;
+  type: number;
+  number: string;
+}
+export interface Participant {
+  id: number;
+  name: string;
+  document: Document[];
+  email: string;
+  phone: string;
+  photo: string;
+  birthDate: string;
+  isBaptized: boolean;
+  baptizedDate: string;
+  isTither: boolean;
+  churchId: number;
+  church: Church;
+  role: number;
+  created: string;
+  updated: string;
+  maritalStatus: string;
+  memberSince: string;
+  ministry: string;
+  isActive: boolean;
+  notes: string;
+  address: Address;
+}
+export interface Recurrence {
+  id: number;
+  eventId: number;
+  recurrenceType: number;
+  frequency: number;
+  recurrenceEndDate: string;
+}
+export interface Notification {
+  id: number;
+  eventId: number;
+  sentAt: string;
+  message: string;
+}
+export interface EventCreateRequest {
+  title: string;
+  description: string;
+  date: string;
+  finishDate: string;
+  location: string;
+  requiresParticipantList: boolean;
+  recurrenceType?: number;
+  frequency?: number;
+  worshipTheme?: string;
+}
+export interface EventUpdateRequest {
+  title: string;
+  description: string;
+  date: string;
+  finishDate: string;
+  location: string;
+  requiresParticipantList: boolean;
+  recurrenceType: number;
+  frequency: number;
+  worshipTheme: string;
+}
+export interface EventResponse {
+  id: number;
+  title: string;
+  description: string;
+  date: string;
+  finishDate: string;
+  location: string;
+  churchId: number;
+  church: Church;
+  requiresParticipantList: boolean;
+  participants: Participant[];
+  recurrence: Recurrence;
+  notifications: Notification[];
+}
+export interface CalendarEventResponse {
+  id: number;
+  title: string;
+  description: string;
+  location: string;
+  churchId: number;
+  isRecurring: boolean;
+  recurrenceType: number;
+  frequency: number;
+  occurrences: { start: string; end: string }[];
+}
+export interface WorshipEventFilters {
+  Title?: string;
+  Theme?: string;
+  StartTime?: string;
+  EndTime?: string;
+  OnlyPast?: boolean;
+  Status?: number;
+  Page?: number;
+  PageSize?: number;
+}
+export interface WorshipServiceActivityBible {
+  id: number;
+  bibleVersionId: number;
+  bookId: number;
+  chapterId: number;
+  verseStart: number;
+  verseEnd: number;
+}
+export interface WorshipServiceActivityHymn {
+  id: number;
+  hymnId: number;
+  hymnTitle: string;
+  hymnNumber: string;
+}
+export interface WorshipServiceActivity {
+  id: number;
+  name: string;
+  content: string;
+  order: number;
+  isCurrent: boolean;
+  bibles: WorshipServiceActivityBible[];
+  hymns: WorshipServiceActivityHymn[];
+}
+export interface WorshipServiceSchedule {
+  id: number;
+  worshipServiceId: number;
+  name: string;
+  order: number;
+}
+export interface WorshipServiceListItem {
+  id: number;
+  churchId: number;
+  eventId: number;
+  title: string;
+  theme: string;
+  startTime: string;
+  endTime: string;
+  description: string;
+  status: number;
+  activities: WorshipServiceActivity[];
+  schedule: WorshipServiceSchedule[];
+  presencesCount: number;
+}
+export interface PaginatedWorshipServiceListResponse {
+  items: WorshipServiceListItem[];
+  pageNumber: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+}
+export interface WorshipServiceResponse {
+  id: number;
+  churchId: number;
+  eventId: number;
+  title: string;
+  theme: string;
+  startTime: string;
+  endTime: string;
+  description: string;
+  status: number;
+  activities: WorshipServiceActivity[];
+  schedule: WorshipServiceSchedule[];
+  presencesCount: number;
+}
+
+// --- CLASSE DE SERVIÇO ---
 class EventsService {
-  /**
-   * Cria um novo evento
-   */
-  async createEvent(eventData: EventRequest): Promise<number> {
-    try {
-      const response = await authFetch(`${API_BASE_URL}/Event`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(eventData),
-      })
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        throw new Error(`Erro ao criar evento: ${response.status} - ${errorText}`)
-      }
-
-      const eventId = await response.text()
-      return Number.parseInt(eventId)
-    } catch (error) {
-      console.error("Erro ao criar evento:", error)
-      throw error
-    }
+  async createEvent(eventData: EventCreateRequest): Promise<any> {
+    const response = await authFetchJson(`${API_BASE_URL}/Event`, {
+      method: "POST",
+      body: JSON.stringify(eventData),
+    });
+    return response;
   }
 
-  /**
-   * Busca um evento por ID
-   */
   async getEventById(id: number): Promise<EventResponse> {
-    try {
-      const response = await authFetch(`${API_BASE_URL}/Event/${id}`, {
-        method: "GET",
-      })
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        throw new Error(`Erro ao buscar evento: ${response.status} - ${errorText}`)
-      }
-
-      return await response.json()
-    } catch (error) {
-      console.error("Erro ao buscar evento:", error)
-      throw error
-    }
+    const response = await authFetchJson(`${API_BASE_URL}/Event/${id}`);
+    return response as EventResponse;
   }
 
-  /**
-   * Atualiza um evento existente
-   */
-  async updateEvent(id: number, eventData: EventUpdateRequest): Promise<EventResponse> {
-    try {
-      const response = await authFetch(`${API_BASE_URL}/Event/${id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(eventData),
-      })
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        throw new Error(`Erro ao atualizar evento: ${response.status} - ${errorText}`)
-      }
-
-      return await response.json()
-    } catch (error) {
-      console.error("Erro ao atualizar evento:", error)
-      throw error
-    }
+  async updateEvent(
+    id: number,
+    eventData: EventUpdateRequest
+  ): Promise<EventResponse> {
+    const response = await authFetchJson(`${API_BASE_URL}/Event/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(eventData),
+    });
+    return response as EventResponse;
   }
 
-  /**
-   * Deleta um evento
-   */
   async deleteEvent(id: number): Promise<void> {
-    try {
-      const response = await authFetch(`${API_BASE_URL}/Event/${id}`, {
-        method: "DELETE",
-      })
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        throw new Error(`Erro ao deletar evento: ${response.status} - ${errorText}`)
-      }
-    } catch (error) {
-      console.error("Erro ao deletar evento:", error)
-      throw error
-    }
+    await authFetch(`${API_BASE_URL}/Event/${id}`, { method: "DELETE" });
   }
 
-  /**
-   * Lista eventos para o calendário do mês/ano informado (inclui recorrentes)
-   */
-  async getCalendarEvents(year?: number, month?: number): Promise<CalendarEventResponse[]> {
-    try {
-      const params = new URLSearchParams()
-      if (year) params.append("Year", year.toString())
-      if (month) params.append("Month", month.toString())
-
-      const url = `${API_BASE_URL}/Event/calendar${params.toString() ? `?${params.toString()}` : ""}`
-
-      const response = await authFetch(url, {
-        method: "GET",
-      })
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        throw new Error(`Erro ao buscar eventos do calendário: ${response.status} - ${errorText}`)
-      }
-
-      return await response.json()
-    } catch (error) {
-      console.error("Erro ao buscar eventos do calendário:", error)
-      throw error
-    }
+  async getCalendarEvents(
+    year: number,
+    month: number
+  ): Promise<CalendarEventResponse[]> {
+    const params = new URLSearchParams({
+      Year: year.toString(),
+      Month: month.toString(),
+    });
+    const response = await authFetchJson(
+      `${API_BASE_URL}/Event/calendar?${params}`
+    );
+    return response as CalendarEventResponse[];
   }
 
-  /**
-   * Converte dados do formulário para o formato da API
-   */
-  formatEventForAPI(formData: any): EventRequest {
-    return {
-      title: formData.title,
-      description: formData.description || "",
-      date: new Date(formData.date + "T" + formData.time).toISOString(),
-      finishDate: formData.finishDate
-        ? new Date(formData.finishDate + "T" + (formData.finishTime || formData.time)).toISOString()
-        : new Date(formData.date + "T" + formData.time).toISOString(),
-      location: formData.location || "",
-      requiresParticipantList: formData.requiresParticipantList || false,
-      recurrenceType: this.getRecurrenceType(formData.recurrence),
-      frequency: this.getFrequency(formData.recurrence),
-      eventType: Number(formData.eventType) || 0,
-      worshipTheme: formData.worshipTheme || "",
-    }
+  async getWorshipEvents(
+    filters: WorshipEventFilters = {}
+  ): Promise<PaginatedWorshipServiceListResponse> {
+    const definedFilters = Object.fromEntries(
+      Object.entries(filters).filter(
+        ([, value]) => value !== undefined && value !== null
+      )
+    );
+    const params = new URLSearchParams(
+      definedFilters as Record<string, string>
+    );
+    const response = await authFetchJson(
+      `${API_BASE_URL}/Event/worship?${params}`
+    );
+    return response as PaginatedWorshipServiceListResponse;
   }
 
-  /**
-   * Converte tipo de recorrência do formulário para número da API
-   */
-  private getRecurrenceType(recurrence: string): number {
-    switch (recurrence) {
-      case "once":
-        return RecurrenceType.None
-      case "weekly":
-        return RecurrenceType.Weekly
-      case "biweekly":
-        return RecurrenceType.Weekly
-      case "monthly":
-        return RecurrenceType.Monthly
-      case "yearly":
-        return RecurrenceType.Yearly
-      default:
-        return RecurrenceType.None
-    }
-  }
-
-  /**
-   * Converte frequência do formulário para número da API
-   */
-  private getFrequency(recurrence: string): number {
-    switch (recurrence) {
-      case "weekly":
-        return 1
-      case "biweekly":
-        return 2
-      case "monthly":
-        return 1
-      case "yearly":
-        return 1
-      default:
-        return 0
-    }
-  }
-
-  /**
-   * Converte evento da API para formato do formulário
-   */
-  formatEventFromAPI(apiEvent: EventResponse): any {
-    const eventDate = new Date(apiEvent.date)
-    const finishDate = new Date(apiEvent.finishDate)
-
-    return {
-      id: apiEvent.id,
-      title: apiEvent.title,
-      description: apiEvent.description,
-      date: eventDate.toISOString().split("T")[0],
-      time: eventDate.toTimeString().slice(0, 5),
-      finishDate: finishDate.toISOString().split("T")[0],
-      finishTime: finishDate.toTimeString().slice(0, 5),
-      location: apiEvent.location,
-      requiresParticipantList: apiEvent.requiresParticipantList,
-      recurrence: this.getRecurrenceString(apiEvent.recurrence?.recurrenceType, apiEvent.recurrence?.frequency),
-      eventType: 0, // Será implementado quando a API retornar
-      worshipTheme: "", // Será implementado quando a API retornar
-    }
-  }
-
-  /**
-   * Converte tipo de recorrência da API para string do formulário
-   */
-  private getRecurrenceString(recurrenceType?: number, frequency?: number): string {
-    if (!recurrenceType || recurrenceType === RecurrenceType.None) return "once"
-
-    switch (recurrenceType) {
-      case RecurrenceType.Weekly:
-        return frequency === 2 ? "biweekly" : "weekly"
-      case RecurrenceType.Monthly:
-        return "monthly"
-      case RecurrenceType.Yearly:
-        return "yearly"
-      default:
-        return "once"
-    }
-  }
-
-  /**
-   * Obtém o nome do tipo de evento
-   */
-  getEventTypeName(eventType: number): string {
-    switch (eventType) {
-      case EventType.Culto:
-        return "Culto"
-      case EventType.Reuniao:
-        return "Reunião"
-      case EventType.Evento:
-        return "Evento"
-      case EventType.Conferencia:
-        return "Conferência"
-      case EventType.Retiro:
-        return "Retiro"
-      case EventType.Casamento:
-        return "Casamento"
-      case EventType.Funeral:
-        return "Funeral"
-      case EventType.Batismo:
-        return "Batismo"
-      case EventType.Outro:
-        return "Outro"
-      default:
-        return "Evento"
-    }
-  }
-
-  /**
-   * Obtém todas as opções de tipo de evento
-   */
-  getEventTypeOptions() {
-    return [
-      { value: EventType.Culto, label: "Culto" },
-      { value: EventType.Reuniao, label: "Reunião" },
-      { value: EventType.Evento, label: "Evento" },
-      { value: EventType.Conferencia, label: "Conferência" },
-      { value: EventType.Retiro, label: "Retiro" },
-      { value: EventType.Casamento, label: "Casamento" },
-      { value: EventType.Funeral, label: "Funeral" },
-      { value: EventType.Batismo, label: "Batismo" },
-      { value: EventType.Outro, label: "Outro" },
-    ]
+  async getWorshipById(id: number): Promise<WorshipServiceResponse> {
+    const response = await authFetchJson(`${API_BASE_URL}/Event/worship/${id}`);
+    return response as WorshipServiceResponse;
   }
 }
 
-export const eventsService = new EventsService()
+export const eventsService = new EventsService();

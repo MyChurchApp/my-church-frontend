@@ -1,1007 +1,553 @@
 "use client";
 
-import type React from "react";
-
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { useToast } from "@/hooks/use-toast";
-import {
-  Clock,
-  MapPin,
-  Plus,
-  Loader2,
-  ChevronLeft,
-  ChevronRight,
-  Edit,
-  Trash2,
-  Calendar,
-  Users,
-  Repeat,
-  List,
-  Grid3X3,
-  ChevronDown,
-  ChevronUp,
-} from "lucide-react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import {
   eventsService,
-  type CalendarEventResponse,
-  type EventResponse,
+  CalendarEventResponse,
+  EventCreateRequest,
+  EventUpdateRequest,
+  RecurrenceType,
 } from "@/services/events.service";
-import { isAuthenticated, getUser } from "@/lib/auth-utils";
 
-const DAYS_OF_WEEK = ["D", "S", "T", "Q", "Q", "S", "S"];
-const DAYS_OF_WEEK_FULL = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
-const MONTHS = [
-  "Janeiro",
-  "Fevereiro",
-  "Março",
-  "Abril",
-  "Maio",
-  "Junho",
-  "Julho",
-  "Agosto",
-  "Setembro",
-  "Outubro",
-  "Novembro",
-  "Dezembro",
-];
-
-interface EventFormData {
-  title: string;
-  description: string;
-  date: string;
-  time: string;
-  finishDate: string;
-  finishTime: string;
-  location: string;
-  eventType: string;
-  worshipTheme: string;
-  requiresParticipantList: boolean;
-  recurrence: string;
-}
-
-// Hook para detectar tamanho da tela
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    const checkIsMobile = () => {
-      setIsMobile(window.innerWidth < 768); // md breakpoint
-    };
-
-    // Check inicial
-    checkIsMobile();
-
-    // Listener para mudanças de tamanho
-    window.addEventListener("resize", checkIsMobile);
-
-    return () => window.removeEventListener("resize", checkIsMobile);
-  }, []);
-
-  return isMobile;
-}
-
+// Componente principal da página de eventos
 export default function EventosPage() {
-  const router = useRouter();
-  const { toast } = useToast();
-  const isMobile = useIsMobile();
+  // --- STATE MANAGEMENT ---
   const [events, setEvents] = useState<CalendarEventResponse[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [desktopViewMode, setDesktopViewMode] = useState<"calendar" | "list">(
-    "calendar"
-  );
-  const [showEventModal, setShowEventModal] = useState(false);
-  const [editingEvent, setEditingEvent] = useState<EventResponse | null>(null);
-  const [expandedEvent, setExpandedEvent] = useState<number | null>(null);
-  const [formData, setFormData] = useState<EventFormData>({
-    title: "",
-    description: "",
-    date: "",
-    time: "09:00",
-    finishDate: "",
-    finishTime: "10:00",
-    location: "",
-    eventType: "0",
-    worshipTheme: "",
-    requiresParticipantList: false,
-    recurrence: "once",
-  });
-  const [submitting, setSubmitting] = useState(false);
 
-  // Determinar o modo de visualização baseado no tamanho da tela
-  const viewMode = isMobile ? "list" : desktopViewMode;
+  // --- MODAL E FORMULÁRIO STATE ---
+  const [showModal, setShowModal] = useState(false);
+  const [formData, setFormData] = useState<
+    Partial<EventCreateRequest & { time: string; finishTime: string }>
+  >({});
+  const [editingEventId, setEditingEventId] = useState<number | null>(null);
+  const [formLoading, setFormLoading] = useState(false);
 
-  const userRole = getUser();
-  const canManageEvents =
-    userRole.role === "Admin" || userRole.role === "Pastor";
+  const modalRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!isAuthenticated()) {
-      router.push("/login");
-      return;
-    }
+  // --- LÓGICA DO CALENDÁRIO ---
+  const eventsByDate = useMemo(() => {
+    const map = new Map<string, CalendarEventResponse[]>();
+    events.forEach((event) => {
+      event.occurrences.forEach((occurrence) => {
+        const dateKey = new Date(occurrence.start).toISOString().split("T")[0];
+        if (!map.has(dateKey)) {
+          map.set(dateKey, []);
+        }
+        map.get(dateKey)?.push(event);
+      });
+    });
+    return map;
+  }, [events]);
 
-    loadEvents();
-  }, [router, currentDate]);
+  const calendarGrid = useMemo(() => {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    const firstDayOfMonth = new Date(year, month, 1);
+    const lastDayOfMonth = new Date(year, month + 1, 0);
+    const daysInMonth = Array.from(
+      { length: lastDayOfMonth.getDate() },
+      (_, i) => new Date(year, month, i + 1)
+    );
+    const startingDayOfWeek = firstDayOfMonth.getDay();
+    return Array(startingDayOfWeek).fill(null).concat(daysInMonth);
+  }, [currentDate]);
 
+  // --- DATA FETCHING ---
   const loadEvents = async () => {
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      setError(null);
-
       const year = currentDate.getFullYear();
       const month = currentDate.getMonth() + 1;
-
       const eventsData = await eventsService.getCalendarEvents(year, month);
       setEvents(eventsData);
-    } catch (error) {
-      console.error("Erro ao carregar eventos:", error);
-      setError("Erro ao carregar eventos. Verifique sua conexão.");
-      setEvents([]);
+    } catch (err) {
+      console.error("Erro ao carregar eventos:", err);
+      setError("Não foi possível carregar os eventos.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCreateEvent = () => {
-    setEditingEvent(null);
+  useEffect(() => {
+    loadEvents();
+  }, [currentDate]);
+
+  // --- HANDLERS ---
+  const handlePrevMonth = () =>
+    setCurrentDate(
+      new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1)
+    );
+  const handleNextMonth = () =>
+    setCurrentDate(
+      new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1)
+    );
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setEditingEventId(null);
+  };
+
+  const handleModalClickOutside = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
+      handleCloseModal();
+    }
+  };
+
+  const handleOpenCreateModal = (date?: Date) => {
+    const selectedDate = date || new Date();
+    setEditingEventId(null);
     setFormData({
       title: "",
       description: "",
-      date: selectedDate ? selectedDate.toISOString().split("T")[0] : "",
-      time: "09:00",
-      finishDate: selectedDate ? selectedDate.toISOString().split("T")[0] : "",
-      finishTime: "10:00",
       location: "",
-      eventType: "0",
-      worshipTheme: "",
+      date: selectedDate.toISOString().split("T")[0],
+      time: "19:00",
+      finishDate: selectedDate.toISOString().split("T")[0],
+      finishTime: "21:00",
       requiresParticipantList: false,
-      recurrence: "once",
+      recurrenceType: RecurrenceType.None,
+      frequency: 1,
     });
-    setShowEventModal(true);
+    setShowModal(true);
   };
 
-  const handleEditEvent = async (eventId: number) => {
+  const handleOpenEditModal = async (eventId: number, occurrenceDate: Date) => {
+    setEditingEventId(eventId);
+    setFormLoading(true);
+    setShowModal(true);
     try {
-      const event = await eventsService.getEventById(eventId);
-      setEditingEvent(event);
-      setFormData(eventsService.formatEventFromAPI(event));
-      setShowEventModal(true);
-    } catch (error) {
-      toast({
-        title: "Erro",
-        description: "Erro ao carregar dados do evento",
-        variant: "destructive",
+      const eventData = await eventsService.getEventById(eventId);
+
+      const originalStartDate = new Date(eventData.date);
+      const originalFinishDate = new Date(eventData.finishDate);
+      const startTime = originalStartDate.toTimeString().substring(0, 5);
+      const finishTime = originalFinishDate.toTimeString().substring(0, 5);
+
+      const duration =
+        originalFinishDate.getTime() - originalStartDate.getTime();
+      const occurrenceEndDate = new Date(
+        new Date(
+          `${occurrenceDate.toISOString().split("T")[0]}T${startTime}:00.000Z`
+        ).getTime() + duration
+      );
+
+      setFormData({
+        title: eventData.title,
+        description: eventData.description,
+        location: eventData.location,
+        date: occurrenceDate.toISOString().split("T")[0],
+        time: startTime,
+        finishDate: occurrenceEndDate.toISOString().split("T")[0],
+        finishTime: finishTime,
+        requiresParticipantList: eventData.requiresParticipantList,
+        recurrenceType:
+          eventData.recurrence?.recurrenceType ?? RecurrenceType.None,
+        frequency: eventData.recurrence?.frequency ?? 1,
       });
+    } catch (err) {
+      setError("Falha ao carregar dados para edição.");
+      handleCloseModal();
+    } finally {
+      setFormLoading(false);
     }
   };
 
-  const handleDeleteEvent = async (eventId: number) => {
-    if (!confirm("Tem certeza que deseja excluir este evento?")) return;
-
-    try {
-      await eventsService.deleteEvent(eventId);
-      toast({
-        title: "Sucesso",
-        description: "Evento excluído com sucesso",
-      });
-      loadEvents();
-    } catch (error) {
-      toast({
-        title: "Erro",
-        description: "Erro ao excluir evento",
-        variant: "destructive",
-      });
-    }
+  const handleFormChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >
+  ) => {
+    const { name, value, type } = e.target;
+    const realValue =
+      type === "checkbox" ? (e.target as HTMLInputElement).checked : value;
+    setFormData((prev) => ({ ...prev, [name]: realValue }));
   };
 
-  const handleSubmitEvent = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!formData.title.trim()) {
-      toast({
-        title: "Erro",
-        description: "Título é obrigatório",
-        variant: "destructive",
-      });
+    setFormLoading(true);
+    setError(null);
+    if (!formData.date || !formData.time || !formData.finishTime) {
+      setError("Data e hora são obrigatórias.");
+      setFormLoading(false);
       return;
     }
 
+    const startDateISO = new Date(
+      `${formData.date}T${formData.time}:00.000Z`
+    ).toISOString();
+    const finishDateISO = new Date(
+      `${formData.finishDate || formData.date}T${formData.finishTime}:00.000Z`
+    ).toISOString();
+
+    const commonPayload = {
+      title: formData.title || "",
+      description: formData.description || "",
+      date: startDateISO,
+      finishDate: finishDateISO,
+      location: formData.location || "",
+      requiresParticipantList: formData.requiresParticipantList || false,
+      recurrenceType: Number(formData.recurrenceType),
+      frequency: Number(formData.frequency) || 1,
+    };
+
     try {
-      setSubmitting(true);
-      const eventData = eventsService.formatEventForAPI(formData);
-
-      if (editingEvent) {
-        await eventsService.updateEvent(editingEvent.id, {
-          ...eventData,
-          id: editingEvent.id,
-        });
-        toast({
-          title: "Sucesso",
-          description: "Evento atualizado com sucesso",
-        });
+      if (editingEventId) {
+        const payload: EventUpdateRequest = {
+          ...commonPayload,
+          worshipTheme: "",
+        };
+        await eventsService.updateEvent(editingEventId, payload);
       } else {
-        await eventsService.createEvent(eventData);
-        toast({
-          title: "Sucesso",
-          description: "Evento criado com sucesso",
-        });
+        const payload: EventCreateRequest = commonPayload;
+        await eventsService.createEvent(payload);
       }
-
-      setShowEventModal(false);
+      handleCloseModal();
       loadEvents();
-    } catch (error) {
-      toast({
-        title: "Erro",
-        description: editingEvent
-          ? "Erro ao atualizar evento"
-          : "Erro ao criar evento",
-        variant: "destructive",
-      });
+    } catch (err) {
+      console.error("Erro ao salvar o evento:", err);
+      setError(
+        "Não foi possível salvar o evento. Verifique os dados e tente novamente."
+      );
     } finally {
-      setSubmitting(false);
+      setFormLoading(false);
     }
   };
 
-  // Gerar dias do mês para o calendário
-  const generateCalendarDays = () => {
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
-
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const startDate = new Date(firstDay);
-    startDate.setDate(startDate.getDate() - firstDay.getDay());
-
-    const days = [];
-    const current = new Date(startDate);
-
-    // Gerar 42 dias (6 semanas)
-    for (let i = 0; i < 42; i++) {
-      days.push(new Date(current));
-      current.setDate(current.getDate() + 1);
-    }
-
-    return days;
-  };
-
-  // Obter eventos para uma data específica
-  const getEventsForDate = (date: Date) => {
-    return events.filter((event) =>
-      event.occurrences.some((occurrence) => {
-        const occurrenceDate = new Date(occurrence.start);
-        return (
-          occurrenceDate.getDate() === date.getDate() &&
-          occurrenceDate.getMonth() === date.getMonth() &&
-          occurrenceDate.getFullYear() === date.getFullYear()
-        );
-      })
-    );
-  };
-
-  // Obter todos os eventos do mês atual ordenados por data
-  const getAllEventsThisMonth = () => {
-    const monthEvents: Array<{
-      date: Date;
-      event: CalendarEventResponse;
-      occurrence: any;
-    }> = [];
-
-    events.forEach((event) => {
-      event.occurrences.forEach((occurrence) => {
-        const occurrenceDate = new Date(occurrence.start);
-        if (
-          occurrenceDate.getMonth() === currentDate.getMonth() &&
-          occurrenceDate.getFullYear() === currentDate.getFullYear()
-        ) {
-          monthEvents.push({ date: occurrenceDate, event, occurrence });
-        }
-      });
-    });
-
-    return monthEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
-  };
-
-  // Navegar entre meses
-  const navigateMonth = (direction: "prev" | "next") => {
-    const newDate = new Date(currentDate);
-    if (direction === "prev") {
-      newDate.setMonth(newDate.getMonth() - 1);
-    } else {
-      newDate.setMonth(newDate.getMonth() + 1);
-    }
-    setCurrentDate(newDate);
-  };
-
-  // Verificar se é hoje
-  const isToday = (date: Date) => {
-    const today = new Date();
-    return (
-      date.getDate() === today.getDate() &&
-      date.getMonth() === today.getMonth() &&
-      date.getFullYear() === today.getFullYear()
-    );
-  };
-
-  // Verificar se é do mês atual
-  const isCurrentMonth = (date: Date) => {
-    return date.getMonth() === currentDate.getMonth();
-  };
-
-  const formatTime = (dateString: string) => {
-    return new Date(dateString).toLocaleTimeString("pt-BR", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString("pt-BR", {
-      day: "2-digit",
-      month: "2-digit",
-    });
-  };
-
-  const formatFullDate = (date: Date) => {
-    return date.toLocaleDateString("pt-BR", {
-      weekday: "short",
-      day: "2-digit",
-      month: "short",
-    });
-  };
-
-  if (loading) {
-    return (
-      <div className="flex h-screen items-center justify-center p-4">
-        <div className="flex flex-col items-center gap-2">
-          <Loader2 className="h-8 w-8 animate-spin" />
-          <p className="text-sm text-gray-500">Carregando eventos...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex h-screen items-center justify-center p-4">
-        <div className="text-center">
-          <p className="text-red-600 mb-4">{error}</p>
-          <Button onClick={loadEvents}>Tentar Novamente</Button>
-        </div>
-      </div>
-    );
-  }
-
-  const calendarDays = generateCalendarDays();
-  const monthEvents = getAllEventsThisMonth();
-
+  // --- RENDERIZAÇÃO ---
   return (
-    <div className="flex-1 space-y-4 p-4">
-      {/* Header */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          {canManageEvents && (
-            <Button
-              onClick={handleCreateEvent}
-              size={isMobile ? "sm" : "default"}
+    <div className="p-4 sm:p-6 lg:p-8 font-sans">
+      {/* Cabeçalho */}
+      <div className="flex flex-col sm:flex-row items-center justify-between mb-6">
+        <div className="flex items-center">
+          <button
+            onClick={handlePrevMonth}
+            className="p-2 rounded-full hover:bg-gray-200 transition-colors"
+          >
+            <svg
+              className="h-6 w-6 text-gray-600"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
             >
-              <Plus className="h-4 w-4 mr-0 md:mr-2" />
-              <span className="hidden md:inline">Novo Evento</span>
-            </Button>
-          )}
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M15 19l-7-7 7-7"
+              />
+            </svg>
+          </button>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-800 mx-4 w-48 text-center">
+            {currentDate
+              .toLocaleString("pt-BR", { month: "long", year: "numeric" })
+              .toUpperCase()}
+          </h1>
+          <button
+            onClick={handleNextMonth}
+            className="p-2 rounded-full hover:bg-gray-200 transition-colors"
+          >
+            <svg
+              className="h-6 w-6 text-gray-600"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M9 5l7 7-7 7"
+              />
+            </svg>
+          </button>
         </div>
-
-        {/* Navigation and View Toggle */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigateMonth("prev")}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <h2 className="text-lg font-semibold min-w-[140px] text-center">
-              {isMobile
-                ? `${MONTHS[currentDate.getMonth()].slice(
-                    0,
-                    3
-                  )} ${currentDate.getFullYear()}`
-                : `${
-                    MONTHS[currentDate.getMonth()]
-                  } ${currentDate.getFullYear()}`}
-            </h2>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigateMonth("next")}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-
-          {/* View Toggle - apenas no desktop */}
-          {!isMobile && (
-            <div className="flex gap-1">
-              <Button
-                variant={desktopViewMode === "calendar" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setDesktopViewMode("calendar")}
-              >
-                <Grid3X3 className="h-4 w-4 mr-2" />
-                Calendário
-              </Button>
-              <Button
-                variant={desktopViewMode === "list" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setDesktopViewMode("list")}
-              >
-                <List className="h-4 w-4 mr-2" />
-                Lista
-              </Button>
-            </div>
-          )}
-        </div>
-
-        {/* Indicador de visualização no mobile */}
-        {isMobile && (
-          <div className="text-sm text-gray-500 flex items-center gap-2">
-            <List className="h-4 w-4" />
-            Visualização em lista (mobile)
-          </div>
-        )}
+        <button
+          onClick={() => handleOpenCreateModal()}
+          className="mt-4 sm:mt-0 bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg shadow-md hover:bg-blue-700 transition-colors"
+        >
+          Criar Evento
+        </button>
       </div>
 
-      {viewMode === "calendar" ? (
-        /* Calendar View - apenas desktop */
-        <Card>
-          <CardContent className="p-4">
-            {/* Calendar Grid */}
-            <div className="grid grid-cols-7 gap-2">
-              {/* Days of week header */}
-              {DAYS_OF_WEEK_FULL.map((day) => (
-                <div
-                  key={day}
-                  className="p-3 text-center text-sm font-medium text-gray-500"
-                >
-                  {day}
-                </div>
-              ))}
-
-              {/* Calendar days */}
-              {calendarDays.map((date, index) => {
-                const dayEvents = getEventsForDate(date);
-                const isCurrentMonthDay = isCurrentMonth(date);
-                const isTodayDate = isToday(date);
-
-                return (
-                  <div
-                    key={index}
-                    className={`
-                      min-h-[120px] p-3 border border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors rounded-lg
-                      ${!isCurrentMonthDay ? "text-gray-300 bg-gray-50" : ""}
-                      ${isTodayDate ? "bg-blue-50 border-blue-200" : ""}
-                      ${
-                        selectedDate?.toDateString() === date.toDateString()
-                          ? "ring-2 ring-blue-500"
-                          : ""
-                      }
-                    `}
-                    onClick={() => setSelectedDate(date)}
-                    onDoubleClick={() => canManageEvents && handleCreateEvent()}
-                  >
-                    <div
-                      className={`text-sm font-medium mb-2 ${
-                        isTodayDate ? "text-blue-600" : ""
-                      }`}
-                    >
-                      {date.getDate()}
-                    </div>
-                    <div className="space-y-1">
-                      {dayEvents.slice(0, 3).map((event, eventIndex) => (
-                        <div
-                          key={eventIndex}
-                          className="text-xs p-2 bg-blue-100 text-blue-800 rounded truncate hover:bg-blue-200 transition-colors"
-                          title={event.title}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            canManageEvents && handleEditEvent(event.id);
-                          }}
-                        >
-                          <div className="flex items-center gap-1">
-                            {event.isRecurring && (
-                              <Repeat className="h-3 w-3" />
-                            )}
-                            <span className="truncate">{event.title}</span>
-                          </div>
-                        </div>
-                      ))}
-                      {dayEvents.length > 3 && (
-                        <div className="text-xs text-gray-500 font-medium">
-                          +{dayEvents.length - 3} mais
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      ) : (
-        /* List View - mobile e desktop */
-        <div className="space-y-3">
-          {monthEvents.length > 0 ? (
-            monthEvents.map(({ date, event, occurrence }, index) => (
-              <Card key={`${event.id}-${index}`} className="overflow-hidden">
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className="text-sm font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                          {formatFullDate(date)}
-                        </div>
-                        {event.isRecurring && (
-                          <Badge variant="outline" className="text-xs">
-                            <Repeat className="h-3 w-3 mr-1" />
-                            Recorrente
-                          </Badge>
-                        )}
-                      </div>
-
-                      <h3 className="font-medium text-lg mb-1 truncate">
-                        {event.title}
-                      </h3>
-
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-gray-500 mb-2">
-                        <div className="flex items-center gap-1">
-                          <Clock className="h-4 w-4" />
-                          {formatTime(occurrence.start)} -{" "}
-                          {formatTime(occurrence.end)}
-                        </div>
-                        {event.location && (
-                          <div className="flex items-center gap-1">
-                            <MapPin className="h-4 w-4" />
-                            <span className="truncate">{event.location}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {event.description && expandedEvent === event.id && (
-                        <p className="text-sm text-gray-600 mb-2">
-                          {event.description}
-                        </p>
-                      )}
-
-                      {event.description && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() =>
-                            setExpandedEvent(
-                              expandedEvent === event.id ? null : event.id
-                            )
-                          }
-                          className="p-0 h-auto text-blue-600"
-                        >
-                          {expandedEvent === event.id ? (
-                            <>
-                              <ChevronUp className="h-4 w-4 mr-1" />
-                              Menos detalhes
-                            </>
-                          ) : (
-                            <>
-                              <ChevronDown className="h-4 w-4 mr-1" />
-                              Mais detalhes
-                            </>
-                          )}
-                        </Button>
-                      )}
-                    </div>
-
-                    {canManageEvents && (
-                      <div className="flex flex-col gap-2 ml-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEditEvent(event.id)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDeleteEvent(event.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))
-          ) : (
-            <Card>
-              <CardContent className="p-8 text-center">
-                <Calendar className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500 mb-4">Nenhum evento este mês</p>
-                {canManageEvents && (
-                  <Button onClick={handleCreateEvent} variant="outline">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Criar Evento
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          )}
-        </div>
+      {error && (
+        <p className="text-center text-red-500 bg-red-100 p-3 rounded-lg mb-4">
+          {error}
+        </p>
       )}
 
-      {/* Selected Date Events - apenas para desktop com calendário */}
-      {selectedDate && viewMode === "calendar" && !isMobile && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              {selectedDate.toLocaleDateString("pt-BR", {
-                day: "2-digit",
-                month: "long",
-                year: "numeric",
-              })}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {getEventsForDate(selectedDate).length > 0 ? (
-              <div className="space-y-3">
-                {getEventsForDate(selectedDate).map((event) => (
+      {/* Grid do Calendário */}
+      <div className="grid grid-cols-7 border-t border-l border-gray-200 bg-white shadow-lg rounded-lg overflow-hidden">
+        {[
+          "Domingo",
+          "Segunda",
+          "Terça",
+          "Quarta",
+          "Quinta",
+          "Sexta",
+          "Sábado",
+        ].map((day) => (
+          <div
+            key={day}
+            className="text-center font-semibold text-gray-600 py-3 bg-gray-50 border-b border-r border-gray-200 text-sm sm:text-base"
+          >
+            {day}
+          </div>
+        ))}
+        {calendarGrid.map((day, index) => {
+          if (!day)
+            return (
+              <div
+                key={index}
+                className="min-h-[120px] border-b border-r border-gray-200 bg-gray-50"
+              ></div>
+            );
+
+          const dateKey = day.toISOString().split("T")[0];
+          const dayEvents = eventsByDate.get(dateKey) || [];
+
+          return (
+            <div
+              key={index}
+              className="min-h-[120px] flex flex-col p-2 border-b border-r border-gray-200 hover:bg-blue-50 transition-colors"
+              onClick={() => handleOpenCreateModal(day)}
+            >
+              <div className="self-end font-semibold text-gray-700">
+                {day.getDate()}
+              </div>
+              <div className="flex-grow space-y-1 mt-1">
+                {dayEvents.map((event, eventIndex) => (
                   <div
-                    key={event.id}
-                    className="flex items-start justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+                    key={`${event.id}-${eventIndex}`}
+                    className="bg-blue-500 text-white text-xs font-semibold px-2 py-1 rounded-md cursor-pointer hover:bg-blue-600 whitespace-nowrap overflow-hidden text-overflow-ellipsis"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOpenEditModal(event.id, day);
+                    }}
                   >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h3 className="font-medium">{event.title}</h3>
-                        {event.isRecurring && (
-                          <Badge variant="outline" className="text-xs">
-                            <Repeat className="h-3 w-3 mr-1" />
-                            Recorrente
-                          </Badge>
-                        )}
-                      </div>
-                      {event.description && (
-                        <p className="text-sm text-gray-600 mb-2">
-                          {event.description}
-                        </p>
-                      )}
-                      <div className="flex items-center gap-4 text-sm text-gray-500">
-                        {event.occurrences[0] && (
-                          <div className="flex items-center gap-1">
-                            <Clock className="h-4 w-4" />
-                            {formatTime(event.occurrences[0].start)} -{" "}
-                            {formatTime(event.occurrences[0].end)}
-                          </div>
-                        )}
-                        {event.location && (
-                          <div className="flex items-center gap-1">
-                            <MapPin className="h-4 w-4" />
-                            {event.location}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    {canManageEvents && (
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEditEvent(event.id)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDeleteEvent(event.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    )}
+                    {event.title}
                   </div>
                 ))}
               </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Modal */}
+      {showModal && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center p-4"
+          onClick={handleModalClickOutside}
+        >
+          <div
+            ref={modalRef}
+            className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-full overflow-y-auto"
+          >
+            {formLoading ? (
+              <div className="p-16 text-center">Carregando...</div>
             ) : (
-              <div className="text-center py-6">
-                <p className="text-gray-500 mb-4">Nenhum evento nesta data</p>
-                {canManageEvents && (
-                  <Button
-                    onClick={handleCreateEvent}
-                    variant="outline"
-                    size="sm"
+              <>
+                <div className="flex items-center justify-between p-5 border-b border-gray-200">
+                  <h3 className="text-2xl font-bold text-gray-800">
+                    {editingEventId ? "Editar Evento" : "Criar Novo Evento"}
+                  </h3>
+                  <button
+                    onClick={handleCloseModal}
+                    className="p-2 rounded-full hover:bg-gray-200"
                   >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Criar Evento
-                  </Button>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+                    <svg
+                      className="h-6 w-6 text-gray-600"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                </div>
 
-      {/* Event Modal */}
-      <Dialog open={showEventModal} onOpenChange={setShowEventModal}>
-        <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] overflow-y-auto md:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-lg">
-              {editingEvent ? "Editar Evento" : "Novo Evento"}
-            </DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleSubmitEvent} className="space-y-4">
-            {/* Informações Básicas */}
-            <div className="space-y-3">
-              <div>
-                <Label htmlFor="title" className="text-sm">
-                  Título *
-                </Label>
-                <Input
-                  id="title"
-                  value={formData.title}
-                  onChange={(e) =>
-                    setFormData({ ...formData, title: e.target.value })
-                  }
-                  placeholder="Nome do evento"
-                  required
-                  className="mt-1"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <Label htmlFor="eventType" className="text-sm">
-                    Tipo
-                  </Label>
-                  <Select
-                    value={formData.eventType}
-                    onValueChange={(value) =>
-                      setFormData({ ...formData, eventType: value })
-                    }
-                  >
-                    <SelectTrigger className="mt-1">
-                      <SelectValue placeholder="Tipo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {eventsService.getEventTypeOptions().map((option) => (
-                        <SelectItem
-                          key={option.value}
-                          value={option.value.toString()}
+                <form onSubmit={handleSubmit} className="p-6 space-y-5">
+                  <div>
+                    <label className="block text-lg font-semibold text-gray-700 mb-1">
+                      Título
+                    </label>
+                    <input
+                      name="title"
+                      value={formData.title || ""}
+                      onChange={handleFormChange}
+                      required
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-lg font-semibold text-gray-700 mb-1">
+                      Descrição
+                    </label>
+                    <textarea
+                      name="description"
+                      value={formData.description || ""}
+                      onChange={handleFormChange}
+                      rows={3}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                    ></textarea>
+                  </div>
+                  <div>
+                    <label className="block text-lg font-semibold text-gray-700 mb-1">
+                      Local
+                    </label>
+                    <input
+                      name="location"
+                      value={formData.location || ""}
+                      onChange={handleFormChange}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-lg font-semibold text-gray-700 mb-1">
+                        Data Início
+                      </label>
+                      <input
+                        type="date"
+                        name="date"
+                        value={formData.date || ""}
+                        onChange={handleFormChange}
+                        required
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-lg font-semibold text-gray-700 mb-1">
+                        Hora Início
+                      </label>
+                      <input
+                        type="time"
+                        name="time"
+                        value={formData.time || ""}
+                        onChange={handleFormChange}
+                        required
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-lg font-semibold text-gray-700 mb-1">
+                        Data Fim
+                      </label>
+                      <input
+                        type="date"
+                        name="finishDate"
+                        value={formData.finishDate || ""}
+                        onChange={handleFormChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-lg font-semibold text-gray-700 mb-1">
+                        Hora Fim
+                      </label>
+                      <input
+                        type="time"
+                        name="finishTime"
+                        value={formData.finishTime || ""}
+                        onChange={handleFormChange}
+                        required
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                  </div>
+                  <div className="border-t border-gray-200 pt-4">
+                    <label className="block text-lg font-semibold text-gray-700 mb-2">
+                      Recorrência
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <select
+                          name="recurrenceType"
+                          value={formData.recurrenceType}
+                          onChange={handleFormChange}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
                         >
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label htmlFor="location" className="text-sm">
-                    Local
-                  </Label>
-                  <Input
-                    id="location"
-                    value={formData.location}
-                    onChange={(e) =>
-                      setFormData({ ...formData, location: e.target.value })
-                    }
-                    placeholder="Local"
-                    className="mt-1"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="description" className="text-sm">
-                  Descrição
-                </Label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) =>
-                    setFormData({ ...formData, description: e.target.value })
-                  }
-                  placeholder="Descrição do evento"
-                  rows={2}
-                  className="mt-1"
-                />
-              </div>
-
-              {formData.eventType === "0" && (
-                <div>
-                  <Label htmlFor="worshipTheme" className="text-sm">
-                    Tema do Culto
-                  </Label>
-                  <Input
-                    id="worshipTheme"
-                    value={formData.worshipTheme}
-                    onChange={(e) =>
-                      setFormData({ ...formData, worshipTheme: e.target.value })
-                    }
-                    placeholder="Tema do culto"
-                    className="mt-1"
-                  />
-                </div>
-              )}
-            </div>
-
-            {/* Data e Hora */}
-            <div className="space-y-3">
-              <h3 className="font-medium">Data e Hora</h3>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label htmlFor="date" className="text-sm">
-                    Data *
-                  </Label>
-                  <Input
-                    id="date"
-                    type="date"
-                    value={formData.date}
-                    onChange={(e) =>
-                      setFormData({ ...formData, date: e.target.value })
-                    }
-                    required
-                    className="mt-1"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="time" className="text-sm">
-                    Hora *
-                  </Label>
-                  <Input
-                    id="time"
-                    type="time"
-                    value={formData.time}
-                    onChange={(e) =>
-                      setFormData({ ...formData, time: e.target.value })
-                    }
-                    required
-                    className="mt-1"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="finishDate" className="text-sm">
-                    Fim
-                  </Label>
-                  <Input
-                    id="finishDate"
-                    type="date"
-                    value={formData.finishDate}
-                    onChange={(e) =>
-                      setFormData({ ...formData, finishDate: e.target.value })
-                    }
-                    className="mt-1"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="finishTime" className="text-sm">
-                    Hora Fim
-                  </Label>
-                  <Input
-                    id="finishTime"
-                    type="time"
-                    value={formData.finishTime}
-                    onChange={(e) =>
-                      setFormData({ ...formData, finishTime: e.target.value })
-                    }
-                    className="mt-1"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Recorrência */}
-            <div className="space-y-3">
-              <div>
-                <Label htmlFor="recurrence" className="text-sm">
-                  Repetir
-                </Label>
-                <Select
-                  value={formData.recurrence}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, recurrence: value })
-                  }
-                >
-                  <SelectTrigger className="mt-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="once">Não repetir</SelectItem>
-                    <SelectItem value="weekly">Semanalmente</SelectItem>
-                    <SelectItem value="biweekly">A cada 2 semanas</SelectItem>
-                    <SelectItem value="monthly">Mensalmente</SelectItem>
-                    <SelectItem value="yearly">Anualmente</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* Opções */}
-            <div className="space-y-3">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="requiresParticipantList"
-                  checked={formData.requiresParticipantList}
-                  onCheckedChange={(checked) =>
-                    setFormData({
-                      ...formData,
-                      requiresParticipantList: !!checked,
-                    })
-                  }
-                />
-                <Label
-                  htmlFor="requiresParticipantList"
-                  className="text-sm flex items-center gap-2"
-                >
-                  <Users className="h-4 w-4" />
-                  Lista de participantes
-                </Label>
-              </div>
-            </div>
-
-            {/* Botões */}
-            <div className="flex gap-3 pt-4 border-t">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setShowEventModal(false)}
-                disabled={submitting}
-                className="flex-1"
-              >
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={submitting} className="flex-1">
-                {submitting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    {editingEvent ? "Salvando..." : "Criando..."}
-                  </>
-                ) : editingEvent ? (
-                  "Salvar"
-                ) : (
-                  "Criar"
-                )}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+                          <option value={RecurrenceType.None}>
+                            Não se repete
+                          </option>
+                          <option value={RecurrenceType.Daily}>
+                            Diariamente
+                          </option>
+                          <option value={RecurrenceType.Weekly}>
+                            Semanalmente
+                          </option>
+                          <option value={RecurrenceType.Monthly}>
+                            Mensalmente
+                          </option>
+                          <option value={RecurrenceType.Yearly}>
+                            Anualmente
+                          </option>
+                        </select>
+                      </div>
+                      {formData.recurrenceType != RecurrenceType.None && (
+                        <div>
+                          <input
+                            type="number"
+                            name="frequency"
+                            value={formData.frequency || 1}
+                            min="1"
+                            onChange={handleFormChange}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center pt-2">
+                    <input
+                      type="checkbox"
+                      id="participantList"
+                      name="requiresParticipantList"
+                      checked={!!formData.requiresParticipantList}
+                      onChange={handleFormChange}
+                      className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <label
+                      htmlFor="participantList"
+                      className="ml-3 text-lg font-semibold text-gray-700"
+                    >
+                      Exigir lista de participantes?
+                    </label>
+                  </div>
+                  <div className="flex justify-end pt-4 space-x-3">
+                    <button
+                      type="button"
+                      onClick={handleCloseModal}
+                      className="px-6 py-2 rounded-lg bg-gray-200 text-gray-800 font-semibold hover:bg-gray-300 transition-colors"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={formLoading}
+                      className="px-6 py-2 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors disabled:bg-blue-300"
+                    >
+                      {formLoading ? "Salvando..." : "Salvar Evento"}
+                    </button>
+                  </div>
+                </form>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
