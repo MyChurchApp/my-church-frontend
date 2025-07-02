@@ -1,4 +1,5 @@
 import { authFetch, authFetchJson } from "@/lib/auth-fetch";
+import { MutationMeta } from "@tanstack/react-query";
 
 // URL base da sua API.
 const API_BASE_URL =
@@ -210,10 +211,11 @@ class WorshipServiceManager {
    */
   async presentHymn(
     worshipServiceId: number,
-    hymnNumber: number
+    hymnNumber: number,
+    verseNumber: number
   ): Promise<void> {
     await authFetch(
-      `${API_BASE_URL}/WorshipActivity/${worshipServiceId}/hymn/${hymnNumber}/present`,
+      `${API_BASE_URL}/WorshipActivity/${worshipServiceId}/hymn/${hymnNumber}/present/${verseNumber}`,
       {
         method: "POST",
       }

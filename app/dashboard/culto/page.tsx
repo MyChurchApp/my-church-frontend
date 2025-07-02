@@ -14,21 +14,21 @@ import {
 import { Badge } from "@/components/ui/badge";
 import {
   worshipService,
-  bibleService, // Importando o bibleService
-  hymnService, // Importando o hymnService
+  bibleService,
+  hymnService,
   type BibleVerse,
   type Hymn,
+  type HymnVerse,
 } from "@/services/worship/worship";
 import { useSignalRForWorship } from "@/hooks/useSignalRForWorship";
 import { motion } from "framer-motion";
 
 // --- Estilos ---
 const styles = `
-  .highlighted-verse {
+  .highlighted-part {
     background-color: rgba(250, 204, 21, 0.2);
     color: #1f2937;
-    padding: 12px 8px;
-    margin: 4px -8px;
+    padding: 12px;
     border-radius: 8px;
     border-left: 4px solid #facc15;
     transform: scale(1.01);
@@ -55,6 +55,7 @@ const LiveReadingDisplay = ({
 }: {
   readingState: LiveReadingState;
 }) => {
+  // Implementação do componente de leitura da Bíblia (sem alterações)
   const highlightedVerseRef = useRef<HTMLParagraphElement>(null);
 
   useEffect(() => {
@@ -82,7 +83,7 @@ const LiveReadingDisplay = ({
               key={verse.id}
               ref={isHighlighted ? highlightedVerseRef : null}
               className={`text-lg md:text-xl text-left leading-relaxed text-gray-700 ${
-                isHighlighted ? "highlighted-verse font-semibold" : ""
+                isHighlighted ? "highlighted-part font-semibold" : ""
               }`}
             >
               <sup className="font-bold text-blue-600 mr-2">
@@ -97,7 +98,25 @@ const LiveReadingDisplay = ({
   );
 };
 
-const LiveHymnDisplay = ({ hymn }: { hymn: Hymn }) => {
+// Componente de Hino com lógica de destaque corrigida
+const LiveHymnDisplay = ({
+  hymn,
+  highlightedPartKey,
+}: {
+  hymn: Hymn;
+  highlightedPartKey: string | null;
+}) => {
+  const highlightedPartRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (highlightedPartRef.current) {
+      highlightedPartRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }
+  }, [highlightedPartKey]);
+
   const formatText = (text: string | null) => {
     if (!text) return null;
     return text.split("<br>").map((line, index) => (
@@ -119,20 +138,37 @@ const LiveHymnDisplay = ({ hymn }: { hymn: Hymn }) => {
         {hymn.title}
       </h1>
       <div className="overflow-y-auto pr-4 space-y-4">
-        {hymn.chorus && (
-          <div className="mb-4 italic bg-yellow-50 p-3 rounded-md">
-            <h4 className="font-semibold mb-1 not-italic">Coro</h4>
-            <p className="text-gray-700">{formatText(hymn.chorus)}</p>
-          </div>
-        )}
-        <div className="space-y-4">
-          {hymn.verses.map((verse) => (
-            <div key={verse.number}>
-              <h4 className="font-semibold mb-1">Verso {verse.number}</h4>
-              <p className="text-gray-700">{formatText(verse.text)}</p>
-            </div>
-          ))}
-        </div>
+        {hymn.verses.map((verse) => {
+          const verseKey = `verse-${verse.number}`;
+          const chorusKey = `chorus-after-${verse.number}`;
+          const isVerseHighlighted = highlightedPartKey === verseKey;
+          const isChorusHighlighted = highlightedPartKey === chorusKey;
+
+          return (
+            <React.Fragment key={verse.number}>
+              <div
+                ref={isVerseHighlighted ? highlightedPartRef : null}
+                className={`p-3 rounded-md ${
+                  isVerseHighlighted ? "highlighted-part" : ""
+                }`}
+              >
+                <h4 className="font-semibold mb-1">Verso {verse.number}</h4>
+                <p className="text-gray-700">{formatText(verse.text)}</p>
+              </div>
+              {hymn.chorus && (
+                <div
+                  ref={isChorusHighlighted ? highlightedPartRef : null}
+                  className={`italic p-3 rounded-md ${
+                    isChorusHighlighted ? "highlighted-part" : ""
+                  }`}
+                >
+                  <h4 className="font-semibold mb-1 not-italic">Coro</h4>
+                  <p className="text-gray-700">{formatText(hymn.chorus)}</p>
+                </div>
+              )}
+            </React.Fragment>
+          );
+        })}
       </div>
     </motion.div>
   );
@@ -168,6 +204,10 @@ function AcompanharCultoContent() {
   const [displayMode, setDisplayMode] = useState<DisplayMode>("waiting");
   const [liveReading, setLiveReading] = useState<LiveReadingState | null>(null);
   const [liveHymn, setLiveHymn] = useState<Hymn | null>(null);
+  const [highlightedPartKey, setHighlightedPartKey] = useState<string | null>(
+    null
+  );
+  const [lastFocusedVerse, setLastFocusedVerse] = useState<number | null>(null); // ✅ NOVO ESTADO
   const [isLoadingContent, setIsLoadingContent] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -187,57 +227,59 @@ function AcompanharCultoContent() {
   const { isConnected } = useSignalRForWorship(activeWorshipId);
 
   useEffect(() => {
-    // ✅ LÓGICA CORRIGIDA E OTIMIZADA PARA LEITURA BÍBLICA
     const handleReadingUpdate = async (event: Event) => {
       if (!(event instanceof CustomEvent)) return;
-      const readingEventData = event.detail.apiData; // Pega o objeto `apiData` de dentro do evento
-      console.log("Evento 'bibleReadingUpdated' recebido:", readingEventData);
-
-      // Extrai as informações necessárias diretamente do objeto do evento
+      const readingEventData = event.detail.apiData;
       const { bookName, chapterNumber, chapterId, verseId } = readingEventData;
-
       if (!bookName || !chapterNumber || !chapterId || !verseId) {
-        setError("Dados da transmissão da Bíblia são insuficientes.");
+        setError("Dados da Bíblia insuficientes.");
         return;
       }
-
       try {
         setIsLoadingContent(true);
-        // Faz APENAS a chamada para buscar todos os versículos do capítulo
         const verses = await bibleService.getVersesByChapterId(chapterId);
-
         setLiveReading({
           bookName,
           chapterNumber,
           highlightedVerseId: verseId,
-          verses, // Usa a lista de versículos que acabamos de buscar
+          verses,
         });
-
         setDisplayMode("bible");
         setError(null);
       } catch (err: any) {
-        console.error("Erro ao buscar dados da leitura:", err);
-        setError(
-          "Não foi possível carregar o texto da leitura: " + err.message
-        );
+        setError("Falha ao carregar texto bíblico: " + err.message);
       } finally {
         setIsLoadingContent(false);
       }
     };
 
-    // LÓGICA PARA HINOS (já estava correta)
     const handleHymnUpdate = (event: Event) => {
       if (!(event instanceof CustomEvent)) return;
-      const hymnData = event.detail;
-      console.log("Evento 'HymnPresented' processado:", hymnData);
+      const eventData = event.detail;
+      console.log("Evento 'HymnPresented' processado:", eventData);
 
-      if (!hymnData || !hymnData.number || !hymnData.verses) {
-        setError("Dados do hino recebidos são inválidos.");
+      const hymnData = eventData.hymnDto;
+      const verseFocus = eventData.verseFocus;
+
+      if (!hymnData || !hymnData.verses) {
+        setError("Dados do hino inválidos.");
         return;
       }
 
       setLiveHymn(hymnData as Hymn);
       setDisplayMode("hymn");
+
+      // ✅ LÓGICA DE DESTAQUE CORRIGIDA
+      if (verseFocus > 0) {
+        // Se for um verso, o foco é direto e guardamos o número
+        setHighlightedPartKey(`verse-${verseFocus}`);
+        setLastFocusedVerse(verseFocus);
+      } else {
+        // Se for um coro (0), usamos o último verso focado para criar a chave
+        if (lastFocusedVerse) {
+          setHighlightedPartKey(`chorus-after-${lastFocusedVerse}`);
+        }
+      }
       setError(null);
     };
 
@@ -248,7 +290,7 @@ function AcompanharCultoContent() {
       window.removeEventListener("bibleReadingUpdated", handleReadingUpdate);
       window.removeEventListener("HymnPresented", handleHymnUpdate);
     };
-  }, []);
+  }, [lastFocusedVerse]); // Adiciona lastFocusedVerse como dependência
 
   const renderContent = () => {
     if (error)
@@ -281,7 +323,10 @@ function AcompanharCultoContent() {
         );
       case "hymn":
         return liveHymn ? (
-          <LiveHymnDisplay hymn={liveHymn} />
+          <LiveHymnDisplay
+            hymn={liveHymn}
+            highlightedPartKey={highlightedPartKey}
+          />
         ) : (
           <WaitingDisplay />
         );
@@ -298,7 +343,7 @@ function AcompanharCultoContent() {
 }
 
 // ===================================================================
-//   COMPONENTE RAIZ E DE FALLBACK
+//   COMPONENTE RAIZ DA PÁGINA
 // ===================================================================
 export default function AcompanharCultoPage() {
   return (

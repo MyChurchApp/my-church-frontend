@@ -19,7 +19,15 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { Loader2, Music, Search, Send, ChevronsUpDown } from "lucide-react";
+import {
+  Loader2,
+  Music,
+  Search,
+  ChevronsUpDown,
+  ChevronLeft,
+  ChevronRight,
+  Send,
+} from "lucide-react";
 import {
   hymnService,
   type Hymn,
@@ -28,15 +36,22 @@ import {
 } from "@/services/worship/worship";
 import { worshipService } from "@/services/worship/worship";
 
+// Define um tipo para as partes do hino
+type HymnPart = {
+  type: "verse" | "chorus";
+  apiNumber: number; // 0 para coro, 1, 2, 3... para versos
+  text: string;
+};
+
 // Subcomponente para renderizar os detalhes de um hino
 function HymnDetails({
   hymn,
-  onPresent,
-  isPresenting,
+  displaySequence,
+  currentSequenceIndex,
 }: {
   hymn: Hymn;
-  onPresent: () => void;
-  isPresenting: boolean;
+  displaySequence: HymnPart[];
+  currentSequenceIndex: number;
 }) {
   const formatText = (text: string | null) => {
     if (!text) return null;
@@ -48,16 +63,6 @@ function HymnDetails({
     ));
   };
 
-  const displayItems: (HymnVerse | { type: "chorus"; text: string })[] = [];
-  if (hymn.verses) {
-    hymn.verses.forEach((verse) => {
-      displayItems.push(verse);
-      if (hymn.chorus) {
-        displayItems.push({ type: "chorus", text: hymn.chorus });
-      }
-    });
-  }
-
   return (
     <div className="flex flex-col h-full">
       <CardHeader>
@@ -65,38 +70,28 @@ function HymnDetails({
       </CardHeader>
       <ScrollArea className="flex-grow p-4">
         <div className="space-y-4">
-          {displayItems.map((item, index) => {
-            if ("type" in item && item.type === "chorus") {
-              return (
-                <div
-                  key={`chorus-${index}`}
-                  className="italic bg-yellow-50 p-3 rounded-md"
-                >
-                  <h4 className="font-semibold mb-1 not-italic">Coro</h4>
-                  <p className="text-gray-700">{formatText(item.text)}</p>
-                </div>
-              );
-            }
-            const verse = item as HymnVerse;
+          {displaySequence.map((part, index) => {
+            const isPresented = currentSequenceIndex === index;
+            const isChorus = part.type === "chorus";
+
             return (
-              <div key={`verse-${verse.number}`}>
-                <h4 className="font-semibold mb-1">Verso {verse.number}</h4>
-                <p className="text-gray-700">{formatText(verse.text)}</p>
+              <div
+                key={`${part.type}-${part.apiNumber}-${index}`}
+                className={`p-3 rounded-md transition-colors ${
+                  isPresented ? "bg-blue-50 ring-2 ring-blue-200" : "bg-gray-50"
+                }`}
+              >
+                <div className="flex justify-between items-center mb-2">
+                  <h4 className={`font-semibold ${isChorus ? "italic" : ""}`}>
+                    {isChorus ? "Coro" : `Verso ${part.apiNumber}`}
+                  </h4>
+                </div>
+                <p className="text-gray-700">{formatText(part.text)}</p>
               </div>
             );
           })}
         </div>
       </ScrollArea>
-      <div className="p-4 border-t mt-auto">
-        <Button className="w-full" onClick={onPresent} disabled={isPresenting}>
-          {isPresenting ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <Send className="mr-2 h-4 w-4" />
-          )}
-          Transmitir Hino
-        </Button>
-      </div>
     </div>
   );
 }
@@ -107,6 +102,7 @@ export function HymnManager({ worshipId }: { worshipId: number }) {
   const [selectedHymnNumber, setSelectedHymnNumber] = useState<number | null>(
     null
   );
+  const [currentSequenceIndex, setCurrentSequenceIndex] = useState(-1);
   const [popoverOpen, setPopoverOpen] = useState(false);
 
   const { data: allHymns = [], isLoading: isLoadingSummaries } = useQuery<
@@ -123,20 +119,69 @@ export function HymnManager({ worshipId }: { worshipId: number }) {
         selectedHymnNumber ? hymnService.getHymn(selectedHymnNumber) : null,
       enabled: !!selectedHymnNumber,
       staleTime: 1000 * 60 * 5,
+      onSuccess: () => {
+        setCurrentSequenceIndex(-1); // Reseta o índice ao trocar de hino
+      },
     });
 
-  const { mutate: presentHymn, isPending: isPresenting } = useMutation({
-    mutationFn: () => {
+  const { mutate: presentPart, isPending: isPresenting } = useMutation({
+    mutationFn: (params: { partApiNumber: number; index: number }) => {
       if (!selectedHymnNumber) throw new Error("Nenhum hino selecionado");
-      return worshipService.presentHymn(worshipId, selectedHymnNumber);
+      return worshipService.presentHymn(
+        worshipId,
+        selectedHymnNumber,
+        params.partApiNumber
+      );
     },
-    onSuccess: () => {
-      console.log("Hino transmitido com sucesso!");
+    onSuccess: (_, params) => {
+      console.log(
+        `Parte com índice ${params.index} (API Num: ${params.partApiNumber}) transmitida!`
+      );
+      setCurrentSequenceIndex(params.index);
     },
     onError: (err: any) => {
-      alert(`Erro ao transmitir hino: ${err.message}`);
+      alert(`Erro ao transmitir parte do hino: ${err.message}`);
     },
   });
+
+  const displaySequence = useMemo((): HymnPart[] => {
+    if (!selectedHymn) return [];
+    const sequence: HymnPart[] = [];
+    selectedHymn.verses.forEach((verse) => {
+      sequence.push({
+        type: "verse",
+        apiNumber: verse.number,
+        text: verse.text,
+      });
+      if (selectedHymn.chorus) {
+        sequence.push({
+          type: "chorus",
+          apiNumber: 0,
+          text: selectedHymn.chorus,
+        });
+      }
+    });
+    return sequence;
+  }, [selectedHymn]);
+
+  const handleNavigation = (direction: "next" | "prev") => {
+    if (displaySequence.length === 0) return;
+    const nextIndex =
+      direction === "next"
+        ? currentSequenceIndex + 1
+        : currentSequenceIndex - 1;
+    if (nextIndex >= 0 && nextIndex < displaySequence.length) {
+      const nextPart = displaySequence[nextIndex];
+      presentPart({ partApiNumber: nextPart.apiNumber, index: nextIndex });
+    }
+  };
+
+  const handlePresentFirstVerse = () => {
+    if (displaySequence.length > 0) {
+      const firstVerse = displaySequence[0];
+      presentPart({ partApiNumber: firstVerse.apiNumber, index: 0 });
+    }
+  };
 
   const filteredHymns = useMemo(() => {
     if (!searchTerm) return allHymns;
@@ -145,9 +190,69 @@ export function HymnManager({ worshipId }: { worshipId: number }) {
     );
   }, [searchTerm, allHymns]);
 
+  const canGoPrev = currentSequenceIndex > 0;
+  const canGoNext = currentSequenceIndex < displaySequence.length - 1;
+
+  const HymnDetailsSection = () => (
+    <>
+      {isLoadingDetails && (
+        <div className="flex items-center justify-center h-full py-10">
+          <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+        </div>
+      )}
+      {!isLoadingDetails && selectedHymn && (
+        <div className="flex flex-col h-full">
+          <HymnDetails
+            hymn={selectedHymn}
+            displaySequence={displaySequence}
+            currentSequenceIndex={currentSequenceIndex}
+          />
+          <div className="p-4 border-t space-y-2">
+            <div className="flex justify-center gap-4">
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={() => handleNavigation("prev")}
+                disabled={!canGoPrev || isPresenting}
+              >
+                <ChevronLeft className="h-5 w-5" /> Anterior
+              </Button>
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={() => handleNavigation("next")}
+                disabled={!canGoNext || isPresenting}
+              >
+                Próximo <ChevronRight className="h-5 w-5" />
+              </Button>
+            </div>
+            <Button
+              className="w-full"
+              onClick={handlePresentFirstVerse}
+              disabled={isPresenting || displaySequence.length === 0}
+            >
+              {isPresenting && currentSequenceIndex === 0 ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="mr-2 h-4 w-4" />
+              )}
+              Transmitir Hino (Verso 1)
+            </Button>
+          </div>
+        </div>
+      )}
+      {!isLoadingDetails && !selectedHymn && (
+        <div className="flex flex-col items-center justify-center h-full text-gray-400 p-4">
+          <Music className="h-16 w-16 mb-4" />
+          <p className="text-lg font-medium">Selecione um hino</p>
+        </div>
+      )}
+    </>
+  );
+
   return (
     <Card>
-      {/* ✅ Layout para Mobile: Combobox com pesquisa interna */}
+      {/* Layout para Mobile */}
       <div className="block md:hidden">
         <CardHeader>
           <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
@@ -155,12 +260,14 @@ export function HymnManager({ worshipId }: { worshipId: number }) {
               <Button
                 variant="outline"
                 role="combobox"
-                aria-expanded={popoverOpen}
                 className="w-full justify-between"
               >
-                {selectedHymnNumber
-                  ? allHymns.find((h) => h.number === selectedHymnNumber)?.title
-                  : "Selecione um hino..."}
+                <span className="truncate">
+                  {selectedHymnNumber
+                    ? allHymns.find((h) => h.number === selectedHymnNumber)
+                        ?.title
+                    : "Selecione um hino..."}
+                </span>
                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
               </Button>
             </PopoverTrigger>
@@ -198,22 +305,11 @@ export function HymnManager({ worshipId }: { worshipId: number }) {
           </Popover>
         </CardHeader>
         <CardContent>
-          {isLoadingDetails && (
-            <div className="flex items-center justify-center h-full py-10">
-              <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-            </div>
-          )}
-          {!isLoadingDetails && selectedHymn && (
-            <HymnDetails
-              hymn={selectedHymn}
-              onPresent={() => presentHymn()}
-              isPresenting={isPresenting}
-            />
-          )}
+          <HymnDetailsSection />
         </CardContent>
       </div>
 
-      {/* ✅ Layout para Desktop: Colunas lado a lado */}
+      {/* Layout para Desktop */}
       <CardContent className="hidden md:grid p-0 md:grid-cols-3 min-h-[60vh]">
         <div className="col-span-1 border-r flex flex-col">
           <div className="p-4 border-b">
@@ -251,27 +347,8 @@ export function HymnManager({ worshipId }: { worshipId: number }) {
             )}
           </ScrollArea>
         </div>
-
         <div className="md:col-span-2 flex flex-col">
-          {isLoadingDetails && (
-            <div className="flex items-center justify-center h-full">
-              <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-            </div>
-          )}
-          {!isLoadingDetails && selectedHymn && (
-            <HymnDetails
-              hymn={selectedHymn}
-              onPresent={() => presentHymn()}
-              isPresenting={isPresenting}
-            />
-          )}
-          {!isLoadingDetails && !selectedHymn && (
-            <div className="flex flex-col items-center justify-center h-full text-gray-400 p-4">
-              <Music className="h-16 w-16 mb-4" />
-              <p className="text-lg font-medium">Selecione um hino da lista</p>
-              <p className="text-sm">Os detalhes aparecerão aqui.</p>
-            </div>
-          )}
+          <HymnDetailsSection />
         </div>
       </CardContent>
     </Card>
