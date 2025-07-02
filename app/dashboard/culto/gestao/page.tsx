@@ -61,8 +61,10 @@ import {
 } from "@/services/worship/worship";
 import {
   bibleService,
+  type BibleVersion,
   type BibleBook,
   type BibleChapter,
+  type BibleVerse,
 } from "@/services/biblia/biblia";
 import { useSignalRForWorship } from "@/hooks/useSignalRForWorship";
 
@@ -71,6 +73,202 @@ const HARPA_HYMNS: Record<string, string> = {
   "15": "Vem...",
   "526": "Porque Ele vive...",
 };
+
+function BibleSelectorForWorship({ worshipId }: { worshipId: number }) {
+  const [selectedVersion, setSelectedVersion] = useState<BibleVersion | null>(
+    null
+  );
+  const [selectedBook, setSelectedBook] = useState<BibleBook | null>(null);
+  const [selectedChapter, setSelectedChapter] = useState<BibleChapter | null>(
+    null
+  );
+  const [startVerse, setStartVerse] = useState<number | null>(null);
+  const [endVerse, setEndVerse] = useState<number | null>(null);
+  const [verseText, setVerseText] = useState("");
+
+  const { data: versions = [] } = useQuery<BibleVersion[]>({
+    queryKey: ["bible-versions"],
+    queryFn: () => bibleService.getVersions(),
+  });
+  const { data: books = [] } = useQuery<BibleBook[]>({
+    queryKey: ["bible-books", selectedVersion?.id],
+    queryFn: () => bibleService.getBooksByVersion(selectedVersion!.id),
+    enabled: !!selectedVersion,
+  });
+  const { data: chapters = [] } = useQuery<BibleChapter[]>({
+    queryKey: ["bible-chapters", selectedBook?.id],
+    queryFn: () => bibleService.getChaptersByBookId(selectedBook!.id),
+    enabled: !!selectedBook,
+  });
+  const { data: verses = [] } = useQuery<BibleVerse[]>({
+    queryKey: ["bible-verses", selectedChapter?.id],
+    queryFn: () => bibleService.getVersesByChapterId(selectedChapter!.id),
+    enabled: !!selectedChapter,
+  });
+
+  useEffect(() => {
+    if (verses.length > 0 && startVerse) {
+      const end = endVerse || startVerse;
+      const selectedVerses = verses.filter(
+        (v) => v.verseNumber >= startVerse && v.verseNumber <= end
+      );
+      const text = selectedVerses
+        .map((v) => `${v.verseNumber} ${v.text}`)
+        .join("\n");
+      setVerseText(text);
+    } else {
+      setVerseText("");
+    }
+  }, [verses, startVerse, endVerse]);
+
+  const { mutate: highlightVerse, isPending: isBroadcasting } = useMutation({
+    mutationFn: (params: {
+      versionId: number;
+      bookId: number;
+      chapterId: number;
+      verseId: number;
+    }) => worshipService.highlightBibleReading(worshipId, params),
+    onSuccess: () => console.log("Comando para destacar versículo enviado!"),
+    onError: (err) => alert(`Erro ao transmitir: ${err.message}`),
+  });
+
+  const handleBroadcast = () => {
+    if (!selectedVersion || !selectedBook || !selectedChapter || !startVerse)
+      return alert("Selecione Versão, Livro, Capítulo e Versículo.");
+
+    // A API espera o ID do primeiro versículo selecionado.
+    const verseToSend = verses.find((v) => v.verseNumber === startVerse);
+    if (!verseToSend) return alert("Versículo selecionado não encontrado.");
+
+    highlightVerse({
+      versionId: selectedVersion.id,
+      bookId: selectedBook.id,
+      chapterId: selectedChapter.id,
+      verseId: verseToSend.id,
+    });
+  };
+
+  const resetSelections = (level: "version" | "book" | "chapter") => {
+    if (level === "version") setSelectedBook(null);
+    if (level === "version" || level === "book") setSelectedChapter(null);
+    setStartVerse(null);
+    setEndVerse(null);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Select
+          onValueChange={(v) => {
+            setSelectedVersion(versions.find((ver) => ver.id === Number(v))!);
+            resetSelections("version");
+          }}
+          value={selectedVersion?.id.toString()}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Versão" />
+          </SelectTrigger>
+          <SelectContent>
+            {versions.map((v) => (
+              <SelectItem key={v.id} value={String(v.id)}>
+                {v.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          onValueChange={(v) => {
+            setSelectedBook(books.find((b) => b.id === Number(v))!);
+            resetSelections("book");
+          }}
+          value={selectedBook?.id.toString()}
+          disabled={!selectedVersion}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Livro" />
+          </SelectTrigger>
+          <SelectContent>
+            {books.map((b) => (
+              <SelectItem key={b.id} value={String(b.id)}>
+                {b.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          onValueChange={(v) => {
+            setSelectedChapter(chapters.find((c) => c.id === Number(v))!);
+            resetSelections("chapter");
+          }}
+          value={selectedChapter?.id.toString()}
+          disabled={!selectedBook}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Capítulo" />
+          </SelectTrigger>
+          <SelectContent>
+            {chapters.map((c) => (
+              <SelectItem key={c.id} value={String(c.id)}>
+                {c.chapterNumber}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <div className="grid grid-cols-2 gap-2">
+          <Select
+            onValueChange={(v) => setStartVerse(Number(v))}
+            value={startVerse?.toString()}
+            disabled={!selectedChapter}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="De" />
+            </SelectTrigger>
+            <SelectContent>
+              {verses.map((v) => (
+                <SelectItem key={v.id} value={String(v.verseNumber)}>
+                  {v.verseNumber}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
+            onValueChange={(v) => setEndVerse(Number(v))}
+            value={endVerse?.toString()}
+            disabled={!startVerse}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Até" />
+            </SelectTrigger>
+            <SelectContent>
+              {verses
+                .filter((v) => v.verseNumber >= (startVerse || 0))
+                .map((v) => (
+                  <SelectItem key={v.id} value={String(v.verseNumber)}>
+                    {v.verseNumber}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <Textarea
+        readOnly
+        value={verseText}
+        placeholder="O texto aparecerá aqui..."
+        rows={6}
+        className="bg-gray-100"
+      />
+      <Button
+        className="w-full"
+        onClick={handleBroadcast}
+        disabled={!startVerse || isBroadcasting}
+      >
+        {isBroadcasting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+        Transmitir
+      </Button>
+    </div>
+  );
+}
 
 function SortableScheduleItem({
   item,
@@ -84,7 +282,6 @@ function SortableScheduleItem({
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState(item.name);
   const inputRef = useRef<HTMLInputElement>(null);
-
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id: item.id });
   const style = { transform: CSS.Transform.toString(transform), transition };
@@ -98,12 +295,10 @@ function SortableScheduleItem({
       onUpdateName(item.id, editedName.trim());
     setIsEditing(false);
   };
-
   const handleCancel = () => {
     setEditedName(item.name);
     setIsEditing(false);
   };
-
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") handleSave();
     else if (e.key === "Escape") handleCancel();
@@ -182,13 +377,11 @@ function ScheduleManager({ worshipId }: { worshipId: number }) {
     queryKey: ["worship-service", worshipId],
     queryFn: () => worshipService.getWorshipById(worshipId),
   });
-
   useEffect(() => {
-    if (worship?.schedule) {
+    if (worship?.schedule)
       setScheduleItems(
         worship.schedule.sort((a, b) => a.order - b.order) || []
       );
-    }
   }, [worship]);
 
   const invalidateAndRefetch = () => {
@@ -207,14 +400,12 @@ function ScheduleManager({ worshipId }: { worshipId: number }) {
     },
     onError: (err) => alert(`Erro: ${err.message}`),
   });
-
   const { mutate: removeItem } = useMutation({
     mutationFn: (itemId: number) =>
       worshipService.removeScheduleItem(worshipId, itemId),
     onSuccess: () => invalidateAndRefetch(),
     onError: (err) => alert(`Erro: ${err.message}`),
   });
-
   const { mutate: updateItem } = useMutation({
     mutationFn: (item: WorshipScheduleItem) =>
       worshipService.updateScheduleItem(worshipId, item.id, item),
@@ -226,10 +417,9 @@ function ScheduleManager({ worshipId }: { worshipId: number }) {
     const itemToUpdate = scheduleItems.find((item) => item.id === itemId);
     if (itemToUpdate) updateItem({ ...itemToUpdate, name: newName });
   };
-
   const handleAddItem = (e: React.FormEvent) => {
-    e.preventDefault();
     if (newItemName.trim()) addItem(newItemName.trim());
+    e.preventDefault();
   };
 
   function handleDragEnd(event: DragEndEvent) {
@@ -313,7 +503,6 @@ function WorshipControlPanel({
   onBack: () => void;
 }) {
   const queryClient = useQueryClient();
-  const { broadcastMessage } = useSignalRForWorship(worshipId);
   const [currentActivityId, setCurrentActivityId] = useState<number | null>(
     null
   );
@@ -327,7 +516,6 @@ function WorshipControlPanel({
     queryFn: () => worshipService.getWorshipById(worshipId),
     refetchOnWindowFocus: true,
   });
-
   const { mutate: startWorshipMutation, isPending: isStarting } = useMutation({
     mutationFn: () => worshipService.startWorship(worshipId),
     onSuccess: () => {
@@ -336,58 +524,8 @@ function WorshipControlPanel({
       });
       queryClient.invalidateQueries({ queryKey: ["worship-services-list"] });
     },
-    onError: (err) => alert(`Erro ao iniciar culto: ${err.message}`),
+    onError: (err) => alert(`Erro: ${err.message}`),
   });
-
-  const [bibleSelection, setBibleSelection] = useState({
-    bookId: null,
-    chapterId: null,
-    verseStart: null,
-    verseEnd: null,
-  });
-  const [hymnSelection, setHymnSelection] = useState({
-    type: "custom",
-    harpaNumber: "",
-    customText: "",
-  });
-  const [announcement, setAnnouncement] = useState("");
-
-  const { data: books = [] } = useQuery({
-    queryKey: ["bible-books", 1],
-    queryFn: () => bibleService.getBooksByVersion(1),
-  });
-  const { data: chapters = [] } = useQuery({
-    queryKey: ["bible-chapters", bibleSelection.bookId],
-    queryFn: () =>
-      bibleSelection.bookId
-        ? bibleService.getChaptersByBookId(bibleSelection.bookId)
-        : [],
-    enabled: !!bibleSelection.bookId,
-  });
-  const { data: verses = [] } = useQuery({
-    queryKey: ["bible-verses", bibleSelection.chapterId],
-    queryFn: () =>
-      bibleSelection.chapterId
-        ? bibleService.getVersesByChapterId(bibleSelection.chapterId)
-        : [],
-    enabled: !!bibleSelection.chapterId,
-  });
-
-  const handleBroadcastBible = () => {
-    /* ... */
-  };
-  const handleBroadcastHymn = () => {
-    /* ... */
-  };
-  const handleBroadcastAnnouncement = () => {
-    /* ... */
-  };
-  const openProjector = () =>
-    window.open(
-      `/dashboard/culto/projetor?worshipId=${worshipId}`,
-      "_blank",
-      "noopener,noreferrer"
-    );
 
   if (isLoading || !worship)
     return (
@@ -398,7 +536,7 @@ function WorshipControlPanel({
   if (isError)
     return (
       <div className="p-10 text-center text-red-500">
-        Erro ao carregar dados do culto.
+        Erro ao carregar dados.
       </div>
     );
 
@@ -410,7 +548,14 @@ function WorshipControlPanel({
         <Button variant="outline" onClick={onBack}>
           <ChevronLeft className="mr-2 h-4 w-4" /> Voltar
         </Button>
-        <Button onClick={openProjector}>
+        <Button
+          onClick={() =>
+            window.open(
+              `/dashboard/culto/projetor?worshipId=${worshipId}`,
+              "_blank"
+            )
+          }
+        >
           <MonitorPlay className="mr-2 h-4 w-4" /> Abrir Projetor
         </Button>
       </div>
@@ -445,54 +590,59 @@ function WorshipControlPanel({
             <TabsTrigger value="hinos">Hinos</TabsTrigger>
             <TabsTrigger value="avisos">Avisos</TabsTrigger>
           </TabsList>
-
-          {/* Aba do Cronograma ao Vivo */}
           <TabsContent value="cronograma">
             <Card>
               <CardHeader>
-                <CardTitle>Andamento do Culto</CardTitle>
+                <CardTitle>Andamento</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
                 {worship.schedule
                   ?.sort((a, b) => a.order - b.order)
-                  .map((item) => {
-                    const isCurrent = item.id === currentActivityId;
-                    return (
-                      <div
-                        key={item.id}
-                        className={`flex items-center justify-between p-3 rounded-md transition-colors ${
-                          isCurrent ? "bg-blue-100" : "bg-gray-50"
+                  .map((item) => (
+                    <div
+                      key={item.id}
+                      className={`flex items-center justify-between p-3 rounded-md transition-colors ${
+                        item.id === currentActivityId
+                          ? "bg-blue-100"
+                          : "bg-gray-50"
+                      }`}
+                    >
+                      <span
+                        className={`font-medium ${
+                          item.id === currentActivityId ? "text-blue-700" : ""
                         }`}
                       >
-                        <span
-                          className={`font-medium ${
-                            isCurrent ? "text-blue-700" : ""
-                          }`}
-                        >
-                          {item.name}
-                        </span>
-                        <Button
-                          size="sm"
-                          variant={isCurrent ? "default" : "outline"}
-                          onClick={() => setCurrentActivityId(item.id)}
-                        >
-                          {isCurrent ? (
-                            <Badge>Em andamento</Badge>
-                          ) : (
-                            <>
-                              <PlayCircle className="h-4 w-4 mr-2" /> Iniciar
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                    );
-                  })}
+                        {item.name}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant={
+                          item.id === currentActivityId ? "default" : "outline"
+                        }
+                        onClick={() => setCurrentActivityId(item.id)}
+                      >
+                        {item.id === currentActivityId ? (
+                          <Badge>Em andamento</Badge>
+                        ) : (
+                          <>
+                            <PlayCircle className="h-4 w-4 mr-2" /> Iniciar
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  ))}
               </CardContent>
             </Card>
           </TabsContent>
-          <TabsContent value="biblia">{/* ... */}</TabsContent>
-          <TabsContent value="hinos">{/* ... */}</TabsContent>
-          <TabsContent value="avisos">{/* ... */}</TabsContent>
+          <TabsContent value="biblia">
+            <Card>
+              <CardContent className="p-6">
+                <BibleSelectorForWorship worshipId={worshipId} />
+              </CardContent>
+            </Card>
+          </TabsContent>
+          <TabsContent value="hinos">{/* Hinos */}</TabsContent>
+          <TabsContent value="avisos">{/* Avisos */}</TabsContent>
         </Tabs>
       )}
     </div>
@@ -504,12 +654,10 @@ export default function GestaoCultoPage() {
     null
   );
   const queryClient = useQueryClient();
-
   const { data, isLoading, error } = useQuery<{ items: WorshipService[] }>({
     queryKey: ["worship-services-list"],
     queryFn: () => worshipService.listWorshipServices({ pageSize: 100 }),
   });
-
   const { mutate: finishWorshipMutation, isPending: isFinishing } = useMutation(
     {
       mutationFn: (worshipId: number) =>
@@ -521,7 +669,7 @@ export default function GestaoCultoPage() {
         });
         setSelectedWorshipId(null);
       },
-      onError: (err) => alert(`Erro ao finalizar o culto: ${err.message}`),
+      onError: (err) => alert(`Erro: ${err.message}`),
     }
   );
 
@@ -534,18 +682,17 @@ export default function GestaoCultoPage() {
   if (error)
     return (
       <div className="p-6 text-center text-red-500">
-        Erro ao carregar cultos: {error.message}
+        Erro ao carregar cultos.
       </div>
     );
 
-  if (selectedWorshipId) {
+  if (selectedWorshipId)
     return (
       <WorshipControlPanel
         worshipId={selectedWorshipId}
         onBack={() => setSelectedWorshipId(null)}
       />
     );
-  }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6">

@@ -1,495 +1,161 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import React, { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import { Loader2, BookOpen, WifiOff, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Book,
-  Clock,
-  Bug,
-  BookOpen,
-  AlertCircle,
-  RefreshCw,
-  Database,
-  Hash,
-} from "lucide-react";
-import { useSignalR } from "../useSignalR";
-import { getBibleReading } from "@/lib/bible-api";
 
-interface BibleReading {
-  id: string;
-  versionId: number;
-  bookId: number;
-  chapterId: number;
-  verseId?: number;
-  text: string;
-  book: string;
-  chapter: number;
-  chapterNumber?: number;
-  verse?: number;
-  verseNumber?: number;
-  version: string;
-  timestamp: Date;
-  isFullChapter: boolean;
-  error?: boolean;
-  originalData?: any;
-  chapterInfo?: any;
-}
+import { worshipService } from "@/services/worship/worship";
+import { useSignalRForWorship } from "@/hooks/useSignalRForWorship";
+import { type BibleVerse } from "@/services/biblia/biblia";
 
-export default function CultoPage() {
-  const [readings, setReadings] = useState<BibleReading[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [debugInfo, setDebugInfo] = useState<string[]>([]);
+// --- Componentes de Exibição ---
+const BibleDisplay = ({
+  apiData,
+  verseId,
+}: {
+  apiData: any;
+  verseId: number;
+}) => {
+  const { bookName, chapterNumber, content } = apiData;
+  const verseToShow = Array.isArray(content)
+    ? content.find((v: BibleVerse) => v.id === verseId)
+    : content;
 
-  // Usar o hook SignalR
-  useSignalR(1);
+  return (
+    <div className="text-center animate-fade-in">
+      <h1 className="text-3xl md:text-5xl font-bold mb-4 text-gray-800">
+        {bookName} {chapterNumber}
+      </h1>
+      <div className="text-lg md:text-2xl text-left leading-relaxed text-gray-700">
+        {verseToShow ? (
+          <p>
+            <sup className="font-bold text-blue-600 mr-2">
+              {verseToShow.verseNumber}
+            </sup>
+            {verseToShow.text}
+          </p>
+        ) : (
+          <p className="italic">Versículo não encontrado.</p>
+        )}
+      </div>
+    </div>
+  );
+};
+const WaitingDisplay = () => (
+  <div className="text-center text-gray-500">
+    <BookOpen className="h-16 w-16 mx-auto mb-4" />
+    <h2 className="text-2xl font-semibold">Aguardando transmissão...</h2>
+  </div>
+);
+const ErrorDisplay = ({ message }: { message: string }) => (
+  <div className="text-center text-red-600">
+    <AlertTriangle className="h-16 w-16 mx-auto mb-4" />
+    <h2 className="text-2xl font-semibold">Erro na Transmissão</h2>
+    <p>{message}</p>
+  </div>
+);
 
-  // Função para adicionar info de debug
-  const addDebugInfo = (info: string) => {
-    setDebugInfo((prev) => [
-      `${new Date().toLocaleTimeString()}: ${info}`,
-      ...prev.slice(0, 8),
-    ]);
-  };
+// --- Lógica Principal da Página ---
+function AcompanharCultoContent() {
+  const searchParams = useSearchParams();
+  const worshipIdFromUrl = searchParams.get("worshipId");
+  const [activeWorshipId, setActiveWorshipId] = useState<number | null>(
+    worshipIdFromUrl ? Number(worshipIdFromUrl) : null
+  );
+  const [reading, setReading] = useState<any>(null); // Armazena o 'detail' do evento
 
-  // Função para buscar leitura bíblica da API real
-  const fetchBibleReading = async (
-    versionId: number,
-    bookId: number,
-    chapterId: number,
-    verseId?: number,
-    originalData?: any
-  ) => {
-    setIsLoading(true);
-    const isFullChapter = !verseId;
+  const { data: activeWorship, isLoading } = useQuery({
+    queryKey: ["active-worship-service"],
+    queryFn: () => worshipService.findActiveWorshipService(),
+    enabled: !worshipIdFromUrl,
+    refetchInterval: 30000,
+  });
 
-    const debugMessage = isFullChapter
-      ? `Buscando: V${versionId}, L${bookId}, C${chapterId} (completo)`
-      : `Buscando: V${versionId}, L${bookId}, C${chapterId}:${verseId}`;
-
-    addDebugInfo(debugMessage);
-
-    try {
-      const bibleData = await getBibleReading(
-        versionId,
-        bookId,
-        chapterId,
-        verseId
-      );
-
-      if (bibleData.success) {
-        let text = "Texto não disponível";
-        let verseNumber = verseId;
-
-        if (isFullChapter && Array.isArray(bibleData.content)) {
-          text =
-            bibleData.content
-              .slice(0, 3)
-              .map((v: any) => v.text)
-              .join(" ") + "...";
-        } else if (bibleData.content?.text) {
-          text = bibleData.content.text;
-          verseNumber = bibleData.content.verseNumber || verseId;
-        }
-
-        const newReading: BibleReading = {
-          id: `${versionId}-${bookId}-${chapterId}-${
-            verseId || "full"
-          }-${Date.now()}`,
-          versionId,
-          bookId,
-          chapterId,
-          verseId,
-          text,
-          book: bibleData.bookName,
-          chapter: bibleData.chapterNumber || chapterId,
-          chapterNumber: bibleData.chapterNumber,
-          verse: verseId,
-          verseNumber,
-          version: bibleData.versionName,
-          timestamp: new Date(),
-          isFullChapter,
-          originalData,
-          chapterInfo: bibleData.chapterInfo,
-        };
-
-        setReadings((prev) => [newReading, ...prev]);
-
-        const successMessage = isFullChapter
-          ? `✅ Capítulo carregado: ${bibleData.versionName} - ${
-              bibleData.bookName
-            } ${bibleData.chapterNumber || chapterId}`
-          : `✅ Versículo carregado: ${bibleData.versionName} - ${
-              bibleData.bookName
-            } ${bibleData.chapterNumber || chapterId}:${verseNumber}`;
-
-        addDebugInfo(successMessage);
-      } else {
-        throw new Error(bibleData.error || "Erro desconhecido na API");
-      }
-    } catch (error) {
-      console.error("❌ Erro ao buscar leitura bíblica:", error);
-      console.error("❌ Stack trace:", (error as Error).stack);
-
-      const errorReading: BibleReading = {
-        id: `error-${versionId}-${bookId}-${chapterId}-${
-          verseId || "full"
-        }-${Date.now()}`,
-        versionId,
-        bookId,
-        chapterId,
-        verseId,
-        text: "Erro ao carregar o texto bíblico. Verifique sua conexão ou autenticação.",
-        book: `Livro ${bookId}`,
-        chapter: chapterId,
-        verse: verseId,
-        version: `Versão ${versionId}`,
-        timestamp: new Date(),
-        isFullChapter,
-        error: true,
-        originalData,
-      };
-
-      setReadings((prev) => [errorReading, ...prev]);
-      addDebugInfo(`❌ Erro: ${(error as Error).message}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Exemplos de teste com versões
-  const testReadings = [
-    { versionId: 1, bookId: 1, chapterId: 1, verseId: 1, name: "V1 - Gn 1:1" },
-    {
-      versionId: 1,
-      bookId: 43,
-      chapterId: 3,
-      verseId: 16,
-      name: "V1 - Jo 3:16",
-    },
-    {
-      versionId: 2,
-      bookId: 67,
-      chapterId: 1190,
-      verseId: 31120,
-      name: "V2 - Gn 1:15",
-    },
-  ];
-
-  const testChapters = [
-    { versionId: 1, bookId: 1, chapterId: 1, name: "V1 - Gn 1" },
-    { versionId: 2, bookId: 67, chapterId: 1190, name: "V2 - Gn 1" },
-  ];
-
-  // Escutar eventos do SignalR globalmente
   useEffect(() => {
-    const handleBibleReading = (event: CustomEvent) => {
-      const {
-        versionId,
-        bookId,
-        chapterId,
-        verseId,
-        isFullChapter,
-        apiData,
-        error,
-        originalData,
-      } = event.detail;
+    if (worshipIdFromUrl) setActiveWorshipId(Number(worshipIdFromUrl));
+    else if (activeWorship) setActiveWorshipId(activeWorship.id);
+  }, [activeWorship, worshipIdFromUrl]);
 
-      const eventMessage = `📡 Evento: V${versionId}, L${bookId}, C${chapterId}${
-        verseId ? `:${verseId}` : " (completo)"
-      }`;
+  const { isConnected } = useSignalRForWorship(activeWorshipId);
 
-      addDebugInfo(eventMessage);
-
-      if (apiData) {
-        let text = "Texto não disponível";
-        let verseNumber = verseId;
-
-        if (isFullChapter && Array.isArray(apiData.content)) {
-          text =
-            apiData.content
-              .slice(0, 3)
-              .map((v: any) => v.text)
-              .join(" ") + "...";
-        } else if (apiData.content?.text) {
-          text = apiData.content.text;
-          verseNumber = apiData.content.verseNumber || verseId;
-        }
-
-        const bookName = apiData.bookName || `Livro ${bookId}`;
-        const versionName = apiData.versionName || `Versão ${versionId}`;
-        const chapterNumber = apiData.chapterNumber || chapterId;
-
-        const newReading: BibleReading = {
-          id: `${versionId}-${bookId}-${chapterId}-${
-            verseId || "full"
-          }-${Date.now()}`,
-          versionId,
-          bookId,
-          chapterId,
-          verseId,
-          text,
-          book: bookName,
-          chapter: chapterNumber,
-          chapterNumber,
-          verse: verseId,
-          verseNumber,
-          version: versionName,
-          timestamp: new Date(),
-          isFullChapter,
-          error: false,
-          originalData,
-          chapterInfo: apiData.chapterInfo,
-        };
-
-        setReadings((prev) => [newReading, ...prev]);
-        addDebugInfo(
-          `✅ Leitura adicionada: ${versionName} - ${bookName} ${chapterNumber}`
-        );
-      } else if (error) {
-        const errorReading: BibleReading = {
-          id: `error-${versionId}-${bookId}-${chapterId}-${
-            verseId || "full"
-          }-${Date.now()}`,
-          versionId,
-          bookId,
-          chapterId,
-          verseId,
-          text: "Erro ao carregar o texto bíblico. Verifique sua conexão ou autenticação.",
-          book: `Livro ${bookId}`,
-          chapter: chapterId,
-          verse: verseId,
-          version: `Versão ${versionId}`,
-          timestamp: new Date(),
-          isFullChapter,
-          error: true,
-          originalData,
-        };
-
-        setReadings((prev) => [errorReading, ...prev]);
-        addDebugInfo(`❌ Erro no evento SignalR`);
-      } else {
-        fetchBibleReading(versionId, bookId, chapterId, verseId, originalData);
-      }
+  useEffect(() => {
+    const handleReadingUpdate = (event: CustomEvent) => {
+      console.log(
+        "Evento 'bibleReadingUpdated' recebido na página:",
+        event.detail
+      );
+      setReading(event.detail);
     };
 
     window.addEventListener(
-      "bibleReadingHighlighted",
-      handleBibleReading as EventListener
+      "bibleReadingUpdated",
+      handleReadingUpdate as EventListener
     );
-
     return () => {
       window.removeEventListener(
-        "bibleReadingHighlighted",
-        handleBibleReading as EventListener
+        "bibleReadingUpdated",
+        handleReadingUpdate as EventListener
       );
     };
   }, []);
 
-  return (
-    <div className="p-6">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <div className="flex gap-2 flex-wrap">
-          {/* Versículos específicos */}
-          {testReadings.map((test) => (
-            <Button
-              key={`${test.versionId}-${test.bookId}-${test.chapterId}-${test.verseId}`}
-              onClick={() => {
-                fetchBibleReading(
-                  test.versionId,
-                  test.bookId,
-                  test.chapterId,
-                  test.verseId
-                );
-              }}
-              variant="outline"
-              size="sm"
-              disabled={isLoading}
-              title={`Testar: Versão ${test.versionId}, Livro ${test.bookId}, Capítulo ${test.chapterId}, Versículo ${test.verseId}`}
-            >
-              <Book className="h-4 w-4 mr-2" />
-              {test.name}
-            </Button>
-          ))}
-
-          {/* Capítulos completos */}
-          {testChapters.map((test) => (
-            <Button
-              key={`${test.versionId}-${test.bookId}-${test.chapterId}`}
-              onClick={() => {
-                fetchBibleReading(test.versionId, test.bookId, test.chapterId);
-              }}
-              variant="secondary"
-              size="sm"
-              disabled={isLoading}
-              title={`Testar: Versão ${test.versionId}, Livro ${test.bookId}, Capítulo ${test.chapterId} completo`}
-            >
-              <BookOpen className="h-4 w-4 mr-2" />
-              {test.name}
-            </Button>
-          ))}
+  const renderContent = () => {
+    if (!isConnected)
+      return (
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin" />
+          <h2 className="mt-4 text-2xl">Conectando...</h2>
         </div>
+      );
+    if (reading?.error) return <ErrorDisplay message={reading.errorMessage} />;
+    if (reading?.apiData)
+      return (
+        <BibleDisplay apiData={reading.apiData} verseId={reading.verseId} />
+      );
+    return <WaitingDisplay />;
+  };
+
+  if (isLoading && !worshipIdFromUrl)
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen">
+        <Loader2 className="h-12 w-12 animate-spin" />
+        <h2 className="mt-4 text-2xl">Procurando culto ao vivo...</h2>
       </div>
-
-      {/* Status de conexão */}
-      <div className="mb-4 flex items-center gap-2 text-sm">
-        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-        <span className="text-gray-600">
-          Conectado ao sistema de leitura bíblica
-        </span>
+    );
+  if (!activeWorshipId)
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen">
+        <WifiOff className="h-12 w-12" />
+        <h2 className="mt-4 text-2xl">Nenhum culto ao vivo no momento</h2>
       </div>
+    );
 
-      {/* Loading State */}
-      {isLoading && (
-        <Card className="mb-4">
-          <CardContent className="p-4 flex items-center justify-center">
-            <RefreshCw className="h-5 w-5 mr-2 animate-spin text-blue-500" />
-            <span>Carregando texto bíblico...</span>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Debug Info */}
-      {debugInfo.length > 0 && (
-        <Card className="mb-4 bg-gray-50">
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2 mb-2">
-              <Bug className="h-4 w-4 text-gray-600" />
-              <span className="text-sm font-medium text-gray-700">
-                Debug Info (Console tem mais detalhes)
-              </span>
-            </div>
-            <div className="space-y-1">
-              {debugInfo.map((info, index) => (
-                <p key={index} className="text-xs text-gray-600 font-mono">
-                  {info}
-                </p>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Lista de leituras */}
-      <div className="space-y-4">
-        {readings.length === 0 && !isLoading ? (
-          <Card>
-            <CardContent className="p-4 text-center">
-              <Book className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-              <p className="text-gray-500">Aguardando leituras bíblicas...</p>
-              <p className="text-xs text-gray-400 mt-1">
-                Use os botões acima para testar versículos ou capítulos
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          readings.map((reading, index) => (
-            <Card
-              key={reading.id}
-              className={`mb-4 ${index === 0 ? "ring-2 ring-blue-200" : ""} ${
-                reading.error ? "border-red-200" : ""
-              }`}
-            >
-              <CardContent className="p-4">
-                <div className="flex justify-between items-center mb-2">
-                  <div className="flex items-center gap-2">
-                    {reading.error ? (
-                      <AlertCircle className="h-4 w-4 text-red-500" />
-                    ) : reading.isFullChapter ? (
-                      <BookOpen className="h-4 w-4 text-purple-600" />
-                    ) : (
-                      <Book className="h-4 w-4 text-blue-600" />
-                    )}
-                    <span
-                      className={`font-medium ${
-                        reading.error ? "text-red-600" : ""
-                      }`}
-                    >
-                      {reading.version} - {reading.book} {reading.chapter}
-                      {reading.isFullChapter
-                        ? " (capítulo completo)"
-                        : `:${reading.verseNumber || reading.verse}`}
-                    </span>
-                    {index === 0 && (
-                      <Badge variant="secondary" className="text-xs">
-                        Mais recente
-                      </Badge>
-                    )}
-                    {reading.isFullChapter && !reading.error && (
-                      <Badge
-                        variant="outline"
-                        className="text-xs bg-purple-50 text-purple-700"
-                      >
-                        Capítulo
-                      </Badge>
-                    )}
-                    {reading.error && (
-                      <Badge
-                        variant="outline"
-                        className="text-xs bg-red-50 text-red-700"
-                      >
-                        Erro
-                      </Badge>
-                    )}
-                    <Badge
-                      variant="outline"
-                      className="text-xs bg-blue-50 text-blue-700"
-                    >
-                      <Database className="h-3 w-3 mr-1" />V{reading.versionId}
-                    </Badge>
-                    {reading.verseNumber && (
-                      <Badge
-                        variant="outline"
-                        className="text-xs bg-green-50 text-green-700"
-                      >
-                        <Hash className="h-3 w-3 mr-1" />
-                        {reading.verseNumber}
-                      </Badge>
-                    )}
-                  </div>
-                  <Badge variant="outline" className="flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    {reading.timestamp.toLocaleTimeString()}
-                  </Badge>
-                </div>
-                <p
-                  className={`text-gray-700 border-l-2 pl-3 italic ${
-                    reading.error
-                      ? "border-red-300 text-red-600"
-                      : reading.isFullChapter
-                      ? "border-purple-200"
-                      : "border-blue-200"
-                  }`}
-                >
-                  "{reading.text}"
-                </p>
-                {reading.originalData && (
-                  <details className="mt-2">
-                    <summary className="text-xs text-gray-500 cursor-pointer">
-                      Dados originais do SignalR
-                    </summary>
-                    <pre className="text-xs text-gray-600 mt-1 bg-gray-100 p-2 rounded overflow-auto">
-                      {JSON.stringify(reading.originalData, null, 2)}
-                    </pre>
-                  </details>
-                )}
-                {reading.chapterInfo && (
-                  <details className="mt-2">
-                    <summary className="text-xs text-gray-500 cursor-pointer">
-                      Informações do capítulo
-                    </summary>
-                    <pre className="text-xs text-gray-600 mt-1 bg-gray-100 p-2 rounded overflow-auto">
-                      {JSON.stringify(reading.chapterInfo, null, 2)}
-                    </pre>
-                  </details>
-                )}
-              </CardContent>
-            </Card>
-          ))
-        )}
+  return (
+    <main className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-4">
+      <div className="w-full max-w-4xl p-8 bg-white rounded-xl shadow-2xl min-h-[400px] flex items-center justify-center">
+        {renderContent()}
       </div>
-    </div>
+      <div className="absolute top-4 right-4">
+        <Badge variant={isConnected ? "default" : "destructive"}>
+          {isConnected ? "Conectado" : "Desconectado"}
+        </Badge>
+      </div>
+    </main>
+  );
+}
+
+export default function AcompanharCultoPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-screen">
+          <Loader2 className="h-12 w-12 animate-spin" />
+        </div>
+      }
+    >
+      <AcompanharCultoContent />
+    </Suspense>
   );
 }

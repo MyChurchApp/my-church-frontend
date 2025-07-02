@@ -65,14 +65,30 @@ export interface WorshipService {
 interface ListWorshipServicesParams {
   page?: number;
   pageSize?: number;
+  Status?: WorshipStatus;
 }
 
 // --- Classe de Serviço ---
 
 class WorshipServiceManager {
   /**
+   * Encontra o primeiro culto que está ativo (Status = 1).
+   */
+  async findActiveWorshipService(): Promise<WorshipService | null> {
+    const params = { Status: WorshipStatus.InProgress, pageSize: 1 };
+    const query = new URLSearchParams(params as any).toString();
+    const response = await authFetchJson(
+      `${API_BASE_URL}/Event/worship?${query}`
+    );
+
+    if (response && response.items && response.items.length > 0) {
+      return response.items[0];
+    }
+    return null;
+  }
+
+  /**
    * Lista todos os cultos disponíveis.
-   * GET /api/Event/worship
    */
   async listWorshipServices(
     params: ListWorshipServicesParams = {}
@@ -86,7 +102,6 @@ class WorshipServiceManager {
 
   /**
    * Busca um culto (WorshipService) por ID.
-   * GET /api/Event/worship/{id}
    */
   async getWorshipById(id: number): Promise<WorshipService> {
     const response = await authFetchJson(`${API_BASE_URL}/Event/worship/${id}`);
@@ -95,7 +110,6 @@ class WorshipServiceManager {
 
   /**
    * Inicia um culto.
-   * POST /api/WorshipActivity/{worshipServiceId}/start
    */
   async startWorship(worshipServiceId: number): Promise<void> {
     await authFetch(
@@ -108,7 +122,6 @@ class WorshipServiceManager {
 
   /**
    * Finaliza um culto.
-   * POST /api/WorshipActivity/{worshipServiceId}/finish (Endpoint suposto)
    */
   async finishWorship(worshipServiceId: number): Promise<void> {
     await authFetch(
@@ -121,13 +134,12 @@ class WorshipServiceManager {
 
   /**
    * Adiciona um item ao cronograma do culto.
-   * POST /api/WorshipActivity/{worshipServiceId}/schedule/add
    */
   async addScheduleItem(
     worshipServiceId: number,
     item: { name: string; order: number }
   ): Promise<WorshipScheduleItem> {
-    const payload = { ...item, worshipServiceId }; // Garante que o ID do culto está no corpo, se necessário
+    const payload = { ...item, worshipServiceId };
     const response = await authFetchJson(
       `${API_BASE_URL}/WorshipActivity/${worshipServiceId}/schedule/add`,
       {
@@ -140,14 +152,13 @@ class WorshipServiceManager {
 
   /**
    * Atualiza um item do cronograma do culto.
-   * PUT /api/WorshipActivity/{worshipServiceId}/schedule/update/{id}
    */
   async updateScheduleItem(
     worshipServiceId: number,
     itemId: number,
     item: { id: number; name: string; order: number }
   ): Promise<void> {
-    const payload = { ...item, worshipServiceId }; // Garante que o ID do culto está no corpo, se necessário
+    const payload = { ...item, worshipServiceId };
     await authFetch(
       `${API_BASE_URL}/WorshipActivity/${worshipServiceId}/schedule/update/${itemId}`,
       {
@@ -159,7 +170,6 @@ class WorshipServiceManager {
 
   /**
    * Remove um item do cronograma do culto.
-   * DELETE /api/WorshipActivity/{worshipServiceId}/schedule/remove/{id}
    */
   async removeScheduleItem(
     worshipServiceId: number,
@@ -172,6 +182,119 @@ class WorshipServiceManager {
       }
     );
   }
+
+  /**
+   * Destaca uma leitura bíblica, notificando os membros.
+   */
+  async highlightBibleReading(
+    worshipServiceId: number,
+    params: {
+      versionId: number;
+      bookId: number;
+      chapterId: number;
+      verseId: number;
+    }
+  ): Promise<void> {
+    const query = new URLSearchParams(params as any).toString();
+    await authFetch(
+      `${API_BASE_URL}/WorshipActivity/${worshipServiceId}/bible-reading/highlight?${query}`,
+      {
+        method: "POST",
+      }
+    );
+  }
 }
 
 export const worshipService = new WorshipServiceManager();
+
+export interface BibleVersion {
+  id: number;
+  name: string;
+}
+export interface BibleBook {
+  id: number;
+  name: string;
+  testament: string;
+}
+export interface BibleChapter {
+  id: number;
+  chapterNumber: number;
+}
+export interface BibleVerse {
+  id: number;
+  verseNumber: number;
+  text: string;
+}
+
+export interface FullReadingData {
+  versionName: string;
+  bookName: string;
+  chapterNumber: number;
+  verses: BibleVerse[];
+}
+
+class BibleService {
+  async getVersions(): Promise<BibleVersion[]> {
+    const response = await authFetchJson(`${API_BASE_URL}/Bible/versions`);
+    return response as BibleVersion[];
+  }
+
+  async getBooksByVersion(versionId: number): Promise<BibleBook[]> {
+    const response = await authFetchJson(
+      `${API_BASE_URL}/Bible/versions/${versionId}/books`
+    );
+    return response as BibleBook[];
+  }
+
+  async getChaptersByBookId(bookId: number): Promise<BibleChapter[]> {
+    const response = await authFetchJson(
+      `${API_BASE_URL}/Bible/books/${bookId}/chapters`
+    );
+    return response as BibleChapter[];
+  }
+
+  async getVersesByChapterId(chapterId: number): Promise<BibleVerse[]> {
+    const response = await authFetchJson(
+      `${API_BASE_URL}/Bible/chapters/${chapterId}/verses`
+    );
+    return response as BibleVerse[];
+  }
+
+  async getReadingData({
+    versionId,
+    bookId,
+    chapterId,
+  }: {
+    versionId: number;
+    bookId: number;
+    chapterId: number;
+  }): Promise<FullReadingData> {
+    try {
+      // Faz as chamadas em paralelo para otimizar
+      const [versionData, bookData, versesData] = await Promise.all([
+        authFetchJson(`${API_BASE_URL}/Bible/versions/${versionId}`),
+        authFetchJson(`${API_BASE_URL}/Bible/books/${bookId}`),
+        this.getVersesByChapterId(chapterId),
+      ]);
+
+      const book = bookData as BibleBook;
+      const version = versionData as BibleVersion;
+      // Precisamos do número do capítulo, que pode não vir no payload, então buscamos a info do capítulo
+      const chapterInfo = await authFetchJson(
+        `${API_BASE_URL}/Bible/chapters/${chapterId}`
+      );
+
+      return {
+        versionName: version.name,
+        bookName: book.name,
+        chapterNumber: chapterInfo.chapterNumber,
+        verses: versesData,
+      };
+    } catch (error) {
+      console.error("Erro ao buscar dados completos da leitura:", error);
+      throw new Error("Não foi possível carregar o texto da leitura.");
+    }
+  }
+}
+
+export const bibleService = new BibleService();
