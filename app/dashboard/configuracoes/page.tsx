@@ -25,6 +25,7 @@ import {
   updateChurchData,
   updateBankingInfo,
   type Church,
+  BankingInfo,
 } from "@/services/church.service";
 import { ChangePlanModal } from "@/components/configuracoes/ChangePlanModal";
 
@@ -103,6 +104,39 @@ export default function ConfiguracoesPage() {
       setSavingChurch(false);
     }
   };
+
+  function updateBankingField(field: keyof BankingInfo, value: string) {
+    setChurchData((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        bankingInfo: {
+          bankName:
+            field === "bankName" ? value : prev.bankingInfo?.bankName || "",
+          agency: field === "agency" ? value : prev.bankingInfo?.agency || "",
+          account:
+            field === "account" ? value : prev.bankingInfo?.account || "",
+          accountDigit:
+            field === "accountDigit"
+              ? value
+              : prev.bankingInfo?.accountDigit || "",
+          accountType:
+            field === "accountType"
+              ? value
+              : prev.bankingInfo?.accountType || "",
+          holderName:
+            field === "holderName" ? value : prev.bankingInfo?.holderName || "",
+          holderDocument:
+            field === "holderDocument"
+              ? value
+              : prev.bankingInfo?.holderDocument || "",
+          pixKey: field === "pixKey" ? value : prev.bankingInfo?.pixKey || "",
+          pixKeyType:
+            field === "pixKeyType" ? value : prev.bankingInfo?.pixKeyType || "",
+        },
+      };
+    });
+  }
 
   const handleSaveBankingInfo = async () => {
     if (!churchData?.bankingInfo) return;
@@ -541,176 +575,113 @@ export default function ConfiguracoesPage() {
               <CardTitle>Dados Bancários da Igreja</CardTitle>
             </CardHeader>
             <CardContent>
-              {churchData?.bankingInfo ? (
-                <div className="space-y-6">
-                  <div className="grid grid-cols-6 gap-4">
-                    <div className="col-span-6 sm:col-span-3">
-                      <Label htmlFor="bankName">Nome do Banco</Label>
-                      <Input
-                        id="bankName"
-                        value={churchData.bankingInfo.bankName}
-                        onChange={(e) =>
-                          setChurchData({
-                            ...churchData,
-                            bankingInfo: {
-                              ...churchData.bankingInfo!,
-                              bankName: e.target.value,
-                            },
-                          })
-                        }
-                      />
-                    </div>
-                    <div className="col-span-6 sm:col-span-3">
-                      <Label htmlFor="agency">Agência</Label>
-                      <Input
-                        id="agency"
-                        value={churchData.bankingInfo.agency}
-                        onChange={(e) =>
-                          setChurchData({
-                            ...churchData,
-                            bankingInfo: {
-                              ...churchData.bankingInfo!,
-                              agency: e.target.value,
-                            },
-                          })
-                        }
-                      />
-                    </div>
-
-                    <div className="col-span-4 sm:col-span-2">
-                      <Label htmlFor="account">Número da Conta</Label>
-                      <Input
-                        id="account"
-                        value={churchData.bankingInfo.account}
-                        onChange={(e) =>
-                          setChurchData({
-                            ...churchData,
-                            bankingInfo: {
-                              ...churchData.bankingInfo!,
-                              account: e.target.value,
-                            },
-                          })
-                        }
-                      />
-                    </div>
-
-                    <div className="col-span-2 sm:col-span-1">
-                      <Label htmlFor="accountDigit">Dígito</Label>
-                      <Input
-                        id="accountDigit"
-                        value={churchData.bankingInfo.accountDigit}
-                        onChange={(e) =>
-                          setChurchData({
-                            ...churchData,
-                            bankingInfo: {
-                              ...churchData.bankingInfo!,
-                              accountDigit: e.target.value,
-                            },
-                          })
-                        }
-                      />
-                    </div>
-
-                    <div className="col-span-6 sm:col-span-3">
-                      <Label htmlFor="accountType">Tipo de Conta</Label>
-                      <Input
-                        id="accountType"
-                        value={churchData.bankingInfo.accountType}
-                        onChange={(e) =>
-                          setChurchData({
-                            ...churchData,
-                            bankingInfo: {
-                              ...churchData.bankingInfo!,
-                              accountType: e.target.value,
-                            },
-                          })
-                        }
-                      />
-                    </div>
-
-                    <div className="col-span-6">
-                      <Label htmlFor="holderName">Nome do Titular</Label>
-                      <Input
-                        id="holderName"
-                        value={churchData.bankingInfo.holderName}
-                        onChange={(e) =>
-                          setChurchData({
-                            ...churchData,
-                            bankingInfo: {
-                              ...churchData.bankingInfo!,
-                              holderName: e.target.value,
-                            },
-                          })
-                        }
-                      />
-                    </div>
-                    <div className="col-span-6 sm:col-span-3">
-                      <Label htmlFor="holderDocument">
-                        CPF/CNPJ do Titular
-                      </Label>
-                      <Input
-                        id="holderDocument"
-                        value={churchData.bankingInfo.holderDocument}
-                        onChange={(e) =>
-                          setChurchData({
-                            ...churchData,
-                            bankingInfo: {
-                              ...churchData.bankingInfo!,
-                              holderDocument: e.target.value,
-                            },
-                          })
-                        }
-                      />
-                    </div>
-                    <div className="col-span-6 sm:col-span-3">
-                      <Label htmlFor="pixKey">Chave PIX</Label>
-                      <Input
-                        id="pixKey"
-                        value={churchData.bankingInfo.pixKey}
-                        onChange={(e) =>
-                          setChurchData({
-                            ...churchData,
-                            bankingInfo: {
-                              ...churchData.bankingInfo!,
-                              pixKey: e.target.value,
-                            },
-                          })
-                        }
-                      />
-                    </div>
+              <div className="space-y-6">
+                <div className="grid grid-cols-6 gap-4">
+                  <div className="col-span-6 sm:col-span-3">
+                    <Label htmlFor="bankName">Nome do Banco</Label>
+                    <Input
+                      id="bankName"
+                      value={churchData?.bankingInfo?.bankName || ""}
+                      onChange={(e) =>
+                        updateBankingField("bankName", e.target.value)
+                      }
+                    />
                   </div>
-
-                  <div className="flex justify-end pt-4 border-t">
-                    <div className="flex flex-col items-end gap-2">
-                      <Button
-                        onClick={handleSaveBankingInfo}
-                        disabled={savingBanking}
-                      >
-                        {savingBanking ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />{" "}
-                            Salvando...
-                          </>
-                        ) : (
-                          <>
-                            <Save className="h-4 w-4 mr-2" /> Salvar Dados
-                            Bancários
-                          </>
-                        )}
-                      </Button>
-                      {saveBankingError && (
-                        <p className="text-sm text-red-600">
-                          {saveBankingError}
-                        </p>
-                      )}
-                    </div>
+                  <div className="col-span-6 sm:col-span-3">
+                    <Label htmlFor="agency">Agência</Label>
+                    <Input
+                      id="agency"
+                      value={churchData?.bankingInfo?.agency || ""}
+                      onChange={(e) =>
+                        updateBankingField("agency", e.target.value)
+                      }
+                    />
+                  </div>
+                  <div className="col-span-4 sm:col-span-2">
+                    <Label htmlFor="account">Número da Conta</Label>
+                    <Input
+                      id="account"
+                      value={churchData?.bankingInfo?.account || ""}
+                      onChange={(e) =>
+                        updateBankingField("account", e.target.value)
+                      }
+                    />
+                  </div>
+                  <div className="col-span-2 sm:col-span-1">
+                    <Label htmlFor="accountDigit">Dígito</Label>
+                    <Input
+                      id="accountDigit"
+                      value={churchData?.bankingInfo?.accountDigit || ""}
+                      onChange={(e) =>
+                        updateBankingField("accountDigit", e.target.value)
+                      }
+                    />
+                  </div>
+                  <div className="col-span-6 sm:col-span-3">
+                    <Label htmlFor="accountType">Tipo de Conta</Label>
+                    <Input
+                      id="accountType"
+                      value={churchData?.bankingInfo?.accountType || ""}
+                      onChange={(e) =>
+                        updateBankingField("accountType", e.target.value)
+                      }
+                    />
+                  </div>
+                  <div className="col-span-6">
+                    <Label htmlFor="holderName">Nome do Titular</Label>
+                    <Input
+                      id="holderName"
+                      value={churchData?.bankingInfo?.holderName || ""}
+                      onChange={(e) =>
+                        updateBankingField("holderName", e.target.value)
+                      }
+                    />
+                  </div>
+                  <div className="col-span-6 sm:col-span-3">
+                    <Label htmlFor="holderDocument">CPF/CNPJ do Titular</Label>
+                    <Input
+                      id="holderDocument"
+                      value={churchData?.bankingInfo?.holderDocument || ""}
+                      onChange={(e) =>
+                        updateBankingField("holderDocument", e.target.value)
+                      }
+                    />
+                  </div>
+                  <div className="col-span-6 sm:col-span-3">
+                    <Label htmlFor="pixKey">Chave PIX</Label>
+                    <Input
+                      id="pixKey"
+                      value={churchData?.bankingInfo?.pixKey || ""}
+                      onChange={(e) =>
+                        updateBankingField("pixKey", e.target.value)
+                      }
+                    />
                   </div>
                 </div>
-              ) : (
-                <p className="text-muted-foreground">
-                  Nenhuma informação bancária cadastrada.
-                </p>
-              )}
+                <div className="flex justify-end pt-4 border-t">
+                  <div className="flex flex-col items-end gap-2">
+                    <Button
+                      onClick={handleSaveBankingInfo}
+                      disabled={savingBanking}
+                    >
+                      {savingBanking ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />{" "}
+                          Salvando...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="h-4 w-4 mr-2" /> Salvar Dados
+                          Bancários
+                        </>
+                      )}
+                    </Button>
+                    {saveBankingError && (
+                      <p className="text-sm text-red-600">{saveBankingError}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
