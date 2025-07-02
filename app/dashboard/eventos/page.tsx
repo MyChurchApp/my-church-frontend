@@ -7,34 +7,27 @@ import {
   EventCreateRequest,
   EventUpdateRequest,
   RecurrenceType,
+  EventType, // Importar o novo Enum
 } from "@/services/events.service";
 
 type CalendarView = "monthly" | "weekly" | "daily";
 
-// Função para obter a visualização inicial, verificando o localStorage e o tamanho da tela
 const getInitialView = (): CalendarView => {
-  if (typeof window === "undefined") {
-    return "monthly"; // Padrão para renderização no servidor
-  }
+  if (typeof window === "undefined") return "monthly";
   const savedView = localStorage.getItem("calendarView") as CalendarView;
-  if (savedView && ["monthly", "weekly", "daily"].includes(savedView)) {
+  if (savedView && ["monthly", "weekly", "daily"].includes(savedView))
     return savedView;
-  }
-  // Se não houver nada salvo, define 'weekly' para telas menores (mobile)
   return window.innerWidth < 768 ? "weekly" : "monthly";
 };
 
-// Componente principal da página de eventos
 export default function EventosPage() {
-  // --- STATE MANAGEMENT ---
-  const [view, setView] = useState<CalendarView>("monthly"); // Será definido no useEffect
+  const [view, setView] = useState<CalendarView>("monthly");
   const [events, setEvents] = useState<CalendarEventResponse[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [loading, setLoading] = useState(true);
-  const [isInitialLoad, setIsInitialLoad] = useState(true); // Controla o carregamento inicial
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // --- MODAL E FORMULÁRIO STATE ---
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState<
     Partial<EventCreateRequest & { time: string; finishTime: string }>
@@ -44,7 +37,6 @@ export default function EventosPage() {
 
   const modalRef = useRef<HTMLDivElement>(null);
 
-  // --- LÓGICA DO CALENDÁRIO ---
   const eventsByDate = useMemo(() => {
     const map = new Map<
       string,
@@ -53,9 +45,7 @@ export default function EventosPage() {
     events.forEach((event) => {
       event.occurrences.forEach((occurrence) => {
         const dateKey = new Date(occurrence.start).toISOString().split("T")[0];
-        if (!map.has(dateKey)) {
-          map.set(dateKey, []);
-        }
+        if (!map.has(dateKey)) map.set(dateKey, []);
         map.get(dateKey)?.push({ ...event, occurrence });
       });
     });
@@ -87,17 +77,13 @@ export default function EventosPage() {
       });
     }
 
-    if (view === "daily") {
-      return [new Date(currentDate)];
-    }
-
+    if (view === "daily") return [new Date(currentDate)];
     return [];
   }, [currentDate, view]);
 
-  // --- DATA FETCHING E PERSISTÊNCIA DE VIEW ---
-
   useEffect(() => {
-    setView(getInitialView());
+    const initialView = getInitialView();
+    setView(initialView);
     setIsInitialLoad(false);
   }, []);
 
@@ -113,9 +99,6 @@ export default function EventosPage() {
     }
   }, [currentDate, isInitialLoad]);
 
-  // ###############################################################
-  // ##                CORREÇÃO APLICADA AQUI                     ##
-  // ###############################################################
   const loadEvents = async () => {
     setLoading(true);
     setError(null);
@@ -135,22 +118,18 @@ export default function EventosPage() {
       const eventsArrays = await Promise.all(eventPromises);
       const allEvents = eventsArrays.flat();
 
-      // Lógica para combinar ocorrências de eventos recorrentes sem duplicatas
       const eventsMap = new Map<number, CalendarEventResponse>();
       allEvents.forEach((event) => {
         if (eventsMap.has(event.id)) {
-          // Se o evento já existe, mescla as ocorrências
           const existingEvent = eventsMap.get(event.id)!;
           const existingOccurrences = new Set(
             existingEvent.occurrences.map((o) => o.start)
           );
           event.occurrences.forEach((newOccurrence) => {
-            if (!existingOccurrences.has(newOccurrence.start)) {
+            if (!existingOccurrences.has(newOccurrence.start))
               existingEvent.occurrences.push(newOccurrence);
-            }
           });
         } else {
-          // Se é a primeira vez que vemos o evento, adiciona ao mapa
           eventsMap.set(event.id, {
             ...event,
             occurrences: [...event.occurrences],
@@ -158,8 +137,7 @@ export default function EventosPage() {
         }
       });
 
-      const uniqueAndMergedEvents = Array.from(eventsMap.values());
-      setEvents(uniqueAndMergedEvents);
+      setEvents(Array.from(eventsMap.values()));
     } catch (err) {
       console.error("Erro ao carregar eventos:", err);
       setError("Não foi possível carregar os eventos.");
@@ -168,7 +146,6 @@ export default function EventosPage() {
     }
   };
 
-  // --- HANDLERS ---
   const handleNavigate = (direction: "prev" | "next") => {
     const newDate = new Date(currentDate);
     const amount = direction === "prev" ? -1 : 1;
@@ -227,6 +204,7 @@ export default function EventosPage() {
       requiresParticipantList: false,
       recurrenceType: RecurrenceType.None,
       frequency: 1,
+      eventType: EventType.General,
     });
     setShowModal(true);
   };
@@ -236,7 +214,7 @@ export default function EventosPage() {
     setFormLoading(true);
     setShowModal(true);
     try {
-      const eventData = await eventsService.getEventById(eventId);
+      const eventData: any = await eventsService.getEventById(eventId);
       const originalStartDate = new Date(eventData.date);
       const originalFinishDate = new Date(eventData.finishDate);
       const startTime = originalStartDate.toTimeString().substring(0, 5);
@@ -260,6 +238,7 @@ export default function EventosPage() {
         recurrenceType:
           eventData.recurrence?.recurrenceType ?? RecurrenceType.None,
         frequency: eventData.recurrence?.frequency ?? 1,
+        eventType: eventData.eventType ?? EventType.General,
       });
     } catch (err) {
       setError("Falha ao carregar dados para edição.");
@@ -304,13 +283,16 @@ export default function EventosPage() {
       requiresParticipantList: formData.requiresParticipantList || false,
       recurrenceType: Number(formData.recurrenceType),
       frequency: Number(formData.frequency) || 1,
+      eventType: Number(formData.eventType),
+      worshipTheme: formData.worshipTheme || "",
     };
+
     try {
       if (editingEventId)
-        await eventsService.updateEvent(editingEventId, {
-          ...commonPayload,
-          worshipTheme: "",
-        });
+        await eventsService.updateEvent(
+          editingEventId,
+          commonPayload as EventUpdateRequest
+        );
       else await eventsService.createEvent(commonPayload);
       handleCloseModal();
       loadEvents();
@@ -320,8 +302,6 @@ export default function EventosPage() {
       setFormLoading(false);
     }
   };
-
-  // --- Sub-componentes de Renderização ---
 
   const ViewSwitcher = () => (
     <div className="flex bg-gray-200 rounded-lg p-1">
@@ -462,7 +442,6 @@ export default function EventosPage() {
     </div>
   );
 
-  // --- RENDERIZAÇÃO PRINCIPAL ---
   return (
     <div className="p-4 sm:p-6 lg:p-8 font-sans">
       <div className="flex flex-col sm:flex-row items-center justify-between mb-6 gap-4">
@@ -537,7 +516,6 @@ export default function EventosPage() {
         </div>
       )}
 
-      {/* Modal */}
       {showModal && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center p-4"
@@ -575,6 +553,23 @@ export default function EventosPage() {
                   </button>
                 </div>
                 <form onSubmit={handleSubmit} className="p-6 space-y-5">
+                  <div>
+                    <label className="block text-lg font-semibold text-gray-700 mb-1">
+                      Tipo de Evento
+                    </label>
+                    <select
+                      name="eventType"
+                      value={formData.eventType}
+                      onChange={handleFormChange}
+                      required
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value={EventType.General}>Geral</option>
+                      <option value={EventType.WorshipService}>Culto</option>
+                      <option value={EventType.Meeting}>Reunião</option>
+                    </select>
+                  </div>
+
                   <div>
                     <label className="block text-lg font-semibold text-gray-700 mb-1">
                       Título

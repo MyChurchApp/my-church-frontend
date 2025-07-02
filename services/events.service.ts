@@ -133,6 +133,7 @@ export interface EventCreateRequest {
   requiresParticipantList: boolean;
   recurrenceType?: number;
   frequency?: number;
+  eventType: EventType;
   worshipTheme?: string;
 }
 export interface EventUpdateRequest {
@@ -144,6 +145,7 @@ export interface EventUpdateRequest {
   requiresParticipantList: boolean;
   recurrenceType: number;
   frequency: number;
+  eventType: EventType;
   worshipTheme: string;
 }
 export interface EventResponse {
