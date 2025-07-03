@@ -55,6 +55,21 @@ export function useSignalRForWorship(worshipId: number | null) {
             new CustomEvent("HymnPresented", { detail: data })
           );
         });
+
+        // --- ✅ NOVOS OUVINTES PARA OFERTA ---
+        connection.on("OfferingPresented", (data) => {
+          console.log("✅ [SignalR] Evento recebido: OfferingPresented", data);
+          window.dispatchEvent(
+            new CustomEvent("OfferingPresented", { detail: data })
+          );
+        });
+
+        connection.on("OfferingFinished", (data) => {
+          console.log("✅ [SignalR] Evento recebido: OfferingFinished", data);
+          window.dispatchEvent(
+            new CustomEvent("OfferingFinished", { detail: data })
+          );
+        });
       } catch (err) {
         console.error("❌ [SignalR] Falha ao iniciar conexão:", err);
         setIsConnected(false);
@@ -73,6 +88,9 @@ export function useSignalRForWorship(worshipId: number | null) {
       console.log("[SignalR] Parando conexão.");
       connection.off("BibleReadingHighlighted");
       connection.off("HymnPresented");
+      // --- ✅ LIMPEZA DOS NOVOS OUVINTES ---
+      connection.off("OfferingPresented");
+      connection.off("OfferingFinished");
       connection.stop();
     };
   }, [worshipId]);

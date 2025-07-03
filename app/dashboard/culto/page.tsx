@@ -28,7 +28,7 @@ import { useSignalRForWorship } from "@/hooks/useSignalRForWorship";
 import { motion } from "framer-motion";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import DonationContainer from "@/containers/donation/donationContainer";
-import { Button } from "@/components/ui/button";
+import { PulsingBorderButton } from "./components/PulsingGlowButton/PulsingGlowButton";
 
 // --- Estilos ---
 const styles = `
@@ -244,7 +244,8 @@ function WorshipClient({
   const [error, setError] = useState<string | null>(null);
   const [lastTransmission, setLastTransmission] =
     useState<BibleTransmission | null>(null);
-  const [showOfferingModal, setShowOfferingModal] = useState(false); // NOVO ESTADO
+  const [showOfferingModal, setShowOfferingModal] = useState(false);
+  const [isOfferingActive, setIsOfferingActive] = useState(false); // ✅ NOVO ESTADO
 
   const { data: activeWorship, isLoading: isLoadingWorship } = useQuery({
     queryKey: ["active-worship-service"],
@@ -257,6 +258,7 @@ function WorshipClient({
     ? Number(worshipIdFromUrl)
     : activeWorship?.id ?? null;
   const { isConnected } = useSignalRForWorship(worshipId);
+
   const handleReadingUpdate = useCallback(
     async (event: Event) => {
       if (!(event instanceof CustomEvent)) return;
@@ -336,18 +338,33 @@ function WorshipClient({
     [lastFocusedVerse]
   );
 
-  useEffect(() => {
-    window.removeEventListener("bibleReadingUpdated", handleReadingUpdate);
-    window.removeEventListener("HymnPresented", handleHymnUpdate);
+  // ✅ HANDLERS ATUALIZADOS
+  const handleOfferingPresent = useCallback(() => {
+    setIsOfferingActive(true);
+  }, []);
 
+  const handleOfferingFinish = useCallback(() => {
+    setIsOfferingActive(false);
+  }, []);
+
+  useEffect(() => {
     window.addEventListener("bibleReadingUpdated", handleReadingUpdate);
     window.addEventListener("HymnPresented", handleHymnUpdate);
+    window.addEventListener("OfferingPresented", handleOfferingPresent);
+    window.addEventListener("OfferingFinished", handleOfferingFinish);
 
     return () => {
       window.removeEventListener("bibleReadingUpdated", handleReadingUpdate);
       window.removeEventListener("HymnPresented", handleHymnUpdate);
+      window.removeEventListener("OfferingPresented", handleOfferingPresent);
+      window.removeEventListener("OfferingFinished", handleOfferingFinish);
     };
-  }, [handleReadingUpdate, handleHymnUpdate]);
+  }, [
+    handleReadingUpdate,
+    handleHymnUpdate,
+    handleOfferingPresent,
+    handleOfferingFinish,
+  ]);
 
   const renderContent = () => {
     if (error)
@@ -404,13 +421,10 @@ function WorshipClient({
       {/* Barra de Ações Inferior */}
       <div className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-sm border-t p-4 z-20">
         <div className="container mx-auto max-w-md">
-          <Button
-            className="w-full h-14 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold text-lg shadow-lg"
+          <PulsingBorderButton
+            isActive={isOfferingActive}
             onClick={() => setShowOfferingModal(true)}
-          >
-            <Heart className=" h-6 w-6" />
-            Ofertar no Culto
-          </Button>
+          />
         </div>
       </div>
 
@@ -420,7 +434,7 @@ function WorshipClient({
           <Suspense
             fallback={<div className="p-10 text-center">Carregando...</div>}
           >
-            <DonationContainer worshipId={worshipId} />
+            {worshipId && <DonationContainer worshipId={worshipId} />}
           </Suspense>
         </DialogContent>
       </Dialog>

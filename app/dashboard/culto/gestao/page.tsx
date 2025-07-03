@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   DndContext,
@@ -41,6 +41,8 @@ import {
   Check,
   X,
   PlayCircle,
+  Heart, // ✅ Ícone adicionado
+  XCircle, // ✅ Ícone adicionado
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -67,7 +69,7 @@ import {
 import { HymnManager } from "@/components/hymn/HymnManager";
 
 // ===================================================================
-//   1. COMPONENTE DO SELETOR BÍBLICO
+//   1. COMPONENTE DO SELETOR BÍBLICO (Original, sem alterações)
 // ===================================================================
 function BibleSelectorForWorship({ worshipId }: { worshipId: number }) {
   const [selectedVersion, setSelectedVersion] = useState<BibleVersion | null>(
@@ -284,7 +286,7 @@ function BibleSelectorForWorship({ worshipId }: { worshipId: number }) {
 }
 
 // ===================================================================
-//   2. COMPONENTE DO GERENCIADOR DE CRONOGRAMA
+//   2. COMPONENTE DO GERENCIADOR DE CRONOGRAMA (Original, sem alterações)
 // ===================================================================
 function SortableScheduleItem({
   item,
@@ -507,7 +509,7 @@ function ScheduleManager({ worshipId }: { worshipId: number }) {
 }
 
 // ===================================================================
-//   3. COMPONENTE DO PAINEL DE CONTROLE PRINCIPAL
+//   3. COMPONENTE DO PAINEL DE CONTROLE PRINCIPAL (Com a nova funcionalidade)
 // ===================================================================
 function WorshipControlPanel({
   worshipId,
@@ -521,6 +523,12 @@ function WorshipControlPanel({
     null
   );
 
+  // ✅ Estados para a nova funcionalidade de Oferta
+  const [isOffering, setIsOffering] = useState(false);
+  const [offeringActivityId, setOfferingActivityId] = useState<number | null>(
+    null
+  );
+
   const {
     data: worship,
     isLoading,
@@ -530,6 +538,24 @@ function WorshipControlPanel({
     queryFn: () => worshipService.getWorshipById(worshipId),
     refetchOnWindowFocus: true,
   });
+
+  // ✅ Efeito para verificar se a oferta já está ativa ao carregar os dados
+  useEffect(() => {
+    if (worship) {
+      const offeringActivity = worship.activities.find(
+        (activity) =>
+          activity.name.toLowerCase() === "oferta" && activity.isCurrent
+      );
+      if (offeringActivity) {
+        setIsOffering(true);
+        setOfferingActivityId(offeringActivity.id);
+      } else {
+        setIsOffering(false);
+        setOfferingActivityId(null);
+      }
+    }
+  }, [worship]);
+
   const { mutate: startWorshipMutation, isPending: isStarting } = useMutation({
     mutationFn: () => worshipService.startWorship(worshipId),
     onSuccess: () => {
@@ -540,6 +566,37 @@ function WorshipControlPanel({
     },
     onError: (err: any) => alert(`Erro: ${err.message}`),
   });
+
+  // ✅ Mutações para a nova funcionalidade de Oferta
+  const { mutate: presentOfferingMutation, isPending: isPresentingOffering } =
+    useMutation({
+      mutationFn: () => worshipService.presentOffering(worshipId),
+      onSuccess: (data) => {
+        setOfferingActivityId(data.id);
+        setIsOffering(true);
+        queryClient.invalidateQueries({
+          queryKey: ["worship-service", worshipId],
+        });
+      },
+      onError: (err: any) => alert(`Erro ao apresentar oferta: ${err.message}`),
+    });
+
+  const { mutate: finishOfferingMutation, isPending: isFinishingOffering } =
+    useMutation({
+      mutationFn: () => {
+        if (!offeringActivityId)
+          throw new Error("ID da atividade de oferta não encontrado.");
+        return worshipService.finishOffering(worshipId, offeringActivityId);
+      },
+      onSuccess: () => {
+        setIsOffering(false);
+        setOfferingActivityId(null);
+        queryClient.invalidateQueries({
+          queryKey: ["worship-service", worshipId],
+        });
+      },
+      onError: (err: any) => alert(`Erro ao finalizar oferta: ${err.message}`),
+    });
 
   if (isLoading || !worship)
     return (
@@ -598,10 +655,12 @@ function WorshipControlPanel({
         </div>
       ) : (
         <Tabs defaultValue="cronograma">
-          <TabsList className="grid w-full grid-cols-4">
+          {/* ✅ ATUALIZADO PARA 5 COLUNAS */}
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="cronograma">Cronograma</TabsTrigger>
             <TabsTrigger value="biblia">Bíblia</TabsTrigger>
             <TabsTrigger value="hinos">Hinos</TabsTrigger>
+            <TabsTrigger value="oferta">Oferta</TabsTrigger> {/* ✅ NOVA ABA */}
             <TabsTrigger value="avisos">Avisos</TabsTrigger>
           </TabsList>
 
@@ -659,8 +718,56 @@ function WorshipControlPanel({
           </TabsContent>
 
           <TabsContent value="hinos">
-            {/* ✅ O COMPONENTE DE HINOS É USADO AQUI */}
             <HymnManager worshipId={worship.id} />
+          </TabsContent>
+
+          {/* ✅ NOVO CONTEÚDO PARA A ABA DE OFERTA */}
+          <TabsContent value="oferta">
+            <Card>
+              <CardHeader>
+                <CardTitle>Momento da Oferta</CardTitle>
+                <CardDescription>
+                  Inicie o momento da oferta para destacar o botão para os
+                  membros.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-6 text-center space-y-4">
+                {!isOffering ? (
+                  <Button
+                    size="lg"
+                    onClick={() => presentOfferingMutation()}
+                    disabled={isPresentingOffering}
+                  >
+                    {isPresentingOffering ? (
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    ) : (
+                      <Heart className="mr-2 h-5 w-5" />
+                    )}
+                    Iniciar Momento da Oferta
+                  </Button>
+                ) : (
+                  <Button
+                    size="lg"
+                    variant="destructive"
+                    onClick={() => finishOfferingMutation()}
+                    disabled={isFinishingOffering}
+                  >
+                    {isFinishingOffering ? (
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    ) : (
+                      <XCircle className="mr-2 h-5 w-5" />
+                    )}
+                    Finalizar Oferta
+                  </Button>
+                )}
+                {isOffering && (
+                  <div className="flex items-center justify-center gap-2 text-green-600 dark:text-green-400 mt-4">
+                    <Check className="h-5 w-5" />
+                    <span>Momento da oferta está ativo para os membros.</span>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="avisos">
@@ -677,7 +784,7 @@ function WorshipControlPanel({
 }
 
 // ===================================================================
-//   4. COMPONENTE PRINCIPAL DA PÁGINA
+//   4. COMPONENTE PRINCIPAL DA PÁGINA (Original, sem alterações)
 // ===================================================================
 export default function GestaoCultoPage() {
   const [selectedWorshipId, setSelectedWorshipId] = useState<number | null>(

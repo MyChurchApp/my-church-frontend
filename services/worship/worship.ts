@@ -205,7 +205,6 @@ class WorshipServiceManager {
     );
   }
 
-  // ✅ NOVO MÉTODO ADICIONADO AQUI
   /**
    * Apresenta um hino para todos os membros do culto.
    */
@@ -216,6 +215,38 @@ class WorshipServiceManager {
   ): Promise<void> {
     await authFetch(
       `${API_BASE_URL}/WorshipActivity/${worshipServiceId}/hymn/${hymnNumber}/present/${verseNumber}`,
+      {
+        method: "POST",
+      }
+    );
+  }
+
+  /**
+   * Apresenta o momento da oferta para todos os membros do culto.
+   * @param worshipServiceId O ID do culto.
+   * @returns A atividade de oferta que foi criada.
+   */
+  async presentOffering(worshipServiceId: number): Promise<WorshipActivity> {
+    const response = await authFetchJson(
+      `${API_BASE_URL}/WorshipActivity/${worshipServiceId}/offering/present`,
+      {
+        method: "POST",
+      }
+    );
+    return response as WorshipActivity;
+  }
+
+  /**
+   * Finaliza o momento da oferta.
+   * @param worshipServiceId O ID do culto.
+   * @param activityId O ID da atividade de oferta.
+   */
+  async finishOffering(
+    worshipServiceId: number,
+    activityId: number
+  ): Promise<void> {
+    await authFetch(
+      `${API_BASE_URL}/WorshipActivity/${worshipServiceId}/offering/${activityId}/finish`,
       {
         method: "POST",
       }
