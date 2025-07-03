@@ -528,40 +528,65 @@ function ScheduleManager({ worshipId }: { worshipId: number }) {
 }
 
 // ===================================================================
-//   3. COMPONENTE PARA VISUALIZAR PEDIDOS DE ORAÇÃO
+//   3. COMPONENTE DE PEDIDOS DE ORAÇÃO (COM RE-BUSCA AUTOMÁTICA)
 // ===================================================================
 function PrayerRequestViewer({ worshipId }: { worshipId: number }) {
-  const [requests, setRequests] = useState<PrayerRequest[]>([]);
+  // 1. Obtenha a instância do Query Client.
+  const queryClient = useQueryClient();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
-  const { data, isLoading, isError, error } = useQuery<PrayerRequest[]>({
+  // 2. useQuery continua sendo nossa fonte da verdade.
+  const {
+    data: requests = [],
+    isLoading,
+    isError,
+    error,
+  } = useQuery<PrayerRequest[]>({
     queryKey: ["prayer-requests", worshipId],
-    queryFn: () => worshipService.getPrayerRequests(worshipId),
+    queryFn: () => {
+      console.log("Buscando lista de orações do servidor...");
+      return worshipService.getPrayerRequests(worshipId);
+    },
+    // Ordena os dados sempre que eles são buscados.
+    select: (data) =>
+      [...data].sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      ),
+    // Manter esta opção é uma boa prática.
+    refetchOnWindowFocus: false,
   });
 
-  useEffect(() => {
-    if (data) {
-      setRequests(data);
-    }
-  }, [data]);
-
+  // 3. Este useEffect agora INVALIDA a query, forçando uma nova busca.
   useEffect(() => {
     const handleNewRequest = (event: Event) => {
       const newRequest = (event as CustomEvent).detail as PrayerRequest;
-      setRequests((prev) => [newRequest, ...prev]);
+      console.log(
+        `✅ Novo pedido recebido (ID: ${newRequest.id}). Invalidando a lista para buscar novamente.`
+      );
+
+      // INVALIDA O CACHE:
+      // Esta é a linha que diz ao react-query: "Os dados que você tem para
+      // 'prayer-requests' estão desatualizados. Busque-os de novo!"
+      queryClient.invalidateQueries({
+        queryKey: ["prayer-requests", worshipId],
+      });
     };
 
     window.addEventListener("prayerRequestReceived", handleNewRequest);
+
     return () => {
       window.removeEventListener("prayerRequestReceived", handleNewRequest);
     };
-  }, []);
+  }, [worshipId, queryClient]); // Dependências corretas
 
+  // Efeito para rolar a lista para o topo.
+  // Usamos requests.length como gatilho, que mudará após a nova busca.
   useEffect(() => {
-    if (scrollAreaRef.current) {
+    if (requests.length > 0 && scrollAreaRef.current) {
       scrollAreaRef.current.scrollTo({ top: 0, behavior: "smooth" });
     }
-  }, [requests]);
+  }, [requests.length]);
 
   if (isLoading) {
     return (
@@ -579,6 +604,7 @@ function PrayerRequestViewer({ worshipId }: { worshipId: number }) {
     );
   }
 
+  // O JSX para renderizar não muda nada.
   return (
     <Card>
       <CardHeader>
@@ -592,7 +618,10 @@ function PrayerRequestViewer({ worshipId }: { worshipId: number }) {
           <div ref={scrollAreaRef} className="space-y-3">
             {requests.length > 0 ? (
               requests.map((req) => (
-                <div key={req.id} className="p-3 bg-white rounded-md shadow-sm">
+                <div
+                  key={req.id}
+                  className="p-3 bg-white rounded-md shadow-sm animate-in fade-in-0 slide-in-from-top-4 duration-500"
+                >
                   <p className="text-sm text-gray-800">{req.request}</p>
                   <p className="text-xs text-right text-gray-400 mt-2">
                     {new Date(req.createdAt).toLocaleString("pt-BR")}
@@ -602,7 +631,7 @@ function PrayerRequestViewer({ worshipId }: { worshipId: number }) {
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-gray-400 py-16">
                 <HandHeart className="h-12 w-12 mb-4" />
-                <p>Nenhum pedido de oração ainda.</p>
+                <p>Nenhum pedido de oração ainda. Aguardando...</p>
               </div>
             )}
           </div>
@@ -611,7 +640,6 @@ function PrayerRequestViewer({ worshipId }: { worshipId: number }) {
     </Card>
   );
 }
-
 // ===================================================================
 //   4. COMPONENTE DO PAINEL DE CONTROLE (COM LAYOUT E MENU CORRIGIDOS)
 // ===================================================================
