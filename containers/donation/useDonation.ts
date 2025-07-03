@@ -26,9 +26,16 @@ export type DonationFormData = {
     addressNumber: string;
     phone: string;
   };
+  creditCardInfoId?: number | null;
+  worshipServiceId?: number | null;
+  campaignId?: number | null;
 };
 
-export function useDonation() {
+type useDonationProps = {
+  worshipId?: number | null;
+};
+
+export function useDonation({ worshipId }: useDonationProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<DonationResponse | null>(null);
@@ -52,6 +59,9 @@ export function useDonation() {
       addressNumber: "",
       phone: "",
     },
+    creditCardInfoId: undefined,
+    worshipServiceId: undefined,
+    campaignId: undefined,
   };
 
   const [formData, setFormData] = useState<DonationFormData>(initialFormData);
@@ -126,6 +136,20 @@ export function useDonation() {
         description: formData.description,
         billingType: formData.billingType,
         dueDate: new Date().toISOString(),
+        creditCard:
+          formData.billingType === "CREDIT_CARD"
+            ? {
+                ...formData.creditCard,
+                number: formData.creditCard.number.replace(/\s/g, ""),
+              }
+            : undefined,
+        creditCardHolderInfo:
+          formData.billingType === "CREDIT_CARD"
+            ? formData.creditCardHolderInfo
+            : undefined,
+        creditCardInfoId: formData.creditCardInfoId ?? null,
+        worshipServiceId: worshipId ?? null,
+        campaignId: formData.campaignId ?? null,
       };
 
       // Adicionar dados do cartão se necessário

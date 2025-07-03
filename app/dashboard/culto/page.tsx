@@ -9,7 +9,14 @@ import React, {
 } from "react";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, BookOpen, WifiOff, AlertTriangle, Zap } from "lucide-react";
+import {
+  Loader2,
+  BookOpen,
+  WifiOff,
+  AlertTriangle,
+  Zap,
+  Heart,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   worshipService,
@@ -19,6 +26,9 @@ import {
 } from "@/services/worship/worship";
 import { useSignalRForWorship } from "@/hooks/useSignalRForWorship";
 import { motion } from "framer-motion";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import DonationContainer from "@/containers/donation/donationContainer";
+import { Button } from "@/components/ui/button";
 
 // --- Estilos ---
 const styles = `
@@ -234,6 +244,8 @@ function WorshipClient({
   const [error, setError] = useState<string | null>(null);
   const [lastTransmission, setLastTransmission] =
     useState<BibleTransmission | null>(null);
+  const [showOfferingModal, setShowOfferingModal] = useState(false); // NOVO ESTADO
+
   const { data: activeWorship, isLoading: isLoadingWorship } = useQuery({
     queryKey: ["active-worship-service"],
     queryFn: () => worshipService.findActiveWorshipService(),
@@ -388,6 +400,30 @@ function WorshipClient({
       <div className="w-full flex-grow flex items-center justify-center">
         {renderContent()}
       </div>
+
+      {/* Barra de Ações Inferior */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-sm border-t p-4 z-20">
+        <div className="container mx-auto max-w-md">
+          <Button
+            className="w-full h-14 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold text-lg shadow-lg"
+            onClick={() => setShowOfferingModal(true)}
+          >
+            <Heart className=" h-6 w-6" />
+            Ofertar no Culto
+          </Button>
+        </div>
+      </div>
+
+      {/* Modal de Doação */}
+      <Dialog open={showOfferingModal} onOpenChange={setShowOfferingModal}>
+        <DialogContent className="max-w-4xl max-h-[90vh] p-0">
+          <Suspense
+            fallback={<div className="p-10 text-center">Carregando...</div>}
+          >
+            <DonationContainer worshipId={worshipId} />
+          </Suspense>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }
