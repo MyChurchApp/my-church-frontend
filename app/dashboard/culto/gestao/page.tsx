@@ -17,7 +17,6 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -25,6 +24,7 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
+  CardFooter,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -44,6 +44,11 @@ import {
   Heart,
   XCircle,
   HandHeart,
+  ListOrdered,
+  BookOpen,
+  Music,
+  Gift,
+  Bell,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -54,7 +59,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
 import {
   worshipService,
@@ -72,7 +77,7 @@ import { HymnManager } from "@/components/hymn/HymnManager";
 import { useSignalRForWorship } from "@/hooks/useSignalRForWorship";
 
 // ===================================================================
-//   1. COMPONENTE DO SELETOR BÍBLICO (Original, sem alterações)
+//   1. COMPONENTE DO SELETOR BÍBLICO
 // ===================================================================
 function BibleSelectorForWorship({ worshipId }: { worshipId: number }) {
   const [selectedVersion, setSelectedVersion] = useState<BibleVersion | null>(
@@ -169,7 +174,7 @@ function BibleSelectorForWorship({ worshipId }: { worshipId: number }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Select
           onValueChange={(v) => {
             setSelectedVersion(versions.find((ver) => ver.id === Number(v))!);
@@ -228,7 +233,7 @@ function BibleSelectorForWorship({ worshipId }: { worshipId: number }) {
         </Select>
       </div>
 
-      <ScrollArea className="border rounded-md p-2 bg-gray-50 h-64 space-y-1">
+      <ScrollArea className="border rounded-md p-2 bg-gray-50 h-72 space-y-1">
         {verses.length > 0 ? (
           verses.map((verse) => {
             const isSelected = selectedVerse?.id === verse.id;
@@ -237,7 +242,7 @@ function BibleSelectorForWorship({ worshipId }: { worshipId: number }) {
                 key={verse.id}
                 ref={isSelected ? activeVerseRef : null}
                 onClick={() => setSelectedVerse(verse)}
-                className={`p-2 rounded-md cursor-pointer text-sm transition-colors ${
+                className={`p-3 rounded-md cursor-pointer text-base transition-colors ${
                   isSelected
                     ? "bg-blue-100 text-blue-800 ring-2 ring-blue-300"
                     : "hover:bg-gray-200"
@@ -280,16 +285,17 @@ function BibleSelectorForWorship({ worshipId }: { worshipId: number }) {
         className="w-full"
         onClick={handleBroadcast}
         disabled={!selectedVerse || isBroadcasting}
+        size="lg"
       >
         {isBroadcasting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-        Transmitir Versículo Selecionado
+        Transmitir Versículo
       </Button>
     </div>
   );
 }
 
 // ===================================================================
-//   2. COMPONENTE DO GERENCIADOR DE CRONOGRAMA (Original, sem alterações)
+//   2. COMPONENTE DO GERENCIADOR DE CRONOGRAMA
 // ===================================================================
 function SortableScheduleItem({
   item,
@@ -329,15 +335,15 @@ function SortableScheduleItem({
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex items-center justify-between p-2 pl-0 bg-gray-50 rounded-md transition-shadow ${
-        isEditing ? "shadow-lg ring-2 ring-blue-500" : ""
+      className={`flex items-center justify-between p-2 bg-gray-50 rounded-md transition-shadow ${
+        isEditing ? "shadow-lg ring-2 ring-blue-500" : "hover:bg-gray-100"
       }`}
     >
-      <div className="flex items-center flex-grow">
+      <div className="flex items-center flex-grow min-w-0">
         <button
           {...attributes}
           {...listeners}
-          className="cursor-grab p-2 touch-none"
+          className="cursor-grab p-2 touch-none flex-shrink-0"
         >
           <GripVertical className="h-5 w-5 text-gray-400" />
         </button>
@@ -348,13 +354,15 @@ function SortableScheduleItem({
             onChange={(e) => setEditedName(e.target.value)}
             onKeyDown={handleKeyDown}
             onBlur={handleSave}
-            className="h-9"
+            className="h-9 flex-grow"
           />
         ) : (
-          <span className="font-medium flex-grow px-2">{item.name}</span>
+          <span className="font-medium flex-grow px-2 truncate">
+            {item.name}
+          </span>
         )}
       </div>
-      <div className="flex items-center">
+      <div className="flex items-center flex-shrink-0">
         {isEditing ? (
           <Button variant="ghost" size="icon" onClick={handleSave}>
             <Check className="h-5 w-5 text-green-600" />
@@ -490,20 +498,28 @@ function ScheduleManager({ worshipId }: { worshipId: number }) {
             </p>
           )}
         </div>
-        <form onSubmit={handleAddItem} className="flex gap-2">
+        <form
+          onSubmit={handleAddItem}
+          className="flex flex-col sm:flex-row gap-2"
+        >
           <Input
             value={newItemName}
             onChange={(e) => setNewItemName(e.target.value)}
             placeholder="Ex: Hino de Abertura"
             disabled={isAdding}
+            className="flex-grow"
           />
-          <Button type="submit" disabled={!newItemName.trim() || isAdding}>
+          <Button
+            type="submit"
+            disabled={!newItemName.trim() || isAdding}
+            className="w-full sm:w-auto"
+          >
             {isAdding ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <Plus className="h-4 w-4" />
-            )}{" "}
-            Adicionar
+            )}
+            <span className="ml-2">Adicionar</span>
           </Button>
         </form>
       </CardContent>
@@ -512,53 +528,55 @@ function ScheduleManager({ worshipId }: { worshipId: number }) {
 }
 
 // ===================================================================
-//   3. NOVO COMPONENTE PARA VISUALIZAR PEDIDOS DE ORAÇÃO (Corrigido)
+//   3. COMPONENTE PARA VISUALIZAR PEDIDOS DE ORAÇÃO
 // ===================================================================
 function PrayerRequestViewer({ worshipId }: { worshipId: number }) {
   const [requests, setRequests] = useState<PrayerRequest[]>([]);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
-  // ✅ CORREÇÃO APLICADA AQUI
-  // Busca inicial dos pedidos de oração
   const { data, isLoading, isError, error } = useQuery<PrayerRequest[]>({
-    queryKey: ['prayer-requests', worshipId],
+    queryKey: ["prayer-requests", worshipId],
     queryFn: () => worshipService.getPrayerRequests(worshipId),
   });
 
-  // Efeito para atualizar o estado local quando os dados da query forem carregados
   useEffect(() => {
     if (data) {
       setRequests(data);
     }
   }, [data]);
 
-
-  // Efeito para ouvir novos pedidos de oração via WebSocket
   useEffect(() => {
     const handleNewRequest = (event: Event) => {
       const newRequest = (event as CustomEvent).detail as PrayerRequest;
-      setRequests(prev => [newRequest, ...prev]); // Adiciona no topo
+      setRequests((prev) => [newRequest, ...prev]);
     };
 
-    window.addEventListener('prayerRequestReceived', handleNewRequest);
+    window.addEventListener("prayerRequestReceived", handleNewRequest);
     return () => {
-      window.removeEventListener('prayerRequestReceived', handleNewRequest);
+      window.removeEventListener("prayerRequestReceived", handleNewRequest);
     };
   }, []);
 
-  // Efeito para rolar para o topo quando um novo pedido chega
   useEffect(() => {
     if (scrollAreaRef.current) {
-      scrollAreaRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+      scrollAreaRef.current.scrollTo({ top: 0, behavior: "smooth" });
     }
   }, [requests]);
 
   if (isLoading) {
-    return <div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+    return (
+      <div className="flex items-center justify-center p-8">
+        <Loader2 className="h-6 w-6 animate-spin" />
+      </div>
+    );
   }
 
   if (isError) {
-    return <div className="text-red-500 p-4">Erro ao carregar pedidos: {error.message}</div>;
+    return (
+      <div className="text-red-500 p-4">
+        Erro ao carregar pedidos: {error.message}
+      </div>
+    );
   }
 
   return (
@@ -566,7 +584,7 @@ function PrayerRequestViewer({ worshipId }: { worshipId: number }) {
       <CardHeader>
         <CardTitle>Pedidos de Oração</CardTitle>
         <CardDescription>
-          Visualize os pedidos de oração enviados pelos membros em tempo real.
+          Visualize os pedidos de oração enviados em tempo real.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -577,14 +595,14 @@ function PrayerRequestViewer({ worshipId }: { worshipId: number }) {
                 <div key={req.id} className="p-3 bg-white rounded-md shadow-sm">
                   <p className="text-sm text-gray-800">{req.request}</p>
                   <p className="text-xs text-right text-gray-400 mt-2">
-                    {new Date(req.createdAt).toLocaleString('pt-BR')}
+                    {new Date(req.createdAt).toLocaleString("pt-BR")}
                   </p>
                 </div>
               ))
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-gray-400 py-16">
-                 <HandHeart className="h-12 w-12 mb-4" />
-                 <p>Nenhum pedido de oração recebido ainda.</p>
+                <HandHeart className="h-12 w-12 mb-4" />
+                <p>Nenhum pedido de oração ainda.</p>
               </div>
             )}
           </div>
@@ -594,9 +612,8 @@ function PrayerRequestViewer({ worshipId }: { worshipId: number }) {
   );
 }
 
-
 // ===================================================================
-//   4. COMPONENTE DO PAINEL DE CONTROLE PRINCIPAL (Com a nova funcionalidade)
+//   4. COMPONENTE DO PAINEL DE CONTROLE (COM LAYOUT E MENU CORRIGIDOS)
 // ===================================================================
 function WorshipControlPanel({
   worshipId,
@@ -700,34 +717,65 @@ function WorshipControlPanel({
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <Button variant="outline" onClick={onBack}>
-          <ChevronLeft className="mr-2 h-4 w-4" /> Voltar
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 px-4 sm:px-6 lg:px-8 pt-6">
+        <Button variant="outline" onClick={onBack} className="w-full sm:w-auto">
+          <ChevronLeft className="mr-2 h-4 w-4" /> Voltar para a lista
         </Button>
-        <Button
-          onClick={() =>
-            window.open(
-              `/dashboard/culto/projetor?worshipId=${worshipId}`,
-              "_blank"
-            )
-          }
-        >
-          <MonitorPlay className="mr-2 h-4 w-4" /> Abrir Projetor
-        </Button>
+        <CardContent className="text-center mt-2">
+          {!isOffering ? (
+            <Button
+              size="lg"
+              onClick={() => presentOfferingMutation()}
+              disabled={isPresentingOffering}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {isPresentingOffering ? (
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              ) : (
+                <Heart className="mr-2 h-5 w-5" />
+              )}
+              Iniciar Momento da Oferta
+            </Button>
+          ) : (
+            <Button
+              size="lg"
+              variant="destructive"
+              onClick={() => finishOfferingMutation()}
+              disabled={isFinishingOffering}
+            >
+              {isFinishingOffering ? (
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              ) : (
+                <XCircle className="mr-2 h-5 w-5" />
+              )}
+              Finalizar Oferta
+            </Button>
+          )}
+          {isOffering && (
+            <div className="flex items-center justify-center gap-2 text-green-600 dark:text-green-400 mt-4 animate-pulse">
+              <Check className="h-5 w-5" />
+              <span>Momento da oferta está ativo.</span>
+            </div>
+          )}
+        </CardContent>
       </div>
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-2xl">{worship.title}</CardTitle>
-          <CardDescription>
-            {worship.theme || "Sem tema definido"}
-          </CardDescription>
-        </CardHeader>
-      </Card>
+      <div className="px-2 sm:px-6 lg:px-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xl sm:text-2xl">
+              {worship.title}
+            </CardTitle>
+            <CardDescription>
+              {worship.theme || "Sem tema definido"}
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
 
       {!isWorshipInProgress ? (
-        <div className="space-y-6">
+        <div className="space-y-5 px-2 sm:px-3 lg:px-4">
           <ScheduleManager worshipId={worship.id} />
-          <div className="text-center">
+          <div className="text-center py-4">
             <Button
               size="lg"
               onClick={() => startWorshipMutation()}
@@ -739,140 +787,142 @@ function WorshipControlPanel({
           </div>
         </div>
       ) : (
-        <Tabs defaultValue="cronograma">
-          <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6">
-            <TabsTrigger value="cronograma">Cronograma</TabsTrigger>
-            <TabsTrigger value="biblia">Bíblia</TabsTrigger>
-            <TabsTrigger value="hinos">Hinos</TabsTrigger>
-            <TabsTrigger value="oferta">Oferta</TabsTrigger>
-            <TabsTrigger value="oracoes">Orações</TabsTrigger>
-            <TabsTrigger value="avisos">Avisos</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="cronograma">
-            <Card>
-              <CardHeader>
-                <CardTitle>Andamento</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {worship.schedule
-                  ?.sort((a, b) => a.order - b.order)
-                  .map((item) => (
-                    <div
-                      key={item.id}
-                      className={`flex items-center justify-between p-3 rounded-md transition-colors ${
-                        item.id === currentActivityId
-                          ? "bg-blue-100"
-                          : "bg-gray-50"
-                      }`}
+        <div className="px-4 sm:px-6 lg:px-8">
+          <Tabs defaultValue="cronograma" className="w-full">
+            <div className="md:grid md:grid-cols-[200px_1fr] md:gap-8 lg:grid-cols-[250px_1fr]">
+              {/* Contêiner do Menu */}
+              <div className="md:border-r md:pr-4">
+                <ScrollArea className="w-full whitespace-nowrap md:whitespace-normal">
+                  <TabsList className="inline-flex h-auto w-max space-x-2 bg-transparent p-0 md:flex-col md:w-full md:items-start md:space-x-0 md:space-y-1">
+                    <TabsTrigger
+                      value="cronograma"
+                      className="flex-shrink-0 justify-start h-auto gap-3 px-4 py-3 text-base font-medium rounded-md border border-transparent transition-all md:w-full md:flex-shrink md:px-3 md:py-2 md:text-sm md:gap-2"
                     >
-                      <span
-                        className={`font-medium ${
-                          item.id === currentActivityId ? "text-blue-700" : ""
-                        }`}
-                      >
-                        {item.name}
-                      </span>
-                      <Button
-                        size="sm"
-                        variant={
-                          item.id === currentActivityId ? "default" : "outline"
-                        }
-                        onClick={() => setCurrentActivityId(item.id)}
-                      >
-                        {item.id === currentActivityId ? (
-                          <Badge>Em andamento</Badge>
-                        ) : (
-                          <>
-                            <PlayCircle className="h-4 w-4 mr-2" /> Iniciar
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  ))}
-              </CardContent>
-            </Card>
-          </TabsContent>
+                      <ListOrdered className="h-5 w-5 md:h-4 md:w-4" />
+                      <span>Cronograma</span>
+                    </TabsTrigger>
 
-          <TabsContent value="biblia">
-            <Card>
-              <CardContent className="p-6">
-                <BibleSelectorForWorship worshipId={worshipId} />
-              </CardContent>
-            </Card>
-          </TabsContent>
+                    <TabsTrigger
+                      value="biblia"
+                      className="flex-shrink-0 justify-start h-auto gap-3 px-4 py-3 text-base font-medium rounded-md border border-transparent transition-all md:w-full md:flex-shrink md:px-3 md:py-2 md:text-sm md:gap-2"
+                    >
+                      <BookOpen className="h-5 w-5 md:h-4 md:w-4" />
+                      <span>Bíblia</span>
+                    </TabsTrigger>
 
-          <TabsContent value="hinos">
-            <HymnManager worshipId={worship.id} />
-          </TabsContent>
+                    <TabsTrigger
+                      value="hinos"
+                      className="flex-shrink-0 justify-start h-auto gap-3 px-4 py-3 text-base font-medium rounded-md border border-transparent transition-all md:w-full md:flex-shrink md:px-3 md:py-2 md:text-sm md:gap-2"
+                    >
+                      <Music className="h-5 w-5 md:h-4 md:w-4" />
+                      <span>Hinos</span>
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="oracoes"
+                      className="flex-shrink-0 justify-start h-auto gap-3 px-4 py-3 text-base font-medium rounded-md border border-transparent transition-all md:w-full md:flex-shrink md:px-3 md:py-2 md:text-sm md:gap-2"
+                    >
+                      <HandHeart className="h-5 w-5 md:h-4 md:w-4" />
+                      <span>Orações</span>
+                    </TabsTrigger>
 
-          <TabsContent value="oferta">
-            <Card>
-              <CardHeader>
-                <CardTitle>Momento da Oferta</CardTitle>
-                <CardDescription>
-                  Inicie o momento da oferta para destacar o botão para os
-                  membros.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-6 text-center space-y-4">
-                {!isOffering ? (
-                  <Button
-                    size="lg"
-                    onClick={() => presentOfferingMutation()}
-                    disabled={isPresentingOffering}
-                  >
-                    {isPresentingOffering ? (
-                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    ) : (
-                      <Heart className="mr-2 h-5 w-5" />
-                    )}
-                    Iniciar Momento da Oferta
-                  </Button>
-                ) : (
-                  <Button
-                    size="lg"
-                    variant="destructive"
-                    onClick={() => finishOfferingMutation()}
-                    disabled={isFinishingOffering}
-                  >
-                    {isFinishingOffering ? (
-                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    ) : (
-                      <XCircle className="mr-2 h-5 w-5" />
-                    )}
-                    Finalizar Oferta
-                  </Button>
-                )}
-                {isOffering && (
-                  <div className="flex items-center justify-center gap-2 text-green-600 dark:text-green-400 mt-4">
-                    <Check className="h-5 w-5" />
-                    <span>Momento da oferta está ativo para os membros.</span>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          <TabsContent value="oracoes">
-            <PrayerRequestViewer worshipId={worshipId} />
-          </TabsContent>
+                    <TabsTrigger
+                      value="avisos"
+                      className="flex-shrink-0 justify-start h-auto gap-3 px-4 py-3 text-base font-medium rounded-md border border-transparent transition-all md:w-full md:flex-shrink md:px-3 md:py-2 md:text-sm md:gap-2"
+                    >
+                      <Bell className="h-5 w-5 md:h-4 md:w-4" />
+                      <span>Avisos</span>
+                    </TabsTrigger>
+                  </TabsList>
+                  <ScrollBar orientation="horizontal" className="md:hidden" />
+                </ScrollArea>
+              </div>
 
-          <TabsContent value="avisos">
-            <Card>
-              <CardContent className="p-6 text-center text-gray-500 min-h-[50vh] flex items-center justify-center">
-                <p>Funcionalidade de Avisos em breve...</p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+              {/* Contêiner do Conteúdo (CORRIGIDO) */}
+              <div className="mt-6 md:mt-0">
+                <TabsContent value="cronograma" className="mt-0">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Andamento do Culto</CardTitle>
+                      <CardDescription>
+                        Clique em 'Iniciar' para projetar o item atual.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      {worship.schedule
+                        ?.sort((a, b) => a.order - b.order)
+                        .map((item) => (
+                          <div
+                            key={item.id}
+                            className={`flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 rounded-md transition-colors gap-2 ${
+                              item.id === currentActivityId
+                                ? "bg-blue-100 ring-2 ring-blue-300"
+                                : "bg-gray-50 hover:bg-gray-100"
+                            }`}
+                          >
+                            <span
+                              className={`font-medium truncate ${
+                                item.id === currentActivityId
+                                  ? "text-blue-700"
+                                  : ""
+                              }`}
+                            >
+                              {item.name}
+                            </span>
+                            <Button
+                              size="sm"
+                              variant={
+                                item.id === currentActivityId
+                                  ? "default"
+                                  : "outline"
+                              }
+                              onClick={() => setCurrentActivityId(item.id)}
+                              className="w-full sm:w-auto flex-shrink-0"
+                            >
+                              {item.id === currentActivityId ? (
+                                <Badge variant="secondary">Projetando</Badge>
+                              ) : (
+                                <>
+                                  <PlayCircle className="h-4 w-4 mr-2" />{" "}
+                                  Iniciar
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        ))}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="biblia" className="mt-0">
+                  <BibleSelectorForWorship worshipId={worshipId} />
+                </TabsContent>
+
+                <TabsContent value="hinos" className="mt-0">
+                  <HymnManager worshipId={worship.id} />
+                </TabsContent>
+
+                <TabsContent value="oracoes" className="mt-0">
+                  <PrayerRequestViewer worshipId={worshipId} />
+                </TabsContent>
+
+                <TabsContent value="avisos" className="mt-0">
+                  <Card>
+                    <CardContent className="p-6 text-center text-gray-500 min-h-[50vh] flex items-center justify-center">
+                      <p>Funcionalidade de Avisos em breve...</p>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              </div>
+            </div>
+          </Tabs>
+        </div>
       )}
     </div>
   );
 }
 
 // ===================================================================
-//   5. COMPONENTE PRINCIPAL DA PÁGINA (Original, sem alterações)
+//   5. COMPONENTE PRINCIPAL DA PÁGINA
 // ===================================================================
 export default function GestaoCultoPage() {
   const [selectedWorshipId, setSelectedWorshipId] = useState<number | null>(
@@ -901,8 +951,11 @@ export default function GestaoCultoPage() {
 
   if (isLoading)
     return (
-      <div className="p-6 text-center">
-        <Loader2 className="h-8 w-8 animate-spin mx-auto" /> Carregando...
+      <div className="flex items-center justify-center h-screen">
+        <div className="flex items-center gap-2">
+          <Loader2 className="h-6 w-6 animate-spin" />
+          <span className="text-muted-foreground">Carregando cultos...</span>
+        </div>
       </div>
     );
   if (error)
@@ -921,15 +974,20 @@ export default function GestaoCultoPage() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Gestão de Culto</h1>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+          Gestão de Culto
+        </h1>
       </div>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
         {data?.items?.map((worship) => (
-          <Card key={worship.id} className="flex flex-col">
+          <Card
+            key={worship.id}
+            className="flex flex-col hover:shadow-md transition-shadow"
+          >
             <CardHeader>
-              <div className="flex justify-between items-start">
-                <CardTitle>{worship.title}</CardTitle>
+              <div className="flex justify-between items-start gap-2">
+                <CardTitle className="text-lg">{worship.title}</CardTitle>
                 <Badge
                   variant={
                     worship.status === WorshipStatus.InProgress
@@ -938,15 +996,16 @@ export default function GestaoCultoPage() {
                       ? "secondary"
                       : "outline"
                   }
+                  className="flex-shrink-0"
                 >
                   {worship.status === WorshipStatus.InProgress
                     ? "Em Andamento"
                     : worship.status === WorshipStatus.Finished
                     ? "Finalizado"
-                    : "Não Iniciado"}
+                    : "Agendado"}
                 </Badge>
               </div>
-              <CardDescription>
+              <CardDescription className="text-sm">
                 {worship.theme || "Sem tema definido"}
               </CardDescription>
             </CardHeader>
@@ -963,8 +1022,11 @@ export default function GestaoCultoPage() {
                 })}
               </p>
             </CardContent>
-            <div className="p-4 pt-0 flex justify-between items-center">
-              <Button onClick={() => setSelectedWorshipId(worship.id)}>
+            <CardFooter className="flex flex-col sm:flex-row justify-between items-center gap-2 pt-4">
+              <Button
+                onClick={() => setSelectedWorshipId(worship.id)}
+                className="w-full sm:w-auto"
+              >
                 Gerenciar
               </Button>
               {worship.status === WorshipStatus.InProgress && (
@@ -973,6 +1035,7 @@ export default function GestaoCultoPage() {
                   size="sm"
                   disabled={isFinishing}
                   onClick={() => finishWorshipMutation(worship.id)}
+                  className="w-full sm:w-auto"
                 >
                   {isFinishing && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -980,7 +1043,7 @@ export default function GestaoCultoPage() {
                   Encerrar
                 </Button>
               )}
-            </div>
+            </CardFooter>
           </Card>
         ))}
       </div>

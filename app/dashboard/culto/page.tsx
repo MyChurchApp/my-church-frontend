@@ -8,7 +8,7 @@ import React, {
   Suspense,
 } from "react";
 import { useSearchParams } from "next/navigation";
-import { useQuery, useMutation } from "@tanstack/react-query"; // ✅ useMutation importado
+import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   Loader2,
   BookOpen,
@@ -26,7 +26,7 @@ import {
   type Hymn,
 } from "@/services/worship/worship";
 import { useSignalRForWorship } from "@/hooks/useSignalRForWorship";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Dialog,
   DialogContent,
@@ -38,24 +38,37 @@ import DonationContainer from "@/containers/donation/donationContainer";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { PulsingBorderButton } from "./components/PulsingGlowButton/PulsingGlowButton";
 
-// --- Estilos ---
+// --- Estilos (sem alterações) ---
 const styles = `
+  body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
   .highlighted-part {
-    background-color: rgba(250, 204, 21, 0.2);
-    color: #1f2937;
-    padding: 12px;
-    border-radius: 8px;
-    border-left: 4px solid #facc15;
-    transform: scale(1.01);
+    background-color: #FEFCE8;
+    color: #374151;
+    border-left: 5px solid #FACC15;
+    transform: scale(1.02);
     transition: all 0.4s ease-in-out;
+  }
+  @keyframes gentle-pulse {
+    0%, 100% {
+      transform: scale(1);
+      box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4);
+    }
+    50% {
+      transform: scale(1.05);
+      box-shadow: 0 0 10px 10px rgba(34, 197, 94, 0);
+    }
+  }
+  .offering-active-pulse {
+    animation: gentle-pulse 2s infinite;
   }
 `;
 
-// --- Tipos ---
+// --- Tipos (sem alterações) ---
 type DisplayMode = "bible" | "hymn" | "waiting";
 
 interface LiveReadingState {
@@ -74,7 +87,7 @@ type BibleTransmission = {
   verseId: number;
 };
 
-// --- Componentes de Exibição ---
+// --- Componentes de Exibição (sem alterações) ---
 const LiveReadingDisplay = ({
   readingState,
 }: {
@@ -93,30 +106,33 @@ const LiveReadingDisplay = ({
       key="bible-display"
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
-      className="w-full max-w-4xl h-[75vh] flex flex-col p-6 md:p-8 bg-white rounded-2xl shadow-2xl border"
+      exit={{ opacity: 0, y: -15 }}
+      className="w-full max-w-5xl h-[62vh] flex flex-col p-4 sm:p-6 bg-white rounded-2xl shadow-xl border"
     >
-      <h1 className="text-3xl md:text-5xl font-bold mb-6 text-center text-gray-800 sticky top-0 bg-white pb-4 z-10">
+      <h1 className="flex-shrink-0 text-3xl sm:text-4xl font-bold text-center text-gray-800 bg-white z-10">
         {readingState.bookName} {readingState.chapterNumber}
       </h1>
-      <div className="overflow-y-auto pr-4 space-y-4">
-        {readingState.verses.map((verse) => {
-          const isHighlighted = verse.id === readingState.highlightedVerseId;
-          return (
-            <p
-              key={verse.id}
-              ref={isHighlighted ? highlightedVerseRef : null}
-              className={`text-lg md:text-xl text-left leading-relaxed text-gray-700 ${
-                isHighlighted ? "highlighted-part font-semibold" : ""
-              }`}
-            >
-              <sup className="font-bold text-blue-600 mr-2">
-                {verse.verseNumber}
-              </sup>
-              {verse.text}
-            </p>
-          );
-        })}
-      </div>
+      <ScrollArea className="flex-grow">
+        <div className="space-y-5">
+          {readingState.verses.map((verse) => {
+            const isHighlighted = verse.id === readingState.highlightedVerseId;
+            return (
+              <p
+                key={verse.id}
+                ref={isHighlighted ? highlightedVerseRef : null}
+                className={`text-xl sm:text-2xl text-left leading-relaxed sm:leading-loose text-gray-700 p-2 rounded-lg transition-all duration-300 ${
+                  isHighlighted ? "highlighted-part font-medium" : ""
+                }`}
+              >
+                <sup className="font-bold text-blue-600 mr-2 text-lg sm:text-xl">
+                  {verse.verseNumber}
+                </sup>
+                {verse.text}
+              </p>
+            );
+          })}
+        </div>
+      </ScrollArea>
     </motion.div>
   );
 };
@@ -153,59 +169,78 @@ const LiveHymnDisplay = ({
       key="hymn-display"
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
-      className="w-full max-w-4xl h-[75vh] flex flex-col p-6 md:p-8 bg-white rounded-2xl shadow-2xl border"
+      exit={{ opacity: 0, y: -15 }}
+      className="w-full max-w-5xl h-[65vh] flex flex-col p-4 sm:p-6 bg-white rounded-2xl shadow-xl border"
     >
-      <h1 className="text-3xl md:text-5xl font-bold mb-6 text-center text-gray-800 sticky top-0 bg-white pb-4 z-10">
+      <h1 className="flex-shrink-0 text-3xl sm:text-4xl font-bold mb-4 text-center text-gray-800 bg-white pt-2 z-10">
         {hymn.title}
       </h1>
-      <div className="overflow-y-auto pr-4 space-y-4">
-        {hymn.verses.map((verse) => {
-          const verseKey = `verse-${verse.number}`;
-          const chorusKey = `chorus-after-${verse.number}`;
-          const isVerseHighlighted = highlightedPartKey === verseKey;
-          const isChorusHighlighted = highlightedPartKey === chorusKey;
-          return (
-            <React.Fragment key={verse.number}>
-              <div
-                ref={isVerseHighlighted ? highlightedPartRef : null}
-                className={`p-3 rounded-md ${
-                  isVerseHighlighted ? "highlighted-part" : ""
-                }`}
-              >
-                <h4 className="font-semibold mb-1">Verso {verse.number}</h4>
-                <p className="text-gray-700">{formatText(verse.text)}</p>
-              </div>
-              {hymn.chorus && (
+      <ScrollArea className="flex-grow pr-4">
+        <div className="space-y-6">
+          {hymn.verses.map((verse) => {
+            const verseKey = `verse-${verse.number}`;
+            const chorusKey = `chorus-after-${verse.number}`;
+            const isVerseHighlighted = highlightedPartKey === verseKey;
+            const isChorusHighlighted = highlightedPartKey === chorusKey;
+            return (
+              <React.Fragment key={verse.number}>
                 <div
-                  ref={isChorusHighlighted ? highlightedPartRef : null}
-                  className={`italic p-3 rounded-md ${
-                    isChorusHighlighted ? "highlighted-part" : ""
+                  ref={isVerseHighlighted ? highlightedPartRef : null}
+                  className={`p-4 rounded-lg ${
+                    isVerseHighlighted ? "highlighted-part" : ""
                   }`}
                 >
-                  <h4 className="font-semibold mb-1 not-italic">Coro</h4>
-                  <p className="text-gray-700">{formatText(hymn.chorus)}</p>
+                  <h4 className="font-bold text-lg mb-2 text-gray-600">
+                    Verso {verse.number}
+                  </h4>
+                  <p className="text-xl sm:text-2xl text-gray-800 leading-relaxed sm:leading-loose">
+                    {formatText(verse.text)}
+                  </p>
                 </div>
-              )}
-            </React.Fragment>
-          );
-        })}
-      </div>
+                {hymn.chorus && (
+                  <div
+                    ref={isChorusHighlighted ? highlightedPartRef : null}
+                    className={`italic p-4 rounded-lg ${
+                      isChorusHighlighted ? "highlighted-part" : ""
+                    }`}
+                  >
+                    <h4 className="font-bold text-lg mb-2 not-italic text-gray-600">
+                      Coro
+                    </h4>
+                    <p className="text-xl sm:text-2xl text-gray-800 leading-relaxed sm:leading-loose">
+                      {formatText(hymn.chorus)}
+                    </p>
+                  </div>
+                )}
+              </React.Fragment>
+            );
+          })}
+        </div>
+      </ScrollArea>
     </motion.div>
   );
 };
 
 const WaitingDisplay = () => (
-  <div className="w-full max-w-4xl p-8 bg-white rounded-2xl shadow-lg min-h-[400px] flex items-center justify-center">
+  <motion.div
+    initial={{ opacity: 0, scale: 0.9 }}
+    animate={{ opacity: 1, scale: 1 }}
+    className="w-full max-w-2xl p-8"
+  >
     <div className="text-center text-gray-500">
-      <BookOpen className="h-16 w-16 mx-auto mb-4 text-gray-400" />
-      <h2 className="text-2xl font-semibold">Aguardando transmissão...</h2>
-      <p className="mt-2 text-gray-400">O conteúdo do culto aparecerá aqui.</p>
+      <BookOpen className="h-20 w-20 mx-auto mb-4 text-gray-400" />
+      <h2 className="text-2xl sm:text-3xl font-semibold">
+        Aguardando transmissão...
+      </h2>
+      <p className="mt-2 text-base sm:text-lg text-gray-400">
+        O conteúdo do culto aparecerá aqui.
+      </p>
     </div>
-  </div>
+  </motion.div>
 );
 
 const LoadingDisplay = ({ text }: { text: string }) => (
-  <div className="flex flex-col items-center justify-center h-full">
+  <div className="flex flex-col items-center justify-center h-full text-center">
     <Loader2 className="h-12 w-12 animate-spin text-blue-500" />
     <h2 className="mt-4 text-2xl text-gray-700">{text}</h2>
   </div>
@@ -235,7 +270,9 @@ function isOnlyVerseChanged(
   );
 }
 
-// --- Componente principal ---
+// ===================================================================
+//   COMPONENTE PRINCIPAL (COM A CORREÇÃO)
+// ===================================================================
 function WorshipClient({
   worshipIdFromUrl,
 }: {
@@ -274,7 +311,6 @@ function WorshipClient({
     : activeWorship?.id ?? null;
   const { isConnected } = useSignalRForWorship(worshipId);
 
-  // ✅ Mutação para enviar o pedido de oração
   const { mutate: sendPrayerRequestMutation, isPending: isSendingPrayer } =
     useMutation({
       mutationFn: (requestText: string) => {
@@ -286,7 +322,6 @@ function WorshipClient({
         setPrayerRequests((prev) => [...prev, sentRequestText]);
         setNewPrayerRequestText("");
         setShowPrayerRequestModal(false);
-        // alert("Pedido de oração enviado com sucesso!"); // Pode substituir por um toast
       },
       onError: (err: any) => {
         alert(`Erro ao enviar pedido de oração: ${err.message}`);
@@ -375,13 +410,14 @@ function WorshipClient({
     [lastFocusedVerse]
   );
 
-  const handleOfferingPresent = useCallback(() => {
-    setIsOfferingActive(true);
-  }, []);
-
-  const handleOfferingFinish = useCallback(() => {
-    setIsOfferingActive(false);
-  }, []);
+  const handleOfferingPresent = useCallback(
+    () => setIsOfferingActive(true),
+    []
+  );
+  const handleOfferingFinish = useCallback(
+    () => setIsOfferingActive(false),
+    []
+  );
 
   useEffect(() => {
     window.addEventListener("bibleReadingUpdated", handleReadingUpdate);
@@ -405,63 +441,63 @@ function WorshipClient({
   const renderContent = () => {
     if (error)
       return (
-        <div className="text-center text-red-500">
-          <AlertTriangle className="mx-auto h-12 w-12" />
-          <p className="mt-4">{error}</p>
+        <div className="text-center text-red-500 p-8">
+          <AlertTriangle className="mx-auto h-16 w-16" />
+          <p className="mt-4 text-xl">{error}</p>
         </div>
       );
     if (isLoadingWorship)
       return <LoadingDisplay text="Procurando culto ao vivo..." />;
     if (!worshipId)
       return (
-        <div className="text-center">
-          <WifiOff className="h-12 w-12 mx-auto" />
-          <h2 className="mt-4">Nenhum culto ao vivo no momento</h2>
+        <div className="text-center text-gray-500 p-8">
+          <WifiOff className="h-16 w-16 mx-auto" />
+          <h2 className="mt-4 text-2xl">Nenhum culto ao vivo no momento</h2>
         </div>
       );
     if (!isConnected)
       return <LoadingDisplay text="Conectando à transmissão..." />;
     if (isLoadingContent)
       return <LoadingDisplay text="Carregando conteúdo..." />;
-    switch (displayMode) {
-      case "bible":
-        return liveReading ? (
+
+    return (
+      <AnimatePresence mode="wait">
+        {displayMode === "bible" && liveReading && (
           <LiveReadingDisplay readingState={liveReading} />
-        ) : (
-          <WaitingDisplay />
-        );
-      case "hymn":
-        return liveHymn ? (
+        )}
+        {displayMode === "hymn" && liveHymn && (
           <LiveHymnDisplay
             hymn={liveHymn}
             highlightedPartKey={highlightedPartKey}
           />
-        ) : (
-          <WaitingDisplay />
-        );
-      default:
-        return <WaitingDisplay />;
-    }
+        )}
+        {displayMode === "waiting" && <WaitingDisplay />}
+      </AnimatePresence>
+    );
   };
 
   return (
-    <main className="flex flex-col items-center bg-gray-50 p-4 min-h-screen w-full pb-48 sm:pb-32">
+    <main className="bg-gray-100 w-full min-h-screen flex flex-col">
       <style>{styles}</style>
-      <div className="absolute top-4 right-4 z-10">
+      <div className="absolute top-4 right-4 z-20">
         <ConnectionBadge isConnected={isConnected} />
       </div>
-      <div className="w-full flex-grow flex items-center justify-center">
-        {renderContent()}
-      </div>
 
-      {prayerRequests.length > 0 && (
-        <div className="w-full max-w-lg mt-6">
-          <h3 className="text-center font-semibold mb-2 text-gray-700">
-            Meus Pedidos Enviados
-          </h3>
-          <div className="relative">
+      {/* ✅ ÁREA DE CONTEÚDO SCROLLÁVEL */}
+      <div className="flex-grow w-full flex flex-col items-center justify-center p-4 pt-20 pb-32">
+        {/* Conteúdo Principal (Bíblia/Hino) */}
+        <div className="w-full flex-grow flex items-center justify-center">
+          {renderContent()}
+        </div>
+
+        {/* ✅ LISTA DE PEDIDOS DE ORAÇÃO REINSERIDA AQUI */}
+        {prayerRequests.length > 0 && (
+          <div className="w-full max-w-lg mt-8 flex-shrink-0">
+            <h3 className="text-center font-semibold mb-2 text-gray-700">
+              Meus Pedidos Enviados
+            </h3>
             <ScrollArea className="h-32 w-full rounded-md border bg-white/70">
-              <div className="space-y-2 p-3 pb-8">
+              <div className="space-y-2 p-3">
                 {prayerRequests.map((request, index) => (
                   <p
                     key={index}
@@ -472,72 +508,78 @@ function WorshipClient({
                 ))}
               </div>
             </ScrollArea>
-            <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-gray-50 to-transparent pointer-events-none rounded-b-md" />
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      <div className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-sm border-t p-4 z-20">
-        <div className="container mx-auto max-w-lg flex flex-col sm:flex-row items-center gap-3">
+      {/* Barra de Ações Fixa */}
+      <div className="sticky bottom-0 left-0 right-0 z-30 border-t bg-white/90 p-3 backdrop-blur-sm">
+        <div className="container mx-auto max-w-md grid grid-cols-2 items-center gap-3">
           <Button
             onClick={() => setShowPrayerRequestModal(true)}
-            className="w-full sm:w-auto flex-1 bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-bold text-sm py-3 px-6 h-14 rounded-lg shadow-xl transition duration-300 ease-in-out transform hover:scale-105"
+            className="w-full h-14 text-base font-bold flex items-center justify-center gap-2"
+            variant="outline"
           >
-            <HandHeart className="h-6 w-6 mr-2" />
-            Pedido de Oração
+            <HandHeart className="h-6 w-6" />
+            <span>Oração</span>
           </Button>
-          <div className="w-full sm:w-auto flex-1">
-            <PulsingBorderButton
-              isActive={isOfferingActive}
-              onClick={() => setShowOfferingModal(true)}
-            />
-          </div>
+          <Button
+            onClick={() => setShowOfferingModal(true)}
+            className={`w-full h-14 text-base font-bold flex items-center justify-center gap-2 text-white transition-all duration-300 ${
+              isOfferingActive
+                ? "offering-active-pulse bg-green-600 hover:bg-green-700"
+                : "bg-green-500 hover:bg-green-600"
+            }`}
+          >
+            <Heart className="h-6 w-6" />
+            <span>Ofertar</span>
+          </Button>
         </div>
       </div>
 
+      {/* Modals */}
       <Dialog open={showOfferingModal} onOpenChange={setShowOfferingModal}>
-        <DialogContent className="max-w-4xl max-h-[90vh] p-0">
-          <Suspense
-            fallback={<div className="p-10 text-center">Carregando...</div>}
-          >
+        <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] p-0">
+          <Suspense fallback={<LoadingDisplay text="Carregando doações..." />}>
             {worshipId && <DonationContainer worshipId={worshipId} />}
           </Suspense>
         </DialogContent>
       </Dialog>
-
       <Dialog
         open={showPrayerRequestModal}
         onOpenChange={setShowPrayerRequestModal}
       >
-        <DialogContent>
+        <DialogContent className="w-[95vw]">
           <DialogHeader>
-            <DialogTitle>Pedido de Oração</DialogTitle>
+            <DialogTitle className="text-2xl">Pedido de Oração</DialogTitle>
             <DialogDescription>
-              Deixe seu pedido de oração abaixo. Ele será recebido pela equipe
-              de intercessão.
+              Seu pedido será recebido pela equipe de intercessão.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4 space-y-4">
             <div className="grid w-full gap-1.5">
-              <Label htmlFor="prayer-request">Seu pedido:</Label>
+              <Label htmlFor="prayer-request" className="font-semibold">
+                Seu pedido:
+              </Label>
               <Textarea
                 placeholder="Escreva seu pedido aqui..."
                 id="prayer-request"
                 rows={6}
                 value={newPrayerRequestText}
                 onChange={(e) => setNewPrayerRequestText(e.target.value)}
+                className="text-base"
               />
             </div>
-            {/* ✅ Botão atualizado com estado de carregamento */}
             <Button
-              className="w-full"
+              className="w-full h-12 text-lg"
               onClick={handleSendPrayerRequest}
               disabled={!newPrayerRequestText.trim() || isSendingPrayer}
             >
-              {isSendingPrayer && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              {isSendingPrayer ? (
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              ) : (
+                "Enviar Pedido"
               )}
-              Enviar Pedido
             </Button>
           </div>
         </DialogContent>
@@ -546,6 +588,7 @@ function WorshipClient({
   );
 }
 
+// --- Componente de Página (sem alterações) ---
 function AcompanharCultoPageContent() {
   const searchParams = useSearchParams();
   const worshipIdFromUrl = searchParams.get("worshipId");
@@ -554,13 +597,7 @@ function AcompanharCultoPageContent() {
 
 export default function AcompanharCultoPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex items-center justify-center min-h-screen bg-gray-50">
-          <Loader2 className="h-12 w-12 animate-spin text-blue-500" />
-        </div>
-      }
-    >
+    <Suspense fallback={<LoadingDisplay text="Carregando..." />}>
       <AcompanharCultoPageContent />
     </Suspense>
   );
