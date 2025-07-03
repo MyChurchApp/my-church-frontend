@@ -49,18 +49,14 @@ import {
   Music,
   Gift,
   Bell,
+  Image as ImageIcon,
+  Send,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-
 import {
   worshipService,
   bibleService,
@@ -75,19 +71,152 @@ import {
 } from "@/services/worship/worship";
 import { HymnManager } from "@/components/hymn/HymnManager";
 import { useSignalRForWorship } from "@/hooks/useSignalRForWorship";
+import { Combobox, ComboboxOption } from "../components/combobox/combobox";
 
 // ===================================================================
-//   1. COMPONENTE DO SELETOR BÍBLICO
+//   COMPONENTE PARA ENVIAR AVISOS (Sem alterações)
 // ===================================================================
-function BibleSelectorForWorship({ worshipId }: { worshipId: number }) {
-  const [selectedVersion, setSelectedVersion] = useState<BibleVersion | null>(
-    null
+function AdminNoticeSender({ worshipId }: { worshipId: number }) {
+  const [message, setMessage] = useState("");
+  const [imageBase64, setImageBase64] = useState<string | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const { mutate: sendNotice, isPending } = useMutation({
+    mutationFn: () => {
+      if (!message.trim()) throw new Error("A mensagem não pode estar vazia.");
+      return worshipService.sendAdminNotice(worshipId, {
+        message,
+        ...(imageBase64 && { imageBase64 }),
+      });
+    },
+    onSuccess: () => {
+      setMessage("");
+      setImageBase64(null);
+      setImagePreview(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    },
+    onError: (err: any) => {
+      alert(`Erro ao enviar aviso: ${err.message}`);
+    },
+  });
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setImagePreview(URL.createObjectURL(file));
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        const base64String = (reader.result as string).split(",")[1];
+        setImageBase64(base64String);
+      };
+      reader.onerror = (error) => {
+        console.error("Erro ao ler o arquivo:", error);
+        alert("Não foi possível carregar a imagem.");
+      };
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Enviar Aviso Geral</CardTitle>
+        <CardDescription>
+          Envie uma mensagem e uma imagem opcional para todos que estão
+          acompanhando o culto.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid w-full gap-1.5">
+          <Label htmlFor="notice-message">Mensagem</Label>
+          <Textarea
+            id="notice-message"
+            placeholder="Digite seu aviso aqui..."
+            rows={5}
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            disabled={isPending}
+          />
+        </div>
+        <div className="grid w-full max-w-sm items-center gap-1.5">
+          <Label htmlFor="picture">Imagem (Opcional)</Label>
+          <Input
+            id="picture"
+            type="file"
+            accept="image/png, image/jpeg"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            disabled={isPending}
+          />
+        </div>
+        {imagePreview && (
+          <div className="relative w-40 h-40 border rounded-md p-2">
+            <img
+              src={imagePreview}
+              alt="Pré-visualização"
+              className="w-full h-full object-contain"
+            />
+            <Button
+              variant="destructive"
+              size="icon"
+              className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
+              onClick={() => {
+                setImagePreview(null);
+                setImageBase64(null);
+                if (fileInputRef.current) fileInputRef.current.value = "";
+              }}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+      </CardContent>
+      <CardFooter>
+        <Button
+          onClick={() => sendNotice()}
+          disabled={!message.trim() || isPending}
+          className="w-full"
+          size="lg"
+        >
+          {isPending ? (
+            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+          ) : (
+            <Send className="mr-2 h-5 w-5" />
+          )}
+          Enviar Aviso
+        </Button>
+      </CardFooter>
+    </Card>
   );
-  const [selectedBook, setSelectedBook] = useState<BibleBook | null>(null);
-  const [selectedChapter, setSelectedChapter] = useState<BibleChapter | null>(
-    null
-  );
-  const [selectedVerse, setSelectedVerse] = useState<BibleVerse | null>(null);
+}
+
+// ===================================================================
+//   COMPONENTE DO SELETOR BÍBLICO (TOTALMENTE ATUALIZADO)
+// ===================================================================
+function BibleSelectorForWorship({
+  worshipId,
+  selectedVersion,
+  setSelectedVersion,
+  selectedBook,
+  setSelectedBook,
+  selectedChapter,
+  setSelectedChapter,
+  selectedVerse,
+  setSelectedVerse,
+}: {
+  worshipId: number;
+  selectedVersion: BibleVersion | null;
+  setSelectedVersion: React.Dispatch<React.SetStateAction<BibleVersion | null>>;
+  selectedBook: BibleBook | null;
+  setSelectedBook: React.Dispatch<React.SetStateAction<BibleBook | null>>;
+  selectedChapter: BibleChapter | null;
+  setSelectedChapter: React.Dispatch<React.SetStateAction<BibleChapter | null>>;
+  selectedVerse: BibleVerse | null;
+  setSelectedVerse: React.Dispatch<React.SetStateAction<BibleVerse | null>>;
+}) {
   const activeVerseRef = useRef<HTMLDivElement>(null);
 
   const { data: versions = [] } = useQuery<BibleVersion[]>({
@@ -165,6 +294,19 @@ function BibleSelectorForWorship({ worshipId }: { worshipId: number }) {
     setSelectedVerse(null);
   };
 
+  const versionOptions: ComboboxOption[] = versions.map((v) => ({
+    value: String(v.id),
+    label: v.name,
+  }));
+  const bookOptions: ComboboxOption[] = books.map((b) => ({
+    value: String(b.id),
+    label: b.name,
+  }));
+  const chapterOptions: ComboboxOption[] = chapters.map((c) => ({
+    value: String(c.id),
+    label: `Capítulo ${c.chapterNumber}`,
+  }));
+
   const currentVerseIndex = selectedVerse
     ? verses.findIndex((v) => v.id === selectedVerse.id)
     : -1;
@@ -173,66 +315,67 @@ function BibleSelectorForWorship({ worshipId }: { worshipId: number }) {
     selectedVerse != null && currentVerseIndex < verses.length - 1;
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Select
-          onValueChange={(v) => {
-            setSelectedVersion(versions.find((ver) => ver.id === Number(v))!);
-            resetSelections("version");
-          }}
-          value={selectedVersion?.id.toString()}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Versão" />
-          </SelectTrigger>
-          <SelectContent>
-            {versions.map((v) => (
-              <SelectItem key={v.id} value={String(v.id)}>
-                {v.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select
-          onValueChange={(v) => {
-            setSelectedBook(books.find((b) => b.id === Number(v))!);
-            resetSelections("book");
-          }}
-          value={selectedBook?.id.toString()}
-          disabled={!selectedVersion}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Livro" />
-          </SelectTrigger>
-          <SelectContent>
-            {books.map((b) => (
-              <SelectItem key={b.id} value={String(b.id)}>
-                {b.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select
-          onValueChange={(v) => {
-            setSelectedChapter(chapters.find((c) => c.id === Number(v))!);
-            resetSelections("chapter");
-          }}
-          value={selectedChapter?.id.toString()}
-          disabled={!selectedBook}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Capítulo" />
-          </SelectTrigger>
-          <SelectContent>
-            {chapters.map((c) => (
-              <SelectItem key={c.id} value={String(c.id)}>
-                {c.chapterNumber}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+    <div>
+      <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div className="flex flex-col lg:flex-row md:items-center gap-4 w-full">
+          <div className="w-full md:w-1/2">
+            <label htmlFor="bible-version" className="sr-only">
+              Versão da Bíblia
+            </label>
+            <Combobox
+              options={versionOptions}
+              value={selectedVersion?.id.toString()}
+              onValueChange={(value) => {
+                setSelectedVersion(
+                  versions.find((v) => v.id === Number(value)) ?? null
+                );
+                resetSelections("version");
+              }}
+              placeholder="Versão"
+              searchPlaceholder="Pesquisar versão..."
+              emptyPlaceholder="Nenhuma versão encontrada."
+            />
+          </div>
+          <div className="w-full md:w-[25%] ">
+            <label htmlFor="bible-book" className="sr-only">
+              Livro da Bíblia
+            </label>
+            <Combobox
+              options={bookOptions}
+              value={selectedBook?.id.toString()}
+              onValueChange={(value) => {
+                setSelectedBook(
+                  books.find((b) => b.id === Number(value)) ?? null
+                );
+                resetSelections("book");
+              }}
+              placeholder="Livro"
+              searchPlaceholder="Pesquisar livro..."
+              emptyPlaceholder="Nenhum livro encontrado."
+              disabled={!selectedVersion}
+            />
+          </div>
+          <div className="w-full md:w-1/4">
+            <label htmlFor="bible-chapter" className="sr-only">
+              Capítulo
+            </label>
+            <Combobox
+              options={chapterOptions}
+              value={selectedChapter?.id.toString()}
+              onValueChange={(value) => {
+                setSelectedChapter(
+                  chapters.find((c) => c.id === Number(value)) ?? null
+                );
+                resetSelections("chapter");
+              }}
+              placeholder="Capítulo"
+              searchPlaceholder="Pesquisar capítulo..."
+              emptyPlaceholder="Nenhum capítulo encontrado."
+              disabled={!selectedBook}
+            />
+          </div>
+        </div>
       </div>
-
       <ScrollArea className="border rounded-md p-2 bg-gray-50 h-72 space-y-1">
         {verses.length > 0 ? (
           verses.map((verse) => {
@@ -295,7 +438,7 @@ function BibleSelectorForWorship({ worshipId }: { worshipId: number }) {
 }
 
 // ===================================================================
-//   2. COMPONENTE DO GERENCIADOR DE CRONOGRAMA
+//   COMPONENTES DO CRONOGRAMA (Sem alterações)
 // ===================================================================
 function SortableScheduleItem({
   item,
@@ -528,14 +671,12 @@ function ScheduleManager({ worshipId }: { worshipId: number }) {
 }
 
 // ===================================================================
-//   3. COMPONENTE DE PEDIDOS DE ORAÇÃO (COM RE-BUSCA AUTOMÁTICA)
+//   COMPONENTE DE PEDIDOS DE ORAÇÃO (Sem alterações)
 // ===================================================================
 function PrayerRequestViewer({ worshipId }: { worshipId: number }) {
-  // 1. Obtenha a instância do Query Client.
   const queryClient = useQueryClient();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
-  // 2. useQuery continua sendo nossa fonte da verdade.
   const {
     data: requests = [],
     isLoading,
@@ -544,30 +685,18 @@ function PrayerRequestViewer({ worshipId }: { worshipId: number }) {
   } = useQuery<PrayerRequest[]>({
     queryKey: ["prayer-requests", worshipId],
     queryFn: () => {
-      console.log("Buscando lista de orações do servidor...");
       return worshipService.getPrayerRequests(worshipId);
     },
-    // Ordena os dados sempre que eles são buscados.
     select: (data) =>
       [...data].sort(
         (a, b) =>
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       ),
-    // Manter esta opção é uma boa prática.
     refetchOnWindowFocus: false,
   });
 
-  // 3. Este useEffect agora INVALIDA a query, forçando uma nova busca.
   useEffect(() => {
-    const handleNewRequest = (event: Event) => {
-      const newRequest = (event as CustomEvent).detail as PrayerRequest;
-      console.log(
-        `✅ Novo pedido recebido (ID: ${newRequest.id}). Invalidando a lista para buscar novamente.`
-      );
-
-      // INVALIDA O CACHE:
-      // Esta é a linha que diz ao react-query: "Os dados que você tem para
-      // 'prayer-requests' estão desatualizados. Busque-os de novo!"
+    const handleNewRequest = () => {
       queryClient.invalidateQueries({
         queryKey: ["prayer-requests", worshipId],
       });
@@ -578,10 +707,8 @@ function PrayerRequestViewer({ worshipId }: { worshipId: number }) {
     return () => {
       window.removeEventListener("prayerRequestReceived", handleNewRequest);
     };
-  }, [worshipId, queryClient]); // Dependências corretas
+  }, [worshipId, queryClient]);
 
-  // Efeito para rolar a lista para o topo.
-  // Usamos requests.length como gatilho, que mudará após a nova busca.
   useEffect(() => {
     if (requests.length > 0 && scrollAreaRef.current) {
       scrollAreaRef.current.scrollTo({ top: 0, behavior: "smooth" });
@@ -604,7 +731,6 @@ function PrayerRequestViewer({ worshipId }: { worshipId: number }) {
     );
   }
 
-  // O JSX para renderizar não muda nada.
   return (
     <Card>
       <CardHeader>
@@ -624,6 +750,7 @@ function PrayerRequestViewer({ worshipId }: { worshipId: number }) {
                 >
                   <p className="text-sm text-gray-800">{req.request}</p>
                   <p className="text-xs text-right text-gray-400 mt-2">
+                    {req.memberName} -{" "}
                     {new Date(req.createdAt).toLocaleString("pt-BR")}
                   </p>
                 </div>
@@ -640,8 +767,9 @@ function PrayerRequestViewer({ worshipId }: { worshipId: number }) {
     </Card>
   );
 }
+
 // ===================================================================
-//   4. COMPONENTE DO PAINEL DE CONTROLE (COM LAYOUT E MENU CORRIGIDOS)
+//   COMPONENTE DO PAINEL DE CONTROLE (ATUALIZADO)
 // ===================================================================
 function WorshipControlPanel({
   worshipId,
@@ -660,6 +788,16 @@ function WorshipControlPanel({
   const [offeringActivityId, setOfferingActivityId] = useState<number | null>(
     null
   );
+
+  // ✅ 2. ESTADO "LEVANTADO" PARA O SELETOR DA BÍBLIA
+  const [selectedVersion, setSelectedVersion] = useState<BibleVersion | null>(
+    null
+  );
+  const [selectedBook, setSelectedBook] = useState<BibleBook | null>(null);
+  const [selectedChapter, setSelectedChapter] = useState<BibleChapter | null>(
+    null
+  );
+  const [selectedVerse, setSelectedVerse] = useState<BibleVerse | null>(null);
 
   const {
     data: worship,
@@ -817,10 +955,10 @@ function WorshipControlPanel({
       ) : (
         <div className="px-4 sm:px-6 lg:px-8">
           <Tabs defaultValue="cronograma" className="w-full">
-            <div className="md:grid md:grid-cols-[200px_1fr] md:gap-8 lg:grid-cols-[250px_1fr]">
-              {/* Contêiner do Menu */}
+            {/* ✅ LAYOUT ATUALIZADO: A largura da coluna do menu foi reduzida. */}
+            <div className="md:grid md:grid-cols-[180px_1fr] md:gap-6 lg:grid-cols-[220px_1fr] lg:gap-8">
               <div className="md:border-r md:pr-4">
-                <ScrollArea className="w-full whitespace-nowrap md:whitespace-normal">
+                <ScrollArea className="whitespace-nowrap md:whitespace-normal">
                   <TabsList className="inline-flex h-auto w-max space-x-2 bg-transparent p-0 md:flex-col md:w-full md:items-start md:space-x-0 md:space-y-1">
                     <TabsTrigger
                       value="cronograma"
@@ -865,7 +1003,6 @@ function WorshipControlPanel({
                 </ScrollArea>
               </div>
 
-              {/* Contêiner do Conteúdo (CORRIGIDO) */}
               <div className="mt-6 md:mt-0">
                 <TabsContent value="cronograma" className="mt-0">
                   <Card>
@@ -922,7 +1059,18 @@ function WorshipControlPanel({
                 </TabsContent>
 
                 <TabsContent value="biblia" className="mt-0">
-                  <BibleSelectorForWorship worshipId={worshipId} />
+                  {/* ✅ 3. PASSANDO O ESTADO E OS SETTERS COMO PROPS */}
+                  <BibleSelectorForWorship
+                    worshipId={worshipId}
+                    selectedVersion={selectedVersion}
+                    setSelectedVersion={setSelectedVersion}
+                    selectedBook={selectedBook}
+                    setSelectedBook={setSelectedBook}
+                    selectedChapter={selectedChapter}
+                    setSelectedChapter={setSelectedChapter}
+                    selectedVerse={selectedVerse}
+                    setSelectedVerse={setSelectedVerse}
+                  />
                 </TabsContent>
 
                 <TabsContent value="hinos" className="mt-0">
@@ -934,11 +1082,7 @@ function WorshipControlPanel({
                 </TabsContent>
 
                 <TabsContent value="avisos" className="mt-0">
-                  <Card>
-                    <CardContent className="p-6 text-center text-gray-500 min-h-[50vh] flex items-center justify-center">
-                      <p>Funcionalidade de Avisos em breve...</p>
-                    </CardContent>
-                  </Card>
+                  <AdminNoticeSender worshipId={worship.id} />
                 </TabsContent>
               </div>
             </div>
@@ -950,7 +1094,7 @@ function WorshipControlPanel({
 }
 
 // ===================================================================
-//   5. COMPONENTE PRINCIPAL DA PÁGINA
+//   COMPONENTE PRINCIPAL DA PÁGINA (Sem alterações)
 // ===================================================================
 export default function GestaoCultoPage() {
   const [selectedWorshipId, setSelectedWorshipId] = useState<number | null>(

@@ -68,14 +68,24 @@ export function useSignalRForWorship(worshipId: number | null) {
           );
         });
 
-        // --- ✅ NOVO OUVINTE PARA PEDIDOS DE ORAÇÃO ---
+        // --- OUVINTE PARA PEDIDOS DE ORAÇÃO ---
         connection.on("PrayerRequestReceived", (data) => {
-          console.log("✅ [SignalR] Evento recebido: PrayerRequestReceived", data);
           window.dispatchEvent(
             new CustomEvent("prayerRequestReceived", { detail: data })
           );
         });
 
+        // --- ✅ NOVO OUVINTE PARA AVISOS ADMINISTRATIVOS ---
+        // (O nome "AdminNoticeReceived" é uma suposição, ajuste se for diferente no seu backend)
+        connection.on("AdminNoticeReceived", (data) => {
+          console.log(
+            "✅ [SignalR] Evento recebido: AdminNoticeReceived",
+            data
+          );
+          window.dispatchEvent(
+            new CustomEvent("adminNoticeReceived", { detail: data })
+          );
+        });
       } catch (err) {
         console.error("❌ [SignalR] Falha ao iniciar conexão:", err);
         setIsConnected(false);
@@ -96,7 +106,9 @@ export function useSignalRForWorship(worshipId: number | null) {
       connection.off("HymnPresented");
       connection.off("OfferingPresented");
       connection.off("OfferingFinished");
-      connection.off("PrayerRequestReceived"); // ✅ Limpeza do novo ouvinte
+      connection.off("PrayerRequestReceived");
+      // ✅ Limpeza do novo ouvinte
+      connection.off("AdminNoticeReceived");
       connection.stop();
     };
   }, [worshipId]);

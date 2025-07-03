@@ -18,6 +18,7 @@ import {
   Zap,
   Heart,
   HandHeart,
+  Bell, // Ícone para o aviso
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -240,8 +241,9 @@ function isOnlyVerseChanged(
     before.verseId !== now.verseId
   );
 }
+
 // ===================================================================
-//   COMPONENTE PRINCIPAL (COM A CORREÇÃO)
+//   COMPONENTE PRINCIPAL
 // ===================================================================
 function WorshipClient({
   worshipIdFromUrl,
@@ -267,7 +269,13 @@ function WorshipClient({
   const [showPrayerRequestModal, setShowPrayerRequestModal] = useState(false);
   const [newPrayerRequestText, setNewPrayerRequestText] = useState("");
 
-  // Inicializa o Query Client
+  // --- ✅ 1. ESTADO PARA O NOVO MODAL DE AVISO ---
+  const [showAdminNoticeModal, setShowAdminNoticeModal] = useState(false);
+  const [adminNoticeData, setAdminNoticeData] = useState<{
+    message: string;
+    imageBase64?: string;
+  } | null>(null);
+
   const queryClient = useQueryClient();
 
   const { data: activeWorship, isLoading: isLoadingWorship } = useQuery({
@@ -282,11 +290,10 @@ function WorshipClient({
     : activeWorship?.id ?? null;
   const { isConnected } = useSignalRForWorship(worshipId);
 
-  // ✅ 1. BUSCA A LISTA DE PEDIDOS DE ORAÇÃO
   const { data: allPrayerRequests = [] } = useQuery<PrayerRequest[]>({
     queryKey: ["prayer-requests", worshipId],
     queryFn: () => worshipService.getPrayerRequests(worshipId!),
-    enabled: !!worshipId, // Só busca se tiver um ID de culto
+    enabled: !!worshipId,
     refetchOnWindowFocus: false,
     select: (data) =>
       [...data].sort(
@@ -304,11 +311,9 @@ function WorshipClient({
       },
       onSuccess: () => {
         setNewPrayerRequestText("");
-        // ✅ 2. ATUALIZA A LISTA APÓS ENVIAR UM NOVO PEDIDO
         queryClient.invalidateQueries({
           queryKey: ["prayer-requests", worshipId],
         });
-        // Mantemos o modal aberto para o usuário ver seu pedido na lista.
       },
       onError: (err: any) => {
         alert(`Erro ao enviar pedido de oração: ${err.message}`);
@@ -320,7 +325,6 @@ function WorshipClient({
     sendPrayerRequestMutation(newPrayerRequestText);
   };
 
-  // ... (handleReadingUpdate, handleHymnUpdate, etc. sem alterações)
   const handleReadingUpdate = useCallback(
     async (event: Event) => {
       if (!(event instanceof CustomEvent)) return;
@@ -407,26 +411,37 @@ function WorshipClient({
     []
   );
 
+  // --- ✅ 2. LOCAL CORRETO PARA O USEEFFECT DO AVISO ---
   useEffect(() => {
-    // ✅ 3. ATUALIZA A LISTA QUANDO QUALQUER NOVO PEDIDO CHEGA
     const handlePrayerReceived = () => {
       queryClient.invalidateQueries({
         queryKey: ["prayer-requests", worshipId],
       });
     };
 
+    // Este é o novo "ouvinte" para o aviso
+    const handleAdminNotice = (event: Event) => {
+      const notice = (event as CustomEvent).detail;
+      setAdminNoticeData(notice);
+      setShowAdminNoticeModal(true);
+    };
+
     window.addEventListener("bibleReadingUpdated", handleReadingUpdate);
     window.addEventListener("HymnPresented", handleHymnUpdate);
     window.addEventListener("OfferingPresented", handleOfferingPresent);
     window.addEventListener("OfferingFinished", handleOfferingFinish);
-    window.addEventListener("prayerRequestReceived", handlePrayerReceived); // Adiciona o ouvinte
+    window.addEventListener("prayerRequestReceived", handlePrayerReceived);
+    // Adiciona o novo ouvinte aqui
+    window.addEventListener("adminNoticeReceived", handleAdminNotice);
 
     return () => {
       window.removeEventListener("bibleReadingUpdated", handleReadingUpdate);
       window.removeEventListener("HymnPresented", handleHymnUpdate);
       window.removeEventListener("OfferingPresented", handleOfferingPresent);
       window.removeEventListener("OfferingFinished", handleOfferingFinish);
-      window.removeEventListener("prayerRequestReceived", handlePrayerReceived); // Remove o ouvinte
+      window.removeEventListener("prayerRequestReceived", handlePrayerReceived);
+      // Remove o novo ouvinte aqui
+      window.removeEventListener("adminNoticeReceived", handleAdminNotice);
     };
   }, [
     worshipId,
@@ -438,7 +453,6 @@ function WorshipClient({
   ]);
 
   const renderContent = () => {
-    // ... (lógica do renderContent sem alterações)
     if (error)
       return (
         <div className="text-center text-red-500 p-8">
@@ -512,16 +526,16 @@ function WorshipClient({
         </div>
       </div>
 
-      {/* MODAL DE DOAÇÃO (sem alteração) */}
+      {/* MODAL DE DOAÇÃO */}
       <Dialog open={showOfferingModal} onOpenChange={setShowOfferingModal}>
-        <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] p-0">
+        <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] overflow-y-auto p-6">
           <Suspense fallback={<LoadingDisplay text="Carregando doações..." />}>
             {worshipId && <DonationContainer worshipId={worshipId} />}
           </Suspense>
         </DialogContent>
       </Dialog>
 
-      {/* ✅ 4. MODAL DE ORAÇÃO ATUALIZADO */}
+      {/* MODAL DE ORAÇÃO */}
       <Dialog
         open={showPrayerRequestModal}
         onOpenChange={setShowPrayerRequestModal}
@@ -530,10 +544,9 @@ function WorshipClient({
           <DialogHeader>
             <DialogTitle className="text-2xl">Pedidos de Oração</DialogTitle>
           </DialogHeader>
-          {/* Listagem dos Pedidos */}
           <div className="py-2">
             <Label className="text-sm font-semibold text-gray-600">
-              Meus Pedidos
+              Pedidos da igreja:
             </Label>
             <ScrollArea className="h-48 w-full rounded-md border bg-gray-50 mt-1">
               <div className="space-y-2 p-3">
@@ -557,7 +570,6 @@ function WorshipClient({
               </div>
             </ScrollArea>
           </div>
-          {/* Formulário para Enviar Novo Pedido */}
           <div className="pt-2 space-y-3">
             <div className="grid w-full gap-1.5">
               <Label htmlFor="prayer-request" className="font-semibold">
@@ -584,6 +596,41 @@ function WorshipClient({
               )}
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* --- ✅ 3. NOVO MODAL PARA EXIBIR O AVISO --- */}
+      <Dialog
+        open={showAdminNoticeModal}
+        onOpenChange={setShowAdminNoticeModal}
+      >
+        <DialogContent className="w-[95vw] max-w-md">
+          <DialogHeader className="items-center">
+            <div className="bg-blue-100 p-3 rounded-full mb-3">
+              <Bell className="h-8 w-8 text-blue-600" />
+            </div>
+            <DialogTitle className="text-2xl text-center">
+              Aviso da Administração
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4 text-center">
+            {adminNoticeData?.imageBase64 && (
+              <img
+                src={`data:image/jpeg;base64,${adminNoticeData.imageBase64}`}
+                alt="Aviso"
+                className="max-w-full h-auto rounded-md mb-4"
+              />
+            )}
+            <p className="text-lg text-gray-700 whitespace-pre-wrap">
+              {adminNoticeData?.message}
+            </p>
+          </div>
+          <Button
+            onClick={() => setShowAdminNoticeModal(false)}
+            className="w-full h-11"
+          >
+            Fechar
+          </Button>
         </DialogContent>
       </Dialog>
     </main>

@@ -1,5 +1,5 @@
 import { authFetch, authFetchJson } from "@/lib/auth-fetch";
-import { MutationMeta } from "@tanstack/react-query";
+import { ReactNode } from "react";
 
 // URL base da sua API.
 const API_BASE_URL =
@@ -13,15 +13,18 @@ export enum WorshipStatus {
   Finished = 2,
 }
 
-// ✅ Nova interface para o pedido de oração
 export interface PrayerRequest {
-  memberName: ReactNode;
+  memberName: any;
   id: number;
   request: string;
-  createdAt: string; // Supondo que a API retorne um timestamp como string
+  createdAt: string;
 }
 
-// Interfaces detalhadas para a resposta de getWorshipById
+export interface AdminNoticePayload {
+  message: string;
+  imageBase64?: string; // Opcional, caso não envie imagem
+}
+
 export interface BibleReference {
   id: number;
   bibleVersionId: number;
@@ -55,7 +58,6 @@ export interface WorshipScheduleItem {
   order: number;
 }
 
-// Interface principal do Culto, agora mais completa
 export interface WorshipService {
   id: number;
   churchId: number;
@@ -81,8 +83,26 @@ interface ListWorshipServicesParams {
 
 class WorshipServiceManager {
   /**
-   * Encontra o primeiro culto que está ativo (Status = 1).
+   * ✅ NOVO: Envia um aviso administrativo para todos no culto.
+   * @param worshipServiceId O ID do culto.
+   * @param notice O objeto contendo a mensagem e, opcionalmente, a imagem.
    */
+  async sendAdminNotice(
+    worshipServiceId: number,
+    notice: AdminNoticePayload
+  ): Promise<void> {
+    await authFetch(
+      `${API_BASE_URL}/WorshipActivity/${worshipServiceId}/admin-notice`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(notice),
+      }
+    );
+  }
+
   async findActiveWorshipService(): Promise<WorshipService | null> {
     const params = { Status: WorshipStatus.InProgress, pageSize: 1 };
     const query = new URLSearchParams(params as any).toString();
@@ -96,9 +116,6 @@ class WorshipServiceManager {
     return null;
   }
 
-  /**
-   * Lista todos os cultos disponíveis.
-   */
   async listWorshipServices(
     params: ListWorshipServicesParams = {}
   ): Promise<{ items: WorshipService[] }> {
@@ -109,17 +126,11 @@ class WorshipServiceManager {
     return response as { items: WorshipService[] };
   }
 
-  /**
-   * Busca um culto (WorshipService) por ID.
-   */
   async getWorshipById(id: number): Promise<WorshipService> {
     const response = await authFetchJson(`${API_BASE_URL}/Event/worship/${id}`);
     return response as WorshipService;
   }
 
-  /**
-   * Inicia um culto.
-   */
   async startWorship(worshipServiceId: number): Promise<void> {
     await authFetch(
       `${API_BASE_URL}/WorshipActivity/${worshipServiceId}/start`,
@@ -129,9 +140,6 @@ class WorshipServiceManager {
     );
   }
 
-  /**
-   * Finaliza um culto.
-   */
   async finishWorship(worshipServiceId: number): Promise<void> {
     await authFetch(
       `${API_BASE_URL}/WorshipActivity/${worshipServiceId}/finish`,
@@ -141,9 +149,6 @@ class WorshipServiceManager {
     );
   }
 
-  /**
-   * Adiciona um item ao cronograma do culto.
-   */
   async addScheduleItem(
     worshipServiceId: number,
     item: { name: string; order: number }
@@ -159,9 +164,6 @@ class WorshipServiceManager {
     return response as WorshipScheduleItem;
   }
 
-  /**
-   * Atualiza um item do cronograma do culto.
-   */
   async updateScheduleItem(
     worshipServiceId: number,
     itemId: number,
@@ -177,9 +179,6 @@ class WorshipServiceManager {
     );
   }
 
-  /**
-   * Remove um item do cronograma do culto.
-   */
   async removeScheduleItem(
     worshipServiceId: number,
     itemId: number
@@ -192,9 +191,6 @@ class WorshipServiceManager {
     );
   }
 
-  /**
-   * Destaca uma leitura bíblica, notificando os membros.
-   */
   async highlightBibleReading(
     worshipServiceId: number,
     params: {
@@ -213,9 +209,6 @@ class WorshipServiceManager {
     );
   }
 
-  /**
-   * Apresenta um hino para todos os membros do culto.
-   */
   async presentHymn(
     worshipServiceId: number,
     hymnNumber: number,
@@ -229,11 +222,6 @@ class WorshipServiceManager {
     );
   }
 
-  /**
-   * Apresenta o momento da oferta para todos os membros do culto.
-   * @param worshipServiceId O ID do culto.
-   * @returns A atividade de oferta que foi criada.
-   */
   async presentOffering(worshipServiceId: number): Promise<WorshipActivity> {
     const response = await authFetchJson(
       `${API_BASE_URL}/WorshipActivity/${worshipServiceId}/offering/present`,
@@ -244,11 +232,6 @@ class WorshipServiceManager {
     return response as WorshipActivity;
   }
 
-  /**
-   * Finaliza o momento da oferta.
-   * @param worshipServiceId O ID do culto.
-   * @param activityId O ID da atividade de oferta.
-   */
   async finishOffering(
     worshipServiceId: number,
     activityId: number
@@ -261,12 +244,10 @@ class WorshipServiceManager {
     );
   }
 
-  /**
-   * Envia um pedido de oração para o culto.
-   * @param worshipServiceId O ID do culto.
-   * @param request O texto do pedido de oração.
-   */
-  async sendPrayerRequest(worshipServiceId: number, request: string): Promise<void> {
+  async sendPrayerRequest(
+    worshipServiceId: number,
+    request: string
+  ): Promise<void> {
     const payload = {
       worshipServiceId,
       request,
@@ -274,19 +255,15 @@ class WorshipServiceManager {
     await authFetch(
       `${API_BASE_URL}/WorshipActivity/${worshipServiceId}/prayer-request`,
       {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(payload),
       }
     );
   }
 
-  /**
-   * ✅ Lista os pedidos de oração de um culto.
-   * @param worshipServiceId O ID do culto.
-   */
   async getPrayerRequests(worshipServiceId: number): Promise<PrayerRequest[]> {
     const response = await authFetchJson(
       `${API_BASE_URL}/WorshipActivity/${worshipServiceId}/prayer-requests/list`
@@ -389,7 +366,7 @@ class BibleService {
 
 export const bibleService = new BibleService();
 
-// --- 🎶 NOVA CLASSE DE SERVIÇO DE HINOS ADICIONADA AQUI 🎶 ---
+// --- Classe de Serviço de Hinos ---
 
 export interface HymnSummary {
   number: number;
@@ -413,18 +390,11 @@ export interface Hymn {
 }
 
 class HymnService {
-  /**
-   * Retorna uma lista de todos os hinos com número e título.
-   */
   async getSummaries(): Promise<HymnSummary[]> {
     const response = await authFetchJson(`${API_BASE_URL}/Hymn/summaries`);
     return response as HymnSummary[];
   }
 
-  /**
-   * Busca um hino pelo número, retornando o coro e os versos.
-   * @param hymnNumber O número do hino.
-   */
   async getHymn(hymnNumber: number): Promise<Hymn> {
     const response = await authFetchJson(`${API_BASE_URL}/Hymn/${hymnNumber}`);
     return response as Hymn;
