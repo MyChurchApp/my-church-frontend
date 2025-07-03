@@ -29,7 +29,7 @@ export function ChurchProvider({ children }: { children: ReactNode }) {
   const authToken =
     typeof window !== "undefined" ? localStorage.getItem("authToken") : null;
   const modalKey = user ? `bankingModalClosed_${user.id}` : null;
-  const isAdmin = user?.role !== "Member";
+  const isAdmin = user?.role === "Admin";
 
   const BANKING_REQUIRED_FIELDS_1 = [
     "bankName",
