@@ -41,8 +41,9 @@ import {
   Check,
   X,
   PlayCircle,
-  Heart, // ✅ Ícone adicionado
-  XCircle, // ✅ Ícone adicionado
+  Heart,
+  XCircle,
+  HandHeart,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -65,8 +66,10 @@ import {
   type BibleBook,
   type BibleChapter,
   type BibleVerse,
+  type PrayerRequest,
 } from "@/services/worship/worship";
 import { HymnManager } from "@/components/hymn/HymnManager";
+import { useSignalRForWorship } from "@/hooks/useSignalRForWorship";
 
 // ===================================================================
 //   1. COMPONENTE DO SELETOR BÍBLICO (Original, sem alterações)
@@ -509,7 +512,91 @@ function ScheduleManager({ worshipId }: { worshipId: number }) {
 }
 
 // ===================================================================
-//   3. COMPONENTE DO PAINEL DE CONTROLE PRINCIPAL (Com a nova funcionalidade)
+//   3. NOVO COMPONENTE PARA VISUALIZAR PEDIDOS DE ORAÇÃO (Corrigido)
+// ===================================================================
+function PrayerRequestViewer({ worshipId }: { worshipId: number }) {
+  const [requests, setRequests] = useState<PrayerRequest[]>([]);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+
+  // ✅ CORREÇÃO APLICADA AQUI
+  // Busca inicial dos pedidos de oração
+  const { data, isLoading, isError, error } = useQuery<PrayerRequest[]>({
+    queryKey: ['prayer-requests', worshipId],
+    queryFn: () => worshipService.getPrayerRequests(worshipId),
+  });
+
+  // Efeito para atualizar o estado local quando os dados da query forem carregados
+  useEffect(() => {
+    if (data) {
+      setRequests(data);
+    }
+  }, [data]);
+
+
+  // Efeito para ouvir novos pedidos de oração via WebSocket
+  useEffect(() => {
+    const handleNewRequest = (event: Event) => {
+      const newRequest = (event as CustomEvent).detail as PrayerRequest;
+      setRequests(prev => [newRequest, ...prev]); // Adiciona no topo
+    };
+
+    window.addEventListener('prayerRequestReceived', handleNewRequest);
+    return () => {
+      window.removeEventListener('prayerRequestReceived', handleNewRequest);
+    };
+  }, []);
+
+  // Efeito para rolar para o topo quando um novo pedido chega
+  useEffect(() => {
+    if (scrollAreaRef.current) {
+      scrollAreaRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [requests]);
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+  }
+
+  if (isError) {
+    return <div className="text-red-500 p-4">Erro ao carregar pedidos: {error.message}</div>;
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Pedidos de Oração</CardTitle>
+        <CardDescription>
+          Visualize os pedidos de oração enviados pelos membros em tempo real.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <ScrollArea className="h-96 w-full rounded-md border p-4 bg-gray-50/50">
+          <div ref={scrollAreaRef} className="space-y-3">
+            {requests.length > 0 ? (
+              requests.map((req) => (
+                <div key={req.id} className="p-3 bg-white rounded-md shadow-sm">
+                  <p className="text-sm text-gray-800">{req.request}</p>
+                  <p className="text-xs text-right text-gray-400 mt-2">
+                    {new Date(req.createdAt).toLocaleString('pt-BR')}
+                  </p>
+                </div>
+              ))
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-gray-400 py-16">
+                 <HandHeart className="h-12 w-12 mb-4" />
+                 <p>Nenhum pedido de oração recebido ainda.</p>
+              </div>
+            )}
+          </div>
+        </ScrollArea>
+      </CardContent>
+    </Card>
+  );
+}
+
+
+// ===================================================================
+//   4. COMPONENTE DO PAINEL DE CONTROLE PRINCIPAL (Com a nova funcionalidade)
 // ===================================================================
 function WorshipControlPanel({
   worshipId,
@@ -522,8 +609,8 @@ function WorshipControlPanel({
   const [currentActivityId, setCurrentActivityId] = useState<number | null>(
     null
   );
+  useSignalRForWorship(worshipId);
 
-  // ✅ Estados para a nova funcionalidade de Oferta
   const [isOffering, setIsOffering] = useState(false);
   const [offeringActivityId, setOfferingActivityId] = useState<number | null>(
     null
@@ -539,7 +626,6 @@ function WorshipControlPanel({
     refetchOnWindowFocus: true,
   });
 
-  // ✅ Efeito para verificar se a oferta já está ativa ao carregar os dados
   useEffect(() => {
     if (worship) {
       const offeringActivity = worship.activities.find(
@@ -567,7 +653,6 @@ function WorshipControlPanel({
     onError: (err: any) => alert(`Erro: ${err.message}`),
   });
 
-  // ✅ Mutações para a nova funcionalidade de Oferta
   const { mutate: presentOfferingMutation, isPending: isPresentingOffering } =
     useMutation({
       mutationFn: () => worshipService.presentOffering(worshipId),
@@ -655,12 +740,12 @@ function WorshipControlPanel({
         </div>
       ) : (
         <Tabs defaultValue="cronograma">
-          {/* ✅ ATUALIZADO PARA 5 COLUNAS */}
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6">
             <TabsTrigger value="cronograma">Cronograma</TabsTrigger>
             <TabsTrigger value="biblia">Bíblia</TabsTrigger>
             <TabsTrigger value="hinos">Hinos</TabsTrigger>
-            <TabsTrigger value="oferta">Oferta</TabsTrigger> {/* ✅ NOVA ABA */}
+            <TabsTrigger value="oferta">Oferta</TabsTrigger>
+            <TabsTrigger value="oracoes">Orações</TabsTrigger>
             <TabsTrigger value="avisos">Avisos</TabsTrigger>
           </TabsList>
 
@@ -721,7 +806,6 @@ function WorshipControlPanel({
             <HymnManager worshipId={worship.id} />
           </TabsContent>
 
-          {/* ✅ NOVO CONTEÚDO PARA A ABA DE OFERTA */}
           <TabsContent value="oferta">
             <Card>
               <CardHeader>
@@ -769,6 +853,10 @@ function WorshipControlPanel({
               </CardContent>
             </Card>
           </TabsContent>
+          
+          <TabsContent value="oracoes">
+            <PrayerRequestViewer worshipId={worshipId} />
+          </TabsContent>
 
           <TabsContent value="avisos">
             <Card>
@@ -784,7 +872,7 @@ function WorshipControlPanel({
 }
 
 // ===================================================================
-//   4. COMPONENTE PRINCIPAL DA PÁGINA (Original, sem alterações)
+//   5. COMPONENTE PRINCIPAL DA PÁGINA (Original, sem alterações)
 // ===================================================================
 export default function GestaoCultoPage() {
   const [selectedWorshipId, setSelectedWorshipId] = useState<number | null>(

@@ -43,7 +43,6 @@ export function useSignalRForWorship(worshipId: number | null) {
 
         // --- OUVINTE PARA LEITURA DA BÍBLIA ---
         connection.on("BibleReadingHighlighted", (data) => {
-          // Só repassa o evento pro front, sem request!
           window.dispatchEvent(
             new CustomEvent("bibleReadingUpdated", { detail: data })
           );
@@ -56,20 +55,27 @@ export function useSignalRForWorship(worshipId: number | null) {
           );
         });
 
-        // --- ✅ NOVOS OUVINTES PARA OFERTA ---
+        // --- OUVINTES PARA OFERTA ---
         connection.on("OfferingPresented", (data) => {
-          console.log("✅ [SignalR] Evento recebido: OfferingPresented", data);
           window.dispatchEvent(
             new CustomEvent("OfferingPresented", { detail: data })
           );
         });
 
         connection.on("OfferingFinished", (data) => {
-          console.log("✅ [SignalR] Evento recebido: OfferingFinished", data);
           window.dispatchEvent(
             new CustomEvent("OfferingFinished", { detail: data })
           );
         });
+
+        // --- ✅ NOVO OUVINTE PARA PEDIDOS DE ORAÇÃO ---
+        connection.on("PrayerRequestReceived", (data) => {
+          console.log("✅ [SignalR] Evento recebido: PrayerRequestReceived", data);
+          window.dispatchEvent(
+            new CustomEvent("prayerRequestReceived", { detail: data })
+          );
+        });
+
       } catch (err) {
         console.error("❌ [SignalR] Falha ao iniciar conexão:", err);
         setIsConnected(false);
@@ -88,9 +94,9 @@ export function useSignalRForWorship(worshipId: number | null) {
       console.log("[SignalR] Parando conexão.");
       connection.off("BibleReadingHighlighted");
       connection.off("HymnPresented");
-      // --- ✅ LIMPEZA DOS NOVOS OUVINTES ---
       connection.off("OfferingPresented");
       connection.off("OfferingFinished");
+      connection.off("PrayerRequestReceived"); // ✅ Limpeza do novo ouvinte
       connection.stop();
     };
   }, [worshipId]);

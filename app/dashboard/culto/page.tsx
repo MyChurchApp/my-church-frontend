@@ -8,7 +8,7 @@ import React, {
   Suspense,
 } from "react";
 import { useSearchParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query"; // ✅ useMutation importado
 import {
   Loader2,
   BookOpen,
@@ -16,6 +16,7 @@ import {
   AlertTriangle,
   Zap,
   Heart,
+  HandHeart,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -26,8 +27,19 @@ import {
 } from "@/services/worship/worship";
 import { useSignalRForWorship } from "@/hooks/useSignalRForWorship";
 import { motion } from "framer-motion";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import DonationContainer from "@/containers/donation/donationContainer";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { PulsingBorderButton } from "./components/PulsingGlowButton/PulsingGlowButton";
 
 // --- Estilos ---
@@ -62,7 +74,7 @@ type BibleTransmission = {
   verseId: number;
 };
 
-// --- Componentes burros ---
+// --- Componentes de Exibição ---
 const LiveReadingDisplay = ({
   readingState,
 }: {
@@ -209,7 +221,6 @@ const ConnectionBadge = ({ isConnected }: { isConnected: boolean }) => (
   </Badge>
 );
 
-// --- Função de comparação de transmissão ---
 function isOnlyVerseChanged(
   before: BibleTransmission | null,
   now: BibleTransmission
@@ -245,7 +256,11 @@ function WorshipClient({
   const [lastTransmission, setLastTransmission] =
     useState<BibleTransmission | null>(null);
   const [showOfferingModal, setShowOfferingModal] = useState(false);
-  const [isOfferingActive, setIsOfferingActive] = useState(false); // ✅ NOVO ESTADO
+  const [isOfferingActive, setIsOfferingActive] = useState(false);
+  const [showPrayerRequestModal, setShowPrayerRequestModal] = useState(false);
+
+  const [prayerRequests, setPrayerRequests] = useState<string[]>([]);
+  const [newPrayerRequestText, setNewPrayerRequestText] = useState("");
 
   const { data: activeWorship, isLoading: isLoadingWorship } = useQuery({
     queryKey: ["active-worship-service"],
@@ -258,6 +273,30 @@ function WorshipClient({
     ? Number(worshipIdFromUrl)
     : activeWorship?.id ?? null;
   const { isConnected } = useSignalRForWorship(worshipId);
+
+  // ✅ Mutação para enviar o pedido de oração
+  const { mutate: sendPrayerRequestMutation, isPending: isSendingPrayer } =
+    useMutation({
+      mutationFn: (requestText: string) => {
+        if (!worshipId)
+          throw new Error("ID do culto não encontrado para enviar a oração.");
+        return worshipService.sendPrayerRequest(worshipId, requestText);
+      },
+      onSuccess: (_, sentRequestText) => {
+        setPrayerRequests((prev) => [...prev, sentRequestText]);
+        setNewPrayerRequestText("");
+        setShowPrayerRequestModal(false);
+        // alert("Pedido de oração enviado com sucesso!"); // Pode substituir por um toast
+      },
+      onError: (err: any) => {
+        alert(`Erro ao enviar pedido de oração: ${err.message}`);
+      },
+    });
+
+  const handleSendPrayerRequest = () => {
+    if (!newPrayerRequestText.trim()) return;
+    sendPrayerRequestMutation(newPrayerRequestText);
+  };
 
   const handleReadingUpdate = useCallback(
     async (event: Event) => {
@@ -288,10 +327,8 @@ function WorshipClient({
       }
 
       setIsLoadingContent(true);
-
       try {
         let verses: BibleVerse[];
-
         if (cachedVerses[chapterId]) {
           verses = cachedVerses[chapterId];
         } else {
@@ -338,7 +375,6 @@ function WorshipClient({
     [lastFocusedVerse]
   );
 
-  // ✅ HANDLERS ATUALIZADOS
   const handleOfferingPresent = useCallback(() => {
     setIsOfferingActive(true);
   }, []);
@@ -409,7 +445,7 @@ function WorshipClient({
   };
 
   return (
-    <main className="flex flex-col items-center bg-gray-50 p-4 min-h-screen w-full">
+    <main className="flex flex-col items-center bg-gray-50 p-4 min-h-screen w-full pb-48 sm:pb-32">
       <style>{styles}</style>
       <div className="absolute top-4 right-4 z-10">
         <ConnectionBadge isConnected={isConnected} />
@@ -418,17 +454,47 @@ function WorshipClient({
         {renderContent()}
       </div>
 
-      {/* Barra de Ações Inferior */}
+      {prayerRequests.length > 0 && (
+        <div className="w-full max-w-lg mt-6">
+          <h3 className="text-center font-semibold mb-2 text-gray-700">
+            Meus Pedidos Enviados
+          </h3>
+          <div className="relative">
+            <ScrollArea className="h-32 w-full rounded-md border bg-white/70">
+              <div className="space-y-2 p-3 pb-8">
+                {prayerRequests.map((request, index) => (
+                  <p
+                    key={index}
+                    className="text-sm p-2 bg-white rounded-md shadow-sm text-gray-800"
+                  >
+                    {request}
+                  </p>
+                ))}
+              </div>
+            </ScrollArea>
+            <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-gray-50 to-transparent pointer-events-none rounded-b-md" />
+          </div>
+        </div>
+      )}
+
       <div className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-sm border-t p-4 z-20">
-        <div className="container mx-auto max-w-md">
-          <PulsingBorderButton
-            isActive={isOfferingActive}
-            onClick={() => setShowOfferingModal(true)}
-          />
+        <div className="container mx-auto max-w-lg flex flex-col sm:flex-row items-center gap-3">
+          <Button
+            onClick={() => setShowPrayerRequestModal(true)}
+            className="w-full sm:w-auto flex-1 bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-bold text-sm py-3 px-6 h-14 rounded-lg shadow-xl transition duration-300 ease-in-out transform hover:scale-105"
+          >
+            <HandHeart className="h-6 w-6 mr-2" />
+            Pedido de Oração
+          </Button>
+          <div className="w-full sm:w-auto flex-1">
+            <PulsingBorderButton
+              isActive={isOfferingActive}
+              onClick={() => setShowOfferingModal(true)}
+            />
+          </div>
         </div>
       </div>
 
-      {/* Modal de Doação */}
       <Dialog open={showOfferingModal} onOpenChange={setShowOfferingModal}>
         <DialogContent className="max-w-4xl max-h-[90vh] p-0">
           <Suspense
@@ -436,6 +502,44 @@ function WorshipClient({
           >
             {worshipId && <DonationContainer worshipId={worshipId} />}
           </Suspense>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={showPrayerRequestModal}
+        onOpenChange={setShowPrayerRequestModal}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Pedido de Oração</DialogTitle>
+            <DialogDescription>
+              Deixe seu pedido de oração abaixo. Ele será recebido pela equipe
+              de intercessão.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="grid w-full gap-1.5">
+              <Label htmlFor="prayer-request">Seu pedido:</Label>
+              <Textarea
+                placeholder="Escreva seu pedido aqui..."
+                id="prayer-request"
+                rows={6}
+                value={newPrayerRequestText}
+                onChange={(e) => setNewPrayerRequestText(e.target.value)}
+              />
+            </div>
+            {/* ✅ Botão atualizado com estado de carregamento */}
+            <Button
+              className="w-full"
+              onClick={handleSendPrayerRequest}
+              disabled={!newPrayerRequestText.trim() || isSendingPrayer}
+            >
+              {isSendingPrayer && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Enviar Pedido
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </main>

@@ -13,6 +13,13 @@ export enum WorshipStatus {
   Finished = 2,
 }
 
+// ✅ Nova interface para o pedido de oração
+export interface PrayerRequest {
+  id: number;
+  request: string;
+  createdAt: string; // Supondo que a API retorne um timestamp como string
+}
+
 // Interfaces detalhadas para a resposta de getWorshipById
 export interface BibleReference {
   id: number;
@@ -251,6 +258,39 @@ class WorshipServiceManager {
         method: "POST",
       }
     );
+  }
+
+  /**
+   * Envia um pedido de oração para o culto.
+   * @param worshipServiceId O ID do culto.
+   * @param request O texto do pedido de oração.
+   */
+  async sendPrayerRequest(worshipServiceId: number, request: string): Promise<void> {
+    const payload = {
+      worshipServiceId,
+      request,
+    };
+    await authFetch(
+      `${API_BASE_URL}/WorshipActivity/${worshipServiceId}/prayer-request`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+  }
+
+  /**
+   * ✅ Lista os pedidos de oração de um culto.
+   * @param worshipServiceId O ID do culto.
+   */
+  async getPrayerRequests(worshipServiceId: number): Promise<PrayerRequest[]> {
+    const response = await authFetchJson(
+      `${API_BASE_URL}/WorshipActivity/${worshipServiceId}/prayer-requests/list`
+    );
+    return response as PrayerRequest[];
   }
 }
 
