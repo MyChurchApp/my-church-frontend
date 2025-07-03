@@ -8,7 +8,8 @@ import React, {
   Suspense,
 } from "react";
 import { useSearchParams } from "next/navigation";
-import { useQuery, useMutation } from "@tanstack/react-query";
+// Adicione a importação do useQueryClient
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Loader2,
   BookOpen,
@@ -24,6 +25,8 @@ import {
   bibleService,
   type BibleVerse,
   type Hymn,
+  // Certifique-se de que o tipo PrayerRequest está exportado do seu serviço
+  type PrayerRequest,
 } from "@/services/worship/worship";
 import { useSignalRForWorship } from "@/hooks/useSignalRForWorship";
 import { motion, AnimatePresence } from "framer-motion";
@@ -40,37 +43,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-// --- Estilos (sem alterações) ---
+// --- Estilos e Tipos (sem alterações) ---
 const styles = `
-  body {
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
-  .highlighted-part {
-    background-color: #FEFCE8;
-    color: #374151;
-    border-left: 5px solid #FACC15;
-    transform: scale(1.02);
-    transition: all 0.4s ease-in-out;
-  }
-  @keyframes gentle-pulse {
-    0%, 100% {
-      transform: scale(1);
-      box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4);
-    }
-    50% {
-      transform: scale(1.05);
-      box-shadow: 0 0 10px 10px rgba(34, 197, 94, 0);
-    }
-  }
-  .offering-active-pulse {
-    animation: gentle-pulse 2s infinite;
-  }
+  body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+  .highlighted-part { background-color: #FEFCE8; color: #374151; border-left: 5px solid #FACC15; transform: scale(1.02); transition: all 0.4s ease-in-out; }
+  @keyframes gentle-pulse { 0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); } 50% { transform: scale(1.05); box-shadow: 0 0 10px 10px rgba(34, 197, 94, 0); } }
+  .offering-active-pulse { animation: gentle-pulse 2s infinite; }
 `;
-
-// --- Tipos (sem alterações) ---
 type DisplayMode = "bible" | "hymn" | "waiting";
-
 interface LiveReadingState {
   bookName: string;
   chapterNumber: number;
@@ -78,7 +58,6 @@ interface LiveReadingState {
   highlightedVerseId: number;
   verses: BibleVerse[];
 }
-
 type BibleTransmission = {
   activityId: number;
   versionId: number;
@@ -100,7 +79,6 @@ const LiveReadingDisplay = ({
       block: "center",
     });
   }, [readingState.highlightedVerseId]);
-
   return (
     <motion.div
       key="bible-display"
@@ -136,7 +114,6 @@ const LiveReadingDisplay = ({
     </motion.div>
   );
 };
-
 const LiveHymnDisplay = ({
   hymn,
   highlightedPartKey,
@@ -153,7 +130,6 @@ const LiveHymnDisplay = ({
       });
     }
   }, [highlightedPartKey]);
-
   const formatText = (text: string | null) => {
     if (!text) return null;
     return text.split("<br>").map((line, index) => (
@@ -163,7 +139,6 @@ const LiveHymnDisplay = ({
       </React.Fragment>
     ));
   };
-
   return (
     <motion.div
       key="hymn-display"
@@ -220,7 +195,6 @@ const LiveHymnDisplay = ({
     </motion.div>
   );
 };
-
 const WaitingDisplay = () => (
   <motion.div
     initial={{ opacity: 0, scale: 0.9 }}
@@ -238,14 +212,12 @@ const WaitingDisplay = () => (
     </div>
   </motion.div>
 );
-
 const LoadingDisplay = ({ text }: { text: string }) => (
   <div className="flex flex-col items-center justify-center h-full text-center">
     <Loader2 className="h-12 w-12 animate-spin text-blue-500" />
     <h2 className="mt-4 text-2xl text-gray-700">{text}</h2>
   </div>
 );
-
 const ConnectionBadge = ({ isConnected }: { isConnected: boolean }) => (
   <Badge
     variant={isConnected ? "default" : "destructive"}
@@ -255,7 +227,6 @@ const ConnectionBadge = ({ isConnected }: { isConnected: boolean }) => (
     {isConnected ? "Conectado" : "Desconectado"}
   </Badge>
 );
-
 function isOnlyVerseChanged(
   before: BibleTransmission | null,
   now: BibleTransmission
@@ -269,7 +240,6 @@ function isOnlyVerseChanged(
     before.verseId !== now.verseId
   );
 }
-
 // ===================================================================
 //   COMPONENTE PRINCIPAL (COM A CORREÇÃO)
 // ===================================================================
@@ -295,9 +265,10 @@ function WorshipClient({
   const [showOfferingModal, setShowOfferingModal] = useState(false);
   const [isOfferingActive, setIsOfferingActive] = useState(false);
   const [showPrayerRequestModal, setShowPrayerRequestModal] = useState(false);
-
-  const [prayerRequests, setPrayerRequests] = useState<string[]>([]);
   const [newPrayerRequestText, setNewPrayerRequestText] = useState("");
+
+  // Inicializa o Query Client
+  const queryClient = useQueryClient();
 
   const { data: activeWorship, isLoading: isLoadingWorship } = useQuery({
     queryKey: ["active-worship-service"],
@@ -311,6 +282,19 @@ function WorshipClient({
     : activeWorship?.id ?? null;
   const { isConnected } = useSignalRForWorship(worshipId);
 
+  // ✅ 1. BUSCA A LISTA DE PEDIDOS DE ORAÇÃO
+  const { data: allPrayerRequests = [] } = useQuery<PrayerRequest[]>({
+    queryKey: ["prayer-requests", worshipId],
+    queryFn: () => worshipService.getPrayerRequests(worshipId!),
+    enabled: !!worshipId, // Só busca se tiver um ID de culto
+    refetchOnWindowFocus: false,
+    select: (data) =>
+      [...data].sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      ),
+  });
+
   const { mutate: sendPrayerRequestMutation, isPending: isSendingPrayer } =
     useMutation({
       mutationFn: (requestText: string) => {
@@ -318,10 +302,13 @@ function WorshipClient({
           throw new Error("ID do culto não encontrado para enviar a oração.");
         return worshipService.sendPrayerRequest(worshipId, requestText);
       },
-      onSuccess: (_, sentRequestText) => {
-        setPrayerRequests((prev) => [...prev, sentRequestText]);
+      onSuccess: () => {
         setNewPrayerRequestText("");
-        setShowPrayerRequestModal(false);
+        // ✅ 2. ATUALIZA A LISTA APÓS ENVIAR UM NOVO PEDIDO
+        queryClient.invalidateQueries({
+          queryKey: ["prayer-requests", worshipId],
+        });
+        // Mantemos o modal aberto para o usuário ver seu pedido na lista.
       },
       onError: (err: any) => {
         alert(`Erro ao enviar pedido de oração: ${err.message}`);
@@ -333,6 +320,7 @@ function WorshipClient({
     sendPrayerRequestMutation(newPrayerRequestText);
   };
 
+  // ... (handleReadingUpdate, handleHymnUpdate, etc. sem alterações)
   const handleReadingUpdate = useCallback(
     async (event: Event) => {
       if (!(event instanceof CustomEvent)) return;
@@ -420,18 +408,29 @@ function WorshipClient({
   );
 
   useEffect(() => {
+    // ✅ 3. ATUALIZA A LISTA QUANDO QUALQUER NOVO PEDIDO CHEGA
+    const handlePrayerReceived = () => {
+      queryClient.invalidateQueries({
+        queryKey: ["prayer-requests", worshipId],
+      });
+    };
+
     window.addEventListener("bibleReadingUpdated", handleReadingUpdate);
     window.addEventListener("HymnPresented", handleHymnUpdate);
     window.addEventListener("OfferingPresented", handleOfferingPresent);
     window.addEventListener("OfferingFinished", handleOfferingFinish);
+    window.addEventListener("prayerRequestReceived", handlePrayerReceived); // Adiciona o ouvinte
 
     return () => {
       window.removeEventListener("bibleReadingUpdated", handleReadingUpdate);
       window.removeEventListener("HymnPresented", handleHymnUpdate);
       window.removeEventListener("OfferingPresented", handleOfferingPresent);
       window.removeEventListener("OfferingFinished", handleOfferingFinish);
+      window.removeEventListener("prayerRequestReceived", handlePrayerReceived); // Remove o ouvinte
     };
   }, [
+    worshipId,
+    queryClient,
     handleReadingUpdate,
     handleHymnUpdate,
     handleOfferingPresent,
@@ -439,6 +438,7 @@ function WorshipClient({
   ]);
 
   const renderContent = () => {
+    // ... (lógica do renderContent sem alterações)
     if (error)
       return (
         <div className="text-center text-red-500 p-8">
@@ -459,7 +459,6 @@ function WorshipClient({
       return <LoadingDisplay text="Conectando à transmissão..." />;
     if (isLoadingContent)
       return <LoadingDisplay text="Carregando conteúdo..." />;
-
     return (
       <AnimatePresence mode="wait">
         {displayMode === "bible" && liveReading && (
@@ -483,36 +482,12 @@ function WorshipClient({
         <ConnectionBadge isConnected={isConnected} />
       </div>
 
-      {/* ✅ ÁREA DE CONTEÚDO SCROLLÁVEL */}
       <div className="flex-grow w-full flex flex-col items-center justify-center p-4 pt-20 pb-32">
-        {/* Conteúdo Principal (Bíblia/Hino) */}
         <div className="w-full flex-grow flex items-center justify-center">
           {renderContent()}
         </div>
-
-        {/* ✅ LISTA DE PEDIDOS DE ORAÇÃO REINSERIDA AQUI */}
-        {prayerRequests.length > 0 && (
-          <div className="w-full max-w-lg mt-8 flex-shrink-0">
-            <h3 className="text-center font-semibold mb-2 text-gray-700">
-              Meus Pedidos Enviados
-            </h3>
-            <ScrollArea className="h-32 w-full rounded-md border bg-white/70">
-              <div className="space-y-2 p-3">
-                {prayerRequests.map((request, index) => (
-                  <p
-                    key={index}
-                    className="text-sm p-2 bg-white rounded-md shadow-sm text-gray-800"
-                  >
-                    {request}
-                  </p>
-                ))}
-              </div>
-            </ScrollArea>
-          </div>
-        )}
       </div>
 
-      {/* Barra de Ações Fixa */}
       <div className="sticky bottom-0 left-0 right-0 z-30 border-t bg-white/90 p-3 backdrop-blur-sm">
         <div className="container mx-auto max-w-md grid grid-cols-2 items-center gap-3">
           <Button
@@ -521,7 +496,7 @@ function WorshipClient({
             variant="outline"
           >
             <HandHeart className="h-6 w-6" />
-            <span>Oração</span>
+            <span>Orações</span>
           </Button>
           <Button
             onClick={() => setShowOfferingModal(true)}
@@ -537,7 +512,7 @@ function WorshipClient({
         </div>
       </div>
 
-      {/* Modals */}
+      {/* MODAL DE DOAÇÃO (sem alteração) */}
       <Dialog open={showOfferingModal} onOpenChange={setShowOfferingModal}>
         <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] p-0">
           <Suspense fallback={<LoadingDisplay text="Carregando doações..." />}>
@@ -545,26 +520,53 @@ function WorshipClient({
           </Suspense>
         </DialogContent>
       </Dialog>
+
+      {/* ✅ 4. MODAL DE ORAÇÃO ATUALIZADO */}
       <Dialog
         open={showPrayerRequestModal}
         onOpenChange={setShowPrayerRequestModal}
       >
-        <DialogContent className="w-[95vw]">
+        <DialogContent className="w-[95vw] max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-2xl">Pedido de Oração</DialogTitle>
-            <DialogDescription>
-              Seu pedido será recebido pela equipe de intercessão.
-            </DialogDescription>
+            <DialogTitle className="text-2xl">Pedidos de Oração</DialogTitle>
           </DialogHeader>
-          <div className="py-4 space-y-4">
+          {/* Listagem dos Pedidos */}
+          <div className="py-2">
+            <Label className="text-sm font-semibold text-gray-600">
+              Meus Pedidos
+            </Label>
+            <ScrollArea className="h-48 w-full rounded-md border bg-gray-50 mt-1">
+              <div className="space-y-2 p-3">
+                {allPrayerRequests.length > 0 ? (
+                  allPrayerRequests.map((p) => (
+                    <div
+                      key={p.id}
+                      className="text-sm p-2 bg-white rounded-md shadow-sm"
+                    >
+                      <p className="text-gray-800">{p.request}</p>
+                      <p className="text-xs text-right text-gray-400 mt-1">
+                        {p.memberName}
+                      </p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-center text-gray-400 p-4">
+                    Nenhum pedido de oração enviado ainda.
+                  </p>
+                )}
+              </div>
+            </ScrollArea>
+          </div>
+          {/* Formulário para Enviar Novo Pedido */}
+          <div className="pt-2 space-y-3">
             <div className="grid w-full gap-1.5">
               <Label htmlFor="prayer-request" className="font-semibold">
-                Seu pedido:
+                Enviar meu pedido:
               </Label>
               <Textarea
                 placeholder="Escreva seu pedido aqui..."
                 id="prayer-request"
-                rows={6}
+                rows={4}
                 value={newPrayerRequestText}
                 onChange={(e) => setNewPrayerRequestText(e.target.value)}
                 className="text-base"

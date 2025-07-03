@@ -15,6 +15,7 @@ export enum WorshipStatus {
 
 // ✅ Nova interface para o pedido de oração
 export interface PrayerRequest {
+  memberName: ReactNode;
   id: number;
   request: string;
   createdAt: string; // Supondo que a API retorne um timestamp como string
