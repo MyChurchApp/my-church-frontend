@@ -3,7 +3,7 @@ import {
   getPresentationById,
   Presentation,
   Slide,
-} from "../../../services/presentation/presentation";
+} from "../../../services/presentation/presentation"; // Ajuste o caminho se necessário
 
 const styles: { [key: string]: React.CSSProperties } = {
   container: {
@@ -29,7 +29,7 @@ const styles: { [key: string]: React.CSSProperties } = {
 interface SlideViewerProps {
   data: {
     presentationId: number;
-    slideIndex: number;
+    slideIndex: number; // Este valor corresponde ao 'orderIndex' do slide
   } | null;
 }
 
@@ -51,12 +51,13 @@ export function SlideViewer({ data }: SlideViewerProps) {
       const { presentationId, slideIndex } = data;
       setError(null);
 
-      // --- LÓGICA DE CACHE CORRIGIDA ---
       let presentationToUse = presentationData;
+
+      // <-- MUDANÇA 1: A lógica de refetch agora checa o 'orderIndex' usando .find()
       const mustRefetch =
         !presentationToUse ||
         presentationToUse.id !== presentationId ||
-        !presentationToUse.slides[slideIndex];
+        !presentationToUse.slides.find((s) => s.orderIndex === slideIndex);
 
       if (mustRefetch) {
         let reason = "Cache vazio";
@@ -64,7 +65,7 @@ export function SlideViewer({ data }: SlideViewerProps) {
           reason =
             presentationToUse.id !== presentationId
               ? "ID da apresentação mudou"
-              : "Índice do slide não encontrado no cache";
+              : "Índice do slide (orderIndex) não encontrado no cache";
         }
 
         setIsLoading(true);
@@ -76,8 +77,7 @@ export function SlideViewer({ data }: SlideViewerProps) {
           setError(err.message || "Erro ao buscar nova apresentação.");
           setPresentationData(null);
           setImageUrl(null);
-          setIsLoading(false);
-          return;
+          return; // Sai da função em caso de erro
         } finally {
           setIsLoading(false);
         }
@@ -88,33 +88,36 @@ export function SlideViewer({ data }: SlideViewerProps) {
       }
 
       if (presentationToUse && presentationToUse.slides) {
-        const targetSlide: Slide | undefined =
-          presentationToUse.slides[slideIndex];
+        // <-- MUDANÇA 2: Encontra o slide correto usando .find() com o orderIndex
+        const targetSlide: Slide | undefined = presentationToUse.slides.find(
+          (slide) => slide.orderIndex === slideIndex
+        );
 
         if (targetSlide) {
           console.log(
-            `Exibindo slide do índice ${slideIndex}. URL: ${targetSlide.cachedMediaUrl}`
+            `Exibindo slide com orderIndex ${slideIndex}. URL: ${targetSlide.cachedMediaUrl}`
           );
           setImageUrl(targetSlide.cachedMediaUrl);
         } else {
           console.error(
-            `ERRO CRÍTICO: Slide com índice ${slideIndex} não encontrado MESMO APÓS a requisição.`
+            `ERRO CRÍTICO: Slide com orderIndex ${slideIndex} não encontrado na apresentação.`
           );
-          setError(`Slide com índice ${slideIndex} não pôde ser encontrado.`);
+          setError(
+            `Slide com orderIndex ${slideIndex} não pôde ser encontrado.`
+          );
           setImageUrl(null);
         }
       }
     })();
   }, [data]);
 
+  // A parte de renderização permanece a mesma
   if (isLoading) {
     return <div style={styles.container}>Carregando...</div>;
   }
-
   if (error) {
     return <div style={styles.container}>Erro: {error}</div>;
   }
-
   if (imageUrl) {
     return (
       <div style={styles.container}>
@@ -126,7 +129,6 @@ export function SlideViewer({ data }: SlideViewerProps) {
       </div>
     );
   }
-
   return (
     <div style={styles.container}>Aguardando dados da apresentação...</div>
   );
