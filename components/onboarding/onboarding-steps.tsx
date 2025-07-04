@@ -16,6 +16,7 @@ import {
 import { StepContainer, SubmitButton } from "./ui-components";
 import { brazilianStates } from "@/app/utils/UFs/uf";
 import { useEffect, useRef, useState } from "react";
+import { searchCep } from "@/app/onboarding/actions";
 
 // Definição das Props (Interfaces)
 interface Step1Props {
@@ -333,7 +334,6 @@ const labelClasses = "block text-base font-semibold text-slate-700 mb-2";
 const inputClasses =
   "w-full p-3 text-lg text-slate-800 border-2 border-slate-300 rounded-md shadow-sm transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 overflow-hidden text-ellipsis whitespace-nowrap";
 
-// STEP de Registro
 export function Step_Register({
   onSubmit,
   state,
@@ -345,6 +345,13 @@ export function Step_Register({
   const [password, setPassword] = useState("");
   const [passwordAgain, setPasswordAgain] = useState("");
   const [allFieldsFilled, setAllFieldsFilled] = useState(false);
+  const [zipCode, setZipCode] = useState("");
+  const [street, setStreet] = useState("");
+  const [number, setNumber] = useState("");
+  const [neighborhood, setNeighborhood] = useState("");
+  const [city, setCity] = useState("");
+  const [addressState, setAddressState] = useState("");
+  const [isFetchingCep, setIsFetchingCep] = useState(false);
 
   function checkAllFields(e?: React.FormEvent<HTMLFormElement>) {
     let form: FormData;
@@ -364,6 +371,7 @@ export function Step_Register({
       "email",
       "phoneNumber",
       "street",
+      "number",
       "neighborhood",
       "city",
       "state",
@@ -393,13 +401,31 @@ export function Step_Register({
     onSubmit(values);
   }
 
+  // Função para lidar com a busca do CEP
+  const handleCepBlur = async (cep: string) => {
+    const cleanCep = cep.replace(/\D/g, "");
+    if (cleanCep.length !== 8) return;
+
+    setIsFetchingCep(true);
+    try {
+      const data = await searchCep(cleanCep);
+      if (data && !data.erro) {
+        setStreet(data.logradouro);
+        setNeighborhood(data.bairro);
+        setCity(data.localidade);
+        setAddressState(data.uf);
+        // ATUALIZADO: Foca no campo de número após preencher
+        document.getElementById("number")?.focus();
+      }
+    } catch (error) {
+      console.error("Falha ao buscar CEP", error);
+    } finally {
+      setIsFetchingCep(false);
+    }
+  };
+
   return (
     <StepContainer title="Complete seu Cadastro" icon={<UserPlus />}>
-      <p className="mb-8 text-center text-base text-gray-600">
-        Não localizamos seu cadastro. Por favor, preencha seus dados para se
-        tornar um membro.
-      </p>
-
       <form
         id="register-form"
         onSubmit={handleSubmit}
@@ -512,7 +538,6 @@ export function Step_Register({
             Endereço
           </h2>
           <input name="country" type="hidden" value="Brasil" />
-          <input name="zipCode" type="hidden" value="00000-000" />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label htmlFor="zipCode" className={labelClasses}>
@@ -524,11 +549,33 @@ export function Step_Register({
                 name="zipCode"
                 className={inputClasses}
                 required
+                value={zipCode}
+                onChange={(e) => setZipCode(e.target.value)}
+                onBlur={(e) => handleCepBlur(e.target.value)}
+              />
+              {isFetchingCep && (
+                <p className="text-sm text-blue-500">Buscando CEP...</p>
+              )}
+            </div>
+            {/* NOVO: Campo para o Número */}
+            <div>
+              <label htmlFor="number" className={labelClasses}>
+                Número
+              </label>
+              <input
+                id="number"
+                type="text"
+                name="number"
+                className={inputClasses}
+                required
+                value={number}
+                onChange={(e) => setNumber(e.target.value)}
               />
             </div>
-            <div>
+            {/* ATUALIZADO: Campo de Rua agora ocupa a linha inteira */}
+            <div className="md:col-span-2">
               <label htmlFor="street" className={labelClasses}>
-                Rua e Número
+                Rua
               </label>
               <input
                 id="street"
@@ -536,6 +583,8 @@ export function Step_Register({
                 name="street"
                 className={inputClasses}
                 required
+                value={street}
+                onChange={(e) => setStreet(e.target.value)}
               />
             </div>
             <div>
@@ -548,6 +597,8 @@ export function Step_Register({
                 name="neighborhood"
                 className={inputClasses}
                 required
+                value={neighborhood}
+                onChange={(e) => setNeighborhood(e.target.value)}
               />
             </div>
             <div>
@@ -560,6 +611,8 @@ export function Step_Register({
                 name="city"
                 className={inputClasses}
                 required
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
               />
             </div>
             <div>
@@ -570,7 +623,8 @@ export function Step_Register({
                 id="state"
                 name="state"
                 className={inputClasses}
-                defaultValue=""
+                value={addressState}
+                onChange={(e) => setAddressState(e.target.value)}
                 required
               >
                 <option value="" disabled>

@@ -43,6 +43,7 @@ export function useSignalRForWorship(worshipId: number | null) {
 
         // --- OUVINTE PARA LEITURA DA BÍBLIA ---
         connection.on("BibleReadingHighlighted", (data) => {
+          console.log(data);
           window.dispatchEvent(
             new CustomEvent("bibleReadingUpdated", { detail: data })
           );

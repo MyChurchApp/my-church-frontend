@@ -18,7 +18,31 @@ export interface FormState {
   };
 }
 
+// NOVO: Interface para o retorno da API de CEP
+export interface CepResponse {
+  cep: string;
+  logradouro: string;
+  complemento: string;
+  bairro: string;
+  localidade: string;
+  uf: string;
+  ibge: string;
+  gia: string;
+  ddd: string;
+  siafi: string;
+  erro?: boolean;
+}
+
 const API_BASE_URL = "https://demoapp.top1soft.com.br/api/Onboarding";
+
+// NOVO: Função para buscar o CEP
+export async function searchCep(cep: string): Promise<CepResponse> {
+  const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+  if (!response.ok) {
+    throw new Error("Erro ao buscar o CEP.");
+  }
+  return response.json();
+}
 
 // IDENTIFICAR MEMBRO
 export async function identifyMember({
@@ -71,6 +95,7 @@ export async function registerUser(form: any): Promise<FormState> {
     maritalStatus: z.string(),
     password: z.string().min(6, "A senha deve ter no mínimo 6 caracteres"),
     street: z.string().min(1, "Rua é obrigatória"),
+    number: z.string().min(1, "Número é obrigatório"),
     city: z.string().min(1, "Cidade é obrigatória"),
     state: z.string().min(1, "Estado é obrigatório"),
     zipCode: z.string().min(1, "CEP é obrigatório"),
@@ -93,6 +118,9 @@ export async function registerUser(form: any): Promise<FormState> {
     birthDate += "T00:00:00.000Z";
   }
 
+  // Junta a rua e o número para o payload da API
+  const streetAddress = `${parsed.data.street}, ${parsed.data.number}`;
+
   const payload = {
     churchId: Number(parsed.data.churchId),
     name: parsed.data.name,
@@ -103,7 +131,7 @@ export async function registerUser(form: any): Promise<FormState> {
     maritalStatus: parsed.data.maritalStatus,
     password: parsed.data.password,
     address: {
-      street: parsed.data.street,
+      street: streetAddress, // Envia rua e número concatenados
       city: parsed.data.city,
       state: parsed.data.state,
       zipCode: parsed.data.zipCode,
@@ -146,7 +174,6 @@ export async function registerUser(form: any): Promise<FormState> {
     };
   }
 }
-
 // VALIDAR DATA DE NASCIMENTO
 export async function validateBirthDate({
   identifier,
