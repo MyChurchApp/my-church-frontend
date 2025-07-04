@@ -103,7 +103,6 @@ export async function registerUser(form: any): Promise<FormState> {
     maritalStatus: parsed.data.maritalStatus,
     password: parsed.data.password,
     address: {
-      // Pode omitir "id", mas se precisar, envie id: 0,
       street: parsed.data.street,
       city: parsed.data.city,
       state: parsed.data.state,
@@ -128,9 +127,14 @@ export async function registerUser(form: any): Promise<FormState> {
       };
     } else {
       const errorData = await response.json();
+      const errorMessage =
+        errorData.errors?.User?.[0] ||
+        errorData.errors?.[Object.keys(errorData.errors)[0]]?.[0] ||
+        "Não foi possível realizar o cadastro.";
+
       return {
         status: "error",
-        message: errorData.errors || "Não foi possível realizar o cadastro.",
+        message: errorMessage,
         data: {},
       };
     }

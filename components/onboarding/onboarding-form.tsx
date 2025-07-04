@@ -148,6 +148,7 @@ export function OnboardingForm({ churchId }: { churchId: string }) {
             onSubmit={handleRegister}
             state={registerState}
             churchId={churchId}
+            cpf={contextData.identifier}
             loading={loading}
           />
         )}

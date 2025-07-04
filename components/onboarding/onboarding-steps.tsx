@@ -10,12 +10,14 @@ import {
   UserCheck,
   UserPlus,
   CalendarDays,
+  Smartphone,
+  FileText,
 } from "lucide-react";
 import { StepContainer, SubmitButton } from "./ui-components";
 import { brazilianStates } from "@/app/utils/UFs/uf";
 import { useEffect, useRef, useState } from "react";
 
-// STEP 1: Identificação
+// Definição das Props (Interfaces)
 interface Step1Props {
   onSubmit: (values: { identifier: string }) => void;
   state: any | null;
@@ -45,34 +47,90 @@ interface StepRegisterProps {
   loading?: boolean;
 }
 
+// Objeto para configurar os placeholders e tipos do input
+const identifierOptions = {
+  cpf: {
+    placeholder: "000.000.000-00",
+    type: "tel",
+    icon: <FileText className="w-5 h-5" />,
+    label: "CPF",
+  },
+  email: {
+    placeholder: "seu@email.com",
+    type: "email",
+    icon: <Mail className="w-5 h-5" />,
+    label: "E-mail",
+  },
+  phone: {
+    placeholder: "(00) 00000-0000",
+    type: "tel",
+    icon: <Smartphone className="w-5 h-5" />,
+    label: "Celular",
+  },
+};
+
+// STEP 1: Identificação
 export const Step1_Identify = ({
   onSubmit,
   state,
   churchId,
   loading,
 }: Step1Props) => {
+  const [identifierType, setIdentifierType] = useState<
+    "cpf" | "email" | "phone"
+  >("cpf");
+
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const identifier = (e.currentTarget.identifier as HTMLInputElement).value;
     onSubmit({ identifier });
   }
+
+  const selectedOption = identifierOptions[identifierType];
+
   return (
     <StepContainer title="Bem-vindo(a)!" icon={<UserCheck />}>
       <form onSubmit={handleSubmit} className="w-full space-y-8">
         <div>
+          <label className="block text-md font-semibold text-gray-700 mb-4 text-center">
+            Selecione como você quer iniciar:
+          </label>
+          <div className="flex justify-center items-center gap-2 mb-6">
+            {(
+              Object.keys(identifierOptions) as Array<
+                keyof typeof identifierOptions
+              >
+            ).map((key) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setIdentifierType(key)}
+                className={`flex items-center gap-2 py-2 px-4 rounded-full text-sm font-semibold transition-all duration-300 ${
+                  identifierType === key
+                    ? "bg-blue-600 text-white shadow-md"
+                    : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                }`}
+              >
+                {identifierOptions[key].icon}
+                {identifierOptions[key].label}
+              </button>
+            ))}
+          </div>
+
           <label
             htmlFor="identifier"
             className="block text-md font-semibold text-gray-700 mb-2 text-center"
           >
-            Digite seu CPF, E-Mail ou Celular para iniciar o cadastro
+            Digite seu {selectedOption.label} para iniciar o cadastro
           </label>
           <input
             id="identifier"
-            type="text"
+            type={selectedOption.type}
             name="identifier"
-            placeholder="000.000.000-00"
+            placeholder={selectedOption.placeholder}
             className="input-style w-full p-4 text-center text-xl tracking-wider border-2"
             required
+            key={identifierType}
           />
         </div>
         <input type="hidden" name="churchId" value={churchId} />
@@ -83,8 +141,11 @@ export const Step1_Identify = ({
                      hover:brightness-110 transform hover:-translate-y-1 transition-all duration-300"
           disabled={loading}
         />
+        {/* CORREÇÃO APLICADA AQUI */}
         {state?.status === "error" && (
-          <p className="error-message text-center">{state.message}</p>
+          <p className="mt-2 text-sm font-medium text-red-600 text-center">
+            {state.message}
+          </p>
         )}
       </form>
     </StepContainer>
@@ -92,7 +153,6 @@ export const Step1_Identify = ({
 };
 
 // STEP 2: Validação da data de nascimento
-
 export const Step2_Validate = ({
   onSubmit,
   state,
@@ -192,15 +252,18 @@ export const Step2_Validate = ({
             {loading ? "Validando..." : "Validar"}
           </button>
         </div>
+        {/* CORREÇÃO APLICADA AQUI */}
         {state?.status === "error" && (
-          <p className="error-message text-center p-4">{state.message}</p>
+          <p className="mt-2 text-sm font-medium text-red-600 text-center p-4">
+            {state.message}
+          </p>
         )}
       </form>
     </StepContainer>
   );
 };
-// STEP 3: Criação de senha
 
+// STEP 3: Criação de senha
 export const Step3_Password = ({
   onSubmit,
   state,
@@ -233,8 +296,11 @@ export const Step3_Password = ({
                      bg-[linear-gradient(45deg,rgba(30,64,175,.95),rgba(59,130,246,.95))]
                      hover:brightness-110 transform hover:-translate-y-1 transition-all duration-300"
         />
+        {/* CORREÇÃO APLICADA AQUI */}
         {state?.status === "error" && (
-          <p className="error-message">{state.message}</p>
+          <p className="mt-2 text-sm font-medium text-red-600 text-center">
+            {state.message}
+          </p>
         )}
       </form>
     </StepContainer>
@@ -267,30 +333,24 @@ const labelClasses = "block text-base font-semibold text-slate-700 mb-2";
 const inputClasses =
   "w-full p-3 text-lg text-slate-800 border-2 border-slate-300 rounded-md shadow-sm transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 overflow-hidden text-ellipsis whitespace-nowrap";
 
+// STEP de Registro
 export function Step_Register({
   onSubmit,
   state,
   churchId,
+  cpf,
   loading,
-}: {
-  onSubmit: (values: Record<string, string>) => void;
-  state: any;
-  churchId: string;
-  loading: boolean;
-}) {
+}: StepRegisterProps) {
   const [maritalStatus, setMaritalStatus] = useState("Solteiro");
   const [password, setPassword] = useState("");
   const [passwordAgain, setPasswordAgain] = useState("");
   const [allFieldsFilled, setAllFieldsFilled] = useState(false);
 
-  // Checagem dos campos obrigatórios
   function checkAllFields(e?: React.FormEvent<HTMLFormElement>) {
-    // Se não passar o evento, faz checagem no render inicial
     let form: FormData;
     if (e) {
       form = new FormData(e.currentTarget);
     } else {
-      // Busca pelo id do form
       const formElem = document.getElementById(
         "register-form"
       ) as HTMLFormElement | null;
@@ -311,7 +371,6 @@ export function Step_Register({
     ]) {
       if (!form.get(field)) filled = false;
     }
-    // Checa senha igual
     if (password.length < 6 || password !== passwordAgain) filled = false;
     setAllFieldsFilled(filled);
   }
@@ -347,6 +406,8 @@ export function Step_Register({
         className="space-y-8 max-h-[60vh] overflow-y-auto pr-2"
         autoComplete="off"
       >
+        {/* ... (Todo o resto do formulário permanece o mesmo) ... */}
+
         {/* Dados Pessoais */}
         <section className="space-y-6">
           <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-700 border-b pb-2">
@@ -376,6 +437,7 @@ export function Step_Register({
                 name="cpf"
                 className={inputClasses}
                 required
+                defaultValue={cpf}
               />
             </div>
             <div>
@@ -589,7 +651,9 @@ export function Step_Register({
           </button>
         </div>
         {state?.status === "error" && (
-          <p className="error-message text-center p-4">{state.message}</p>
+          <p className="mt-2 text-sm font-medium text-red-600 text-center p-4">
+            {state.message}
+          </p>
         )}
       </form>
     </StepContainer>
