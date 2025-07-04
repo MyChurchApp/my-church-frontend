@@ -112,9 +112,7 @@ export function SlideViewer({ data }: SlideViewerProps) {
   }, [data]);
 
   // A parte de renderização permanece a mesma
-  if (isLoading) {
-    return <div style={styles.container}>Carregando...</div>;
-  }
+
   if (error) {
     return <div style={styles.container}>Erro: {error}</div>;
   }
