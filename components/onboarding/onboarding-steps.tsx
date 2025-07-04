@@ -367,6 +367,7 @@ export function Step_Register({
       "neighborhood",
       "city",
       "state",
+      "zipCode",
       "password",
     ]) {
       if (!form.get(field)) filled = false;
@@ -406,9 +407,6 @@ export function Step_Register({
         className="space-y-8 max-h-[60vh] overflow-y-auto pr-2"
         autoComplete="off"
       >
-        {/* ... (Todo o resto do formulário permanece o mesmo) ... */}
-
-        {/* Dados Pessoais */}
         <section className="space-y-6">
           <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-700 border-b pb-2">
             <User size={20} className="text-blue-600" />
@@ -516,6 +514,18 @@ export function Step_Register({
           <input name="country" type="hidden" value="Brasil" />
           <input name="zipCode" type="hidden" value="00000-000" />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label htmlFor="zipCode" className={labelClasses}>
+                CEP
+              </label>
+              <input
+                id="zipCode"
+                type="text"
+                name="zipCode"
+                className={inputClasses}
+                required
+              />
+            </div>
             <div>
               <label htmlFor="street" className={labelClasses}>
                 Rua e Número
