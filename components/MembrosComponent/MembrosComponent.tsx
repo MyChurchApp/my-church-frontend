@@ -305,10 +305,16 @@ export function MembrosComponent({
                     </div>
                     <dl className="flex-1 space-y-2 text-sm border-t border-slate-200 pt-3">
                       <div className="flex justify-between gap-2">
-                        <dt className="text-slate-500">CPF:</dt>
-                        <dd className="font-medium text-slate-700">
-                          {formatDocument(member.document)}
-                        </dd>
+                        {member.email ? (
+                          <>
+                            <dt className="text-slate-500">Email:</dt>
+                            <dd className="font-medium text-slate-700">
+                              {member.email}
+                            </dd>
+                          </>
+                        ) : (
+                          ""
+                        )}
                       </div>
                       <div className="flex justify-between gap-2">
                         <dt className="text-slate-500">Telefone:</dt>

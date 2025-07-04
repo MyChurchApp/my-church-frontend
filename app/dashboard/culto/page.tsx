@@ -8,7 +8,6 @@ import React, {
   Suspense,
 } from "react";
 import { useSearchParams } from "next/navigation";
-// Adicione a importação do useQueryClient
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Loader2,
@@ -18,7 +17,7 @@ import {
   Zap,
   Heart,
   HandHeart,
-  Bell, // Ícone para o aviso
+  Bell,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -26,7 +25,6 @@ import {
   bibleService,
   type BibleVerse,
   type Hymn,
-  // Certifique-se de que o tipo PrayerRequest está exportado do seu serviço
   type PrayerRequest,
 } from "@/services/worship/worship";
 import { useSignalRForWorship } from "@/hooks/useSignalRForWorship";
@@ -36,7 +34,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from "@/components/ui/dialog";
 import DonationContainer from "@/containers/donation/donationContainer";
 import { Button } from "@/components/ui/button";
@@ -44,7 +41,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-// --- Estilos e Tipos (sem alterações) ---
 const styles = `
   body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
   .highlighted-part { background-color: #FEFCE8; color: #374151; border-left: 5px solid #FACC15; transform: scale(1.02); transition: all 0.4s ease-in-out; }
@@ -115,6 +111,7 @@ const LiveReadingDisplay = ({
     </motion.div>
   );
 };
+
 const LiveHymnDisplay = ({
   hymn,
   highlightedPartKey,
@@ -196,6 +193,7 @@ const LiveHymnDisplay = ({
     </motion.div>
   );
 };
+
 const WaitingDisplay = () => (
   <motion.div
     initial={{ opacity: 0, scale: 0.9 }}
@@ -213,12 +211,14 @@ const WaitingDisplay = () => (
     </div>
   </motion.div>
 );
+
 const LoadingDisplay = ({ text }: { text: string }) => (
   <div className="flex flex-col items-center justify-center h-full text-center">
     <Loader2 className="h-12 w-12 animate-spin text-blue-500" />
     <h2 className="mt-4 text-2xl text-gray-700">{text}</h2>
   </div>
 );
+
 const ConnectionBadge = ({ isConnected }: { isConnected: boolean }) => (
   <Badge
     variant={isConnected ? "default" : "destructive"}
@@ -228,6 +228,7 @@ const ConnectionBadge = ({ isConnected }: { isConnected: boolean }) => (
     {isConnected ? "Conectado" : "Desconectado"}
   </Badge>
 );
+
 function isOnlyVerseChanged(
   before: BibleTransmission | null,
   now: BibleTransmission

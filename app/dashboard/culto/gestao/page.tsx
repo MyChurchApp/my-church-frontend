@@ -883,10 +883,24 @@ function WorshipControlPanel({
 
   return (
     <div className="space-y-6">
+      <Button variant="outline" onClick={onBack} className="">
+        <ChevronLeft className="h-4 w-4" /> Voltar
+      </Button>
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4 px-4 sm:px-6 lg:px-8 pt-6">
-        <Button variant="outline" onClick={onBack} className="w-full sm:w-auto">
-          <ChevronLeft className="mr-2 h-4 w-4" /> Voltar para a lista
-        </Button>
+        <a
+          href={`/slide?id=${worshipId}`}
+          onClick={(e) => {
+            e.preventDefault();
+            window.open(
+              `/slide?id=${worshipId}`,
+              "_blank",
+              "width=800,height=600"
+            );
+          }}
+          className="inline-block px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 transition-colors duration-200"
+        >
+          Apresentar
+        </a>
         <CardContent className="text-center mt-2">
           {!isOffering ? (
             <Button
