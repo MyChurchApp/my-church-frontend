@@ -1,26 +1,28 @@
 "use client";
 
-import React, { useRef, useCallback, useEffect, useState } from "react";
+import React, {
+  Suspense,
+  useRef,
+  useCallback,
+  useEffect,
+  useState,
+} from "react";
 import { useSignalRForWorship } from "@/hooks/useSignalRForWorship";
 import { useSearchParams } from "next/navigation";
-import { SlideViewer } from "./components/SliderViewer"; // Verifique o caminho da importação
+import { SlideViewer } from "./components/SliderViewer"; // verifique o caminho!
 
 interface SlideData {
   presentationId: number;
   slideIndex: number;
 }
 
-export default function SlidePage() {
+function SlidePageInner() {
   const pageRef = useRef<HTMLDivElement>(null);
   const params = useSearchParams();
   const id = params.get("id");
-
-  // <-- MUDANÇA: Unificamos os dois estados em apenas um.
   const [activeSlide, setActiveSlide] = useState<SlideData | null>(null);
-
   const { isConnected } = useSignalRForWorship(Number(id));
 
-  // O resto dos hooks (useEffect, useCallback) para fullscreen e teclado permanecem iguais...
   const enterFullscreen = useCallback(() => {
     const elem = pageRef.current;
     if (elem) elem.requestFullscreen?.();
@@ -44,25 +46,15 @@ export default function SlidePage() {
   }, [enterFullscreen, exitFullscreen]);
 
   useEffect(() => {
-    // <-- MUDANÇA: Os handlers agora atualizam o mesmo estado 'activeSlide'.
     const handleBibleReading = (event: Event) => {
       const customEvent = event as CustomEvent<SlideData>;
-      // Esta linha substitui QUALQUER COISA que estava no estado 'activeSlide'
       setActiveSlide(customEvent.detail);
     };
-
     const handleHymn = (event: Event) => {
       const customEvent = event as CustomEvent<SlideData>;
-      // Esta linha também substitui QUALQUER COISA que estava no estado 'activeSlide'
       setActiveSlide(customEvent.detail);
     };
-
-    // <-- MUDANÇA: Adicionamos uma lógica para limpar a tela.
-    const handleAdminNotice = (event: Event) => {
-      // Exemplo: um evento de aviso pode ser usado para limpar a tela.
-      console.log("🔔 [SlidePage] Evento de aviso recebido, limpando a tela.");
-      setActiveSlide(null);
-    };
+    const handleAdminNotice = () => setActiveSlide(null);
 
     window.addEventListener("bibleReadingUpdated", handleBibleReading);
     window.addEventListener("HymnPresented", handleHymn);
@@ -73,7 +65,7 @@ export default function SlidePage() {
       window.removeEventListener("HymnPresented", handleHymn);
       window.removeEventListener("adminNoticeReceived", handleAdminNotice);
     };
-  }, []); // O array de dependências vazio está correto.
+  }, []);
 
   useEffect(() => {
     pageRef.current?.focus();
@@ -118,5 +110,14 @@ export default function SlidePage() {
         </div>
       )}
     </div>
+  );
+}
+
+// Aqui está o ponto da correção: exporta já com <Suspense>
+export default function SlidePage() {
+  return (
+    <Suspense fallback={null}>
+      <SlidePageInner />
+    </Suspense>
   );
 }
