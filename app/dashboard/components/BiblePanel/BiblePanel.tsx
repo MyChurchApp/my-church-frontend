@@ -252,23 +252,23 @@ export default function BiblePanel({
       </CardContent>
 
       <CardFooter className="p-0 mt-4 flex-shrink-0">
-        <div className="flex flex-col md:flex-row items-center justify-center w-full gap-3">
+        <div className="flex items-stretch justify-center w-full gap-2">
           <Button
             variant="outline"
             size="lg"
             onClick={() => handleNavigation("prev")}
             disabled={!canGoPrev || isBroadcasting}
-            className="w-full"
+            className="px-3 md:px-4"
           >
-            <ChevronLeft className="h-5 w-5 mr-2" />
-            <span>Anterior</span>
+            <ChevronLeft className="h-5 w-5" />
+            <span className="ml-2 hidden md:inline">Anterior</span>
           </Button>
 
           <Button
             size="lg"
             onClick={() => selectedVerse && transmitVerse(selectedVerse)}
             disabled={!selectedVerse || isBroadcasting}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+            className="w-full flex-grow bg-blue-600 hover:bg-blue-700 text-white"
           >
             {isBroadcasting && (
               <Loader2 className="mr-2 h-5 w-5 animate-spin" />
@@ -281,9 +281,9 @@ export default function BiblePanel({
             size="lg"
             onClick={() => handleNavigation("next")}
             disabled={!canGoNext || isBroadcasting}
-            className="w-full"
+            className="px-3 md:px-4"
           >
-            <span className="mr-2">Próximo</span>
+            <span className="mr-2 hidden md:inline">Próximo</span>
             <ChevronRight className="h-5 w-5" />
           </Button>
         </div>

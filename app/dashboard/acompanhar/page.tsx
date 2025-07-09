@@ -41,6 +41,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
+// --- ESTILOS E TIPOS (sem alterações) ---
 const styles = `
   body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
   .highlighted-part { background-color: #FEFCE8; color: #374151; border-left: 5px solid #FACC15; transform: scale(1.02); transition: all 0.4s ease-in-out; }
@@ -63,7 +64,7 @@ type BibleTransmission = {
   verseId: number;
 };
 
-// --- Componentes de Exibição (sem alterações) ---
+// --- COMPONENTES DE EXIBIÇÃO (sem alterações) ---
 const LiveReadingDisplay = ({
   readingState,
 }: {
@@ -111,7 +112,6 @@ const LiveReadingDisplay = ({
     </motion.div>
   );
 };
-
 const LiveHymnDisplay = ({
   hymn,
   highlightedPartKey,
@@ -193,7 +193,6 @@ const LiveHymnDisplay = ({
     </motion.div>
   );
 };
-
 const WaitingDisplay = () => (
   <motion.div
     initial={{ opacity: 0, scale: 0.9 }}
@@ -211,14 +210,12 @@ const WaitingDisplay = () => (
     </div>
   </motion.div>
 );
-
 const LoadingDisplay = ({ text }: { text: string }) => (
   <div className="flex flex-col items-center justify-center h-full text-center">
     <Loader2 className="h-12 w-12 animate-spin text-blue-500" />
     <h2 className="mt-4 text-2xl text-gray-700">{text}</h2>
   </div>
 );
-
 const ConnectionBadge = ({ isConnected }: { isConnected: boolean }) => (
   <Badge
     variant={isConnected ? "default" : "destructive"}
@@ -229,6 +226,7 @@ const ConnectionBadge = ({ isConnected }: { isConnected: boolean }) => (
   </Badge>
 );
 
+// --- FUNÇÃO HELPER (sem alterações) ---
 function isOnlyVerseChanged(
   before: BibleTransmission | null,
   now: BibleTransmission
@@ -243,6 +241,7 @@ function isOnlyVerseChanged(
   );
 }
 
+// --- COMPONENTE PRINCIPAL (COM AS CORREÇÕES) ---
 function WorshipClient({
   worshipIdFromUrl,
 }: {
@@ -260,22 +259,22 @@ function WorshipClient({
   }>({});
   const [isLoadingContent, setIsLoadingContent] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [lastTransmission, setLastTransmission] =
-    useState<BibleTransmission | null>(null);
   const [showOfferingModal, setShowOfferingModal] = useState(false);
   const [isOfferingActive, setIsOfferingActive] = useState(false);
   const [showPrayerRequestModal, setShowPrayerRequestModal] = useState(false);
   const [newPrayerRequestText, setNewPrayerRequestText] = useState("");
-
-  // --- ✅ 1. ESTADO PARA O NOVO MODAL DE AVISO ---
   const [showAdminNoticeModal, setShowAdminNoticeModal] = useState(false);
   const [adminNoticeData, setAdminNoticeData] = useState<{
     message: string;
     imageBase64?: string;
   } | null>(null);
 
+  // ✅ CORREÇÃO 2: A ref agora guarda a última transmissão para evitar o bug de estado "velho"
+  const lastTransmissionRef = useRef<BibleTransmission | null>(null);
+
   const queryClient = useQueryClient();
 
+  // Busca o culto ativo se nenhum ID for passado na URL
   const { data: activeWorship, isLoading: isLoadingWorship } = useQuery({
     queryKey: ["active-worship-service"],
     queryFn: () => worshipService.findActiveWorshipService(),
@@ -288,6 +287,7 @@ function WorshipClient({
     : activeWorship?.id ?? null;
   const { isConnected } = useSignalRForWorship(worshipId);
 
+  // Busca os pedidos de oração
   const { data: allPrayerRequests = [] } = useQuery<PrayerRequest[]>({
     queryKey: ["prayer-requests", worshipId],
     queryFn: () => worshipService.getPrayerRequests(worshipId!),
@@ -313,9 +313,8 @@ function WorshipClient({
           queryKey: ["prayer-requests", worshipId],
         });
       },
-      onError: (err: any) => {
-        alert(`Erro ao enviar pedido de oração: ${err.message}`);
-      },
+      onError: (err: any) =>
+        alert(`Erro ao enviar pedido de oração: ${err.message}`),
     });
 
   const handleSendPrayerRequest = () => {
@@ -326,6 +325,7 @@ function WorshipClient({
   const handleReadingUpdate = useCallback(
     async (event: Event) => {
       if (!(event instanceof CustomEvent)) return;
+      setIsLoadingContent(true);
       const {
         activityId,
         versionId,
@@ -343,15 +343,17 @@ function WorshipClient({
         chapterId,
         verseId,
       };
-      if (isOnlyVerseChanged(lastTransmission, now)) {
+
+      // ✅ CORREÇÃO 2: A verificação agora usa a ref, que sempre tem o valor mais atualizado.
+      if (isOnlyVerseChanged(lastTransmissionRef.current, now)) {
         setLiveReading((prev) =>
           prev ? { ...prev, highlightedVerseId: verseId } : prev
         );
-        setLastTransmission(now);
+        lastTransmissionRef.current = now; // Atualiza a ref com a nova transmissão
+        setIsLoadingContent(false);
         return;
       }
 
-      setIsLoadingContent(true);
       try {
         let verses: BibleVerse[];
         if (cachedVerses[chapterId]) {
@@ -369,27 +371,25 @@ function WorshipClient({
         });
         setDisplayMode("bible");
         setError(null);
-        setLastTransmission(now);
+        lastTransmissionRef.current = now; // Atualiza a ref
       } catch (err: any) {
         setError("Falha ao carregar texto bíblico: " + err.message);
       } finally {
         setIsLoadingContent(false);
       }
     },
-    [lastTransmission, cachedVerses]
+    [cachedVerses]
   );
 
   const handleHymnUpdate = useCallback(
     (event: Event) => {
       if (!(event instanceof CustomEvent)) return;
-
       const { hymn, verseFocus } = event.detail;
 
       if (!hymn || !hymn.verses) {
         setError("Dados do hino inválidos.");
         return;
       }
-
       setLiveHymn(hymn as Hymn);
       setDisplayMode("hymn");
 
@@ -401,42 +401,29 @@ function WorshipClient({
       } else {
         setHighlightedPartKey(null);
       }
-
       setError(null);
     },
     [lastFocusedVerse]
   );
 
-  const handleOfferingPresent = useCallback(
-    () => setIsOfferingActive(true),
-    []
-  );
-  const handleOfferingFinish = useCallback(
-    () => setIsOfferingActive(false),
-    []
-  );
-
-  // --- ✅ 2. LOCAL CORRETO PARA O USEEFFECT DO AVISO ---
   useEffect(() => {
-    const handlePrayerReceived = () => {
+    const handlePrayerReceived = () =>
       queryClient.invalidateQueries({
         queryKey: ["prayer-requests", worshipId],
       });
-    };
-
-    // Este é o novo "ouvinte" para o aviso
     const handleAdminNotice = (event: Event) => {
       const notice = (event as CustomEvent).detail;
       setAdminNoticeData(notice);
       setShowAdminNoticeModal(true);
     };
+    const handleOfferingPresent = () => setIsOfferingActive(true);
+    const handleOfferingFinish = () => setIsOfferingActive(false);
 
     window.addEventListener("bibleReadingUpdated", handleReadingUpdate);
     window.addEventListener("HymnPresented", handleHymnUpdate);
     window.addEventListener("OfferingPresented", handleOfferingPresent);
     window.addEventListener("OfferingFinished", handleOfferingFinish);
     window.addEventListener("prayerRequestReceived", handlePrayerReceived);
-    // Adiciona o novo ouvinte aqui
     window.addEventListener("adminNoticeReceived", handleAdminNotice);
 
     return () => {
@@ -445,17 +432,9 @@ function WorshipClient({
       window.removeEventListener("OfferingPresented", handleOfferingPresent);
       window.removeEventListener("OfferingFinished", handleOfferingFinish);
       window.removeEventListener("prayerRequestReceived", handlePrayerReceived);
-      // Remove o novo ouvinte aqui
       window.removeEventListener("adminNoticeReceived", handleAdminNotice);
     };
-  }, [
-    worshipId,
-    queryClient,
-    handleReadingUpdate,
-    handleHymnUpdate,
-    handleOfferingPresent,
-    handleOfferingFinish,
-  ]);
+  }, [worshipId, queryClient, handleReadingUpdate, handleHymnUpdate]);
 
   const renderContent = () => {
     if (error)
@@ -478,6 +457,7 @@ function WorshipClient({
       return <LoadingDisplay text="Conectando à transmissão..." />;
     if (isLoadingContent)
       return <LoadingDisplay text="Carregando conteúdo..." />;
+
     return (
       <AnimatePresence mode="wait">
         {displayMode === "bible" && liveReading && (
@@ -500,13 +480,11 @@ function WorshipClient({
       <div className="absolute top-4 right-4 z-20">
         <ConnectionBadge isConnected={isConnected} />
       </div>
-
       <div className="flex-grow w-full flex flex-col items-center justify-center p-4 pt-20 pb-32">
         <div className="w-full flex-grow flex items-center justify-center">
           {renderContent()}
         </div>
       </div>
-
       <div className="sticky bottom-0 left-0 right-0 z-30 border-t bg-white/90 p-3 backdrop-blur-sm">
         <div className="container mx-auto max-w-md grid grid-cols-2 items-center gap-3">
           <Button
@@ -530,8 +508,6 @@ function WorshipClient({
           </Button>
         </div>
       </div>
-
-      {/* MODAL DE DOAÇÃO */}
       <Dialog open={showOfferingModal} onOpenChange={setShowOfferingModal}>
         <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] overflow-y-auto p-6">
           <Suspense fallback={<LoadingDisplay text="Carregando doações..." />}>
@@ -539,8 +515,6 @@ function WorshipClient({
           </Suspense>
         </DialogContent>
       </Dialog>
-
-      {/* MODAL DE ORAÇÃO */}
       <Dialog
         open={showPrayerRequestModal}
         onOpenChange={setShowPrayerRequestModal}
@@ -603,8 +577,6 @@ function WorshipClient({
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* --- ✅ 3. NOVO MODAL PARA EXIBIR O AVISO --- */}
       <Dialog
         open={showAdminNoticeModal}
         onOpenChange={setShowAdminNoticeModal}
@@ -642,10 +614,10 @@ function WorshipClient({
   );
 }
 
-// --- Componente de Página (sem alterações) ---
+// --- Componente de Página (Wrapper) ---
 function AcompanharCultoPageContent() {
   const searchParams = useSearchParams();
-  const worshipIdFromUrl = searchParams.get("worshipId");
+  const worshipIdFromUrl = searchParams.get("id"); // Ajustado para `id` conforme o padrão
   return <WorshipClient worshipIdFromUrl={worshipIdFromUrl} />;
 }
 
