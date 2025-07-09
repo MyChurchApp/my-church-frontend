@@ -9,13 +9,13 @@ import React, {
 } from "react";
 import { useSignalRForWorship } from "@/hooks/useSignalRForWorship";
 import { useSearchParams } from "next/navigation";
-
+import {
+  getPresentationById,
+  type Presentation,
+  type Slide,
+} from "../../services/presentation/presentation"; // Ajuste o caminho se necessário
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2 } from "lucide-react";
-import {
-  Presentation,
-  getPresentationById,
-} from "@/services/presentation/presentation";
 
 // --- Tipos de Dados ---
 interface SlidePointer {
@@ -23,73 +23,90 @@ interface SlidePointer {
   slideIndex: number; // Corresponde ao 'orderIndex' do backend
 }
 
-// --- Componente Visualizador de Slide (Unificado) ---
+// --- Componente Visualizador de Slide (Otimizado) ---
 function SlideViewer({ slidePointer }: { slidePointer: SlidePointer | null }) {
-  const [currentSlideUrl, setCurrentSlideUrl] = useState<string | null>(null);
+  const [currentSlide, setCurrentSlide] = useState<Slide | null>(null);
   const [presentationCache, setPresentationCache] =
     useState<Presentation | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Efeito para pré-carregar a imagem do próximo slide
   useEffect(() => {
-    const fetchAndDisplaySlide = async () => {
+    if (!presentationCache || !currentSlide) return;
+
+    const currentIndex = presentationCache.slides.findIndex(
+      (s) => s.id === currentSlide.id
+    );
+    if (
+      currentIndex !== -1 &&
+      currentIndex + 1 < presentationCache.slides.length
+    ) {
+      const nextSlide = presentationCache.slides[currentIndex + 1];
+      if (nextSlide?.cachedMediaUrl) {
+        const img = new Image();
+        img.src = nextSlide.cachedMediaUrl;
+      }
+    }
+  }, [currentSlide, presentationCache]);
+
+  useEffect(() => {
+    const fetchSlide = async () => {
       if (!slidePointer) {
-        setCurrentSlideUrl(null);
+        setCurrentSlide(null);
         setIsLoading(false);
         return;
       }
 
-      const { presentationId, slideIndex } = slidePointer;
-      setIsLoading(true);
+      // Não mostra o loading para trocas de slide, apenas na carga inicial de uma nova apresentação.
+      if (
+        !presentationCache ||
+        presentationCache.id !== slidePointer.presentationId
+      ) {
+        setIsLoading(true);
+      }
       setError(null);
 
       try {
-        let presentationToUse = presentationCache;
-
-        // Se a apresentação em cache não existe ou o ID mudou, busca uma nova.
-        if (!presentationToUse || presentationToUse.id !== presentationId) {
-          const newPresentationData = await getPresentationById(presentationId);
-          setPresentationCache(newPresentationData);
-          presentationToUse = newPresentationData;
+        let presentation = presentationCache;
+        if (!presentation || presentation.id !== slidePointer.presentationId) {
+          presentation = await getPresentationById(slidePointer.presentationId);
+          setPresentationCache(presentation);
         }
 
-        if (presentationToUse?.slides) {
-          let targetSlide = presentationToUse.slides.find(
-            (s) => s.orderIndex === slideIndex
+        const slide = presentation.slides.find(
+          (s) => s.orderIndex === slidePointer.slideIndex
+        );
+
+        if (slide) {
+          setCurrentSlide(slide);
+        } else {
+          // Se o slide não for encontrado, a apresentação pode ter sido atualizada.
+          // Força uma nova busca.
+          const freshPresentation = await getPresentationById(
+            slidePointer.presentationId
           );
-
-          // Se o slide não foi encontrado, a apresentação pode ter sido atualizada no backend.
-          // Busca os dados novamente para garantir que temos a lista de slides mais recente.
-          if (!targetSlide) {
-            const freshPresentationData = await getPresentationById(
-              presentationId
-            );
-            setPresentationCache(freshPresentationData);
-            targetSlide = freshPresentationData.slides.find(
-              (s) => s.orderIndex === slideIndex
-            );
-          }
-
-          if (targetSlide) {
-            setCurrentSlideUrl(targetSlide.cachedMediaUrl);
+          setPresentationCache(freshPresentation);
+          const freshSlide = freshPresentation.slides.find(
+            (s) => s.orderIndex === slidePointer.slideIndex
+          );
+          if (freshSlide) {
+            setCurrentSlide(freshSlide);
           } else {
             throw new Error(
-              `Slide com índice ${slideIndex} não foi encontrado na apresentação.`
+              `Slide com índice ${slidePointer.slideIndex} não encontrado.`
             );
           }
-        } else {
-          throw new Error("Apresentação carregada não contém slides.");
         }
       } catch (err: any) {
-        setError(err.message || "Erro ao carregar o slide.");
-        setCurrentSlideUrl(null);
+        setError(err.message || "Erro ao carregar slide.");
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchAndDisplaySlide();
-  }, [slidePointer, presentationCache]); // Depende do cache para re-avaliar
+    fetchSlide();
+  }, [slidePointer]);
 
   if (isLoading) {
     return <Loader2 className="h-12 w-12 animate-spin text-white" />;
@@ -101,25 +118,27 @@ function SlideViewer({ slidePointer }: { slidePointer: SlidePointer | null }) {
       </div>
     );
   }
-  if (currentSlideUrl) {
-    return (
-      <motion.div
-        key={currentSlideUrl} // A chave é a URL da imagem para garantir a animação na troca
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.4 }}
-        className="w-full h-full"
-      >
-        <img
-          src={currentSlideUrl}
-          alt={`Slide`}
-          className="w-full h-full object-contain"
-        />
-      </motion.div>
-    );
-  }
 
-  return <div className="text-white text-2xl">Aguardando apresentação...</div>;
+  return (
+    <AnimatePresence>
+      {currentSlide?.cachedMediaUrl && (
+        <motion.div
+          key={currentSlide.id}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.3 }}
+          className="absolute w-full h-full"
+        >
+          <img
+            src={currentSlide.cachedMediaUrl}
+            alt={`Slide ${currentSlide.orderIndex}`}
+            className="w-full h-full object-contain"
+          />
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
 }
 
 // --- Componente Principal da Página ---
@@ -127,11 +146,8 @@ function SlidePageInner() {
   const pageRef = useRef<HTMLDivElement>(null);
   const params = useSearchParams();
   const id = params.get("id");
-
-  // O estado agora é unificado para apontar para um slide específico
   const [activeSlidePointer, setActiveSlidePointer] =
     useState<SlidePointer | null>(null);
-
   const { isConnected } = useSignalRForWorship(Number(id));
 
   const toggleFullscreen = useCallback(() => {
@@ -143,66 +159,44 @@ function SlidePageInner() {
   }, []);
 
   useEffect(() => {
-    // Função para tratar o evento de leitura da Bíblia
-    const handleBibleReading = (event: Event) => {
-      const customEvent = event as CustomEvent<{
-        presentationId: number;
-        slideIndex: number;
-      }>;
-      if (customEvent.detail) {
-        setActiveSlidePointer({
-          presentationId: customEvent.detail.presentationId,
-          slideIndex: customEvent.detail.slideIndex,
-        });
+    const handleSlideUpdate = (event: Event) => {
+      const customEvent = event as CustomEvent<any>;
+      const detail = customEvent.detail;
+
+      if (detail && typeof detail.presentationId === "number") {
+        const slideIndex =
+          typeof detail.slideIndex === "number"
+            ? detail.slideIndex
+            : detail.currentSlideIndex;
+        if (typeof slideIndex === "number") {
+          setActiveSlidePointer({
+            presentationId: detail.presentationId,
+            slideIndex: slideIndex,
+          });
+        }
       }
     };
 
-    // Função para tratar o evento de apresentação do Hino
-    const handleHymn = (event: Event) => {
-      const customEvent = event as CustomEvent<{
-        presentationId: number;
-        currentSlideIndex: number;
-      }>;
-      if (customEvent.detail) {
-        setActiveSlidePointer({
-          presentationId: customEvent.detail.presentationId,
-          slideIndex: customEvent.detail.currentSlideIndex, // Usa o campo correto do evento de hino
-        });
-      }
-    };
-
-    window.addEventListener("bibleReadingUpdated", handleBibleReading);
-    window.addEventListener("HymnPresented", handleHymn);
+    window.addEventListener("bibleReadingUpdated", handleSlideUpdate);
+    window.addEventListener("HymnPresented", handleSlideUpdate);
 
     return () => {
-      window.removeEventListener("bibleReadingUpdated", handleBibleReading);
-      window.removeEventListener("HymnPresented", handleHymn);
+      window.removeEventListener("bibleReadingUpdated", handleSlideUpdate);
+      window.removeEventListener("HymnPresented", handleSlideUpdate);
     };
   }, []);
 
   return (
     <div
       ref={pageRef}
-      className="bg-black w-screen h-screen flex items-center justify-center cursor-pointer select-none outline-none"
+      className="bg-black w-screen h-screen flex items-center justify-center cursor-pointer select-none outline-none relative"
       tabIndex={0}
       onClick={toggleFullscreen}
     >
-      <AnimatePresence mode="wait">
-        <div
-          key={
-            activeSlidePointer
-              ? activeSlidePointer.presentationId +
-                "-" +
-                activeSlidePointer.slideIndex
-              : "waiting"
-          }
-          className="w-full h-full flex items-center justify-center"
-        >
-          <SlideViewer slidePointer={activeSlidePointer} />
-        </div>
-      </AnimatePresence>
+      <SlideViewer slidePointer={activeSlidePointer} />
+
       {!activeSlidePointer && (
-        <div className="text-center text-white absolute">
+        <div className="text-center text-white z-10">
           <p className="text-2xl">Aguardando o início da apresentação...</p>
           <div className="mt-4">
             <span

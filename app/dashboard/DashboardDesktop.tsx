@@ -1,7 +1,7 @@
 "use client";
 
+import React, { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
 import {
   getChurchDashboardStats,
   type ChurchDashboardStats,
@@ -70,67 +70,41 @@ export function DashboardDesktop() {
     retry: false,
   });
 
+  // ✅ FUNÇÃO CORRIGIDA E SIMPLIFICADA
   const getBirthdayMessage = (member: BirthdayMember) => {
-    if (!member.birthDate) return "Informação de aniversário indisponível";
+    if (!member.birthDate) return "Data de aniversário indisponível";
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     const birthDate = new Date(member.birthDate);
-    birthDate.setHours(0, 0, 0, 0);
 
-    let nextBirthday = new Date(
-      today.getFullYear(),
-      birthDate.getMonth(),
-      birthDate.getDate()
-    );
-    if (
-      today.getMonth() > birthDate.getMonth() ||
-      (today.getMonth() === birthDate.getMonth() &&
-        today.getDate() > birthDate.getDate())
-    ) {
-      nextBirthday.setFullYear(today.getFullYear() + 1);
-    }
-
-    // Data do aniversário deste ano (pode ser passado)
+    // Calcula a data do aniversário neste ano
     const birthdayThisYear = new Date(
       today.getFullYear(),
       birthDate.getMonth(),
       birthDate.getDate()
     );
+    birthdayThisYear.setHours(0, 0, 0, 0);
 
+    // Calcula a diferença de dias em relação a hoje
     const msInDay = 1000 * 60 * 60 * 24;
     const diffDays = Math.round(
       (birthdayThisYear.getTime() - today.getTime()) / msInDay
     );
 
-    const weekDay = today.getDay() || 7;
-    const weekStart = new Date(today);
-    weekStart.setDate(today.getDate() - (weekDay - 1));
-    weekStart.setHours(0, 0, 0, 0);
-    const weekEnd = new Date(weekStart);
-    weekEnd.setDate(weekStart.getDate() + 6);
+    const age = today.getFullYear() - birthDate.getFullYear();
 
-    if (birthdayThisYear >= weekStart && birthdayThisYear <= weekEnd) {
-      if (diffDays === 0)
-        return `🎉 HOJE É ANIVERSÁRIO! Fazendo ${
-          today.getFullYear() - birthDate.getFullYear()
-        } anos`;
-      if (diffDays === -1)
-        return `Fez aniversário ontem (fez ${
-          today.getFullYear() - birthDate.getFullYear()
-        } anos)`;
-      if (diffDays < 0)
-        return `Foi aniversário há ${Math.abs(diffDays)} dias (fez ${
-          today.getFullYear() - birthDate.getFullYear()
-        } anos)`;
-      if (diffDays > 0)
-        return `🎁 Faltam ${diffDays} dias para o aniversário (${
-          today.getFullYear() - birthDate.getFullYear()
-        } anos)`;
-    }
+    if (diffDays === 0) return `🎉 HOJE É ANIVERSÁRIO! Fazendo ${age} anos`;
+    if (diffDays === -1) return `Fez aniversário ontem (${age} anos)`;
+    if (diffDays < -1)
+      return `Fez aniversário há ${Math.abs(diffDays)} dias (${age} anos)`;
+    if (diffDays === 1)
+      return `🎁 Falta 1 dia para o aniversário (${age + 1} anos)`;
+    if (diffDays > 1)
+      return `🎁 Faltam ${diffDays} dias para o aniversário (${age + 1} anos)`;
 
-    return null;
+    return ""; // Caso não se encaixe em nenhuma condição
   };
 
   return (
@@ -183,7 +157,7 @@ export function DashboardDesktop() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  R$
+                  R${" "}
                   {stats.currentBalance.toLocaleString("pt-BR", {
                     minimumFractionDigits: 2,
                   })}
@@ -241,7 +215,7 @@ export function DashboardDesktop() {
           )}
 
           {!birthdaysError && birthdays.length > 0 && (
-            <Card>
+            <Card className="mt-1">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Gift className="h-5 w-5" /> Aniversários da Semana
@@ -249,26 +223,35 @@ export function DashboardDesktop() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {birthdays.map((member) => (
-                    <div key={member.id} className="flex items-center gap-4">
-                      <Avatar>
-                        <AvatarImage
-                          src={member.photo || undefined}
-                          alt={member.name}
-                        />
-                        <AvatarFallback>{member.name[0]}</AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1">
-                        <p className="font-medium text-gray-900">
-                          {member.name}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {getBirthdayMessage(member)}
-                        </p>
+                  {birthdays.map((member) => {
+                    const message = getBirthdayMessage(member);
+                    const isToday = message?.includes("HOJE");
+
+                    return (
+                      <div key={member.id} className="flex items-center gap-4">
+                        <Avatar>
+                          <AvatarImage
+                            src={member.photo || undefined}
+                            alt={member.name}
+                          />
+                          <AvatarFallback>{member.name[0]}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                          <p className="font-medium text-gray-900">
+                            {member.name}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {message}
+                          </p>
+                        </div>
+                        {isToday && (
+                          <Badge className="bg-transparent text-2xl p-0">
+                            🎉
+                          </Badge>
+                        )}
                       </div>
-                      {member.isToday && <Badge>🎉</Badge>}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
