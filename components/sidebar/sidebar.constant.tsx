@@ -48,10 +48,14 @@ export const rawMenu: MenuItem[] = [
     href: "/dashboard/culto",
     accessLevel: "member",
     subItems: [
-      { label: "Acompanhar", href: "/dashboard/culto", accessLevel: "member" },
+      {
+        label: "Acompanhar",
+        href: "/dashboard/acompanhar",
+        accessLevel: "member",
+      },
       {
         label: "Gestão",
-        href: "/dashboard/culto/gestao",
+        href: "/dashboard/cultos",
         accessLevel: "admin",
       },
     ],
