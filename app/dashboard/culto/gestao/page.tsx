@@ -33,7 +33,6 @@ import {
   Clock,
   ChevronLeft,
   ChevronRight,
-  MonitorPlay,
   Plus,
   Trash2,
   GripVertical,

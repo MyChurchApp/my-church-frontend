@@ -41,6 +41,21 @@ export interface HymnReference {
   hymnNumber: string;
 }
 
+export interface PresentHymnParams {
+  hymnNumber: number;
+  verseNumber: number;
+  previousVerseNumber?: number;
+  nextVerseNumber?: number;
+}
+
+export interface PresentHymnResponse {
+  activityId: number;
+  presentationId: number;
+  slideIndex: number;
+  nextSlideIndex: number | null;
+  previousSlideIndex: number | null;
+}
+
 export interface WorshipActivity {
   id: number;
   name: string;
@@ -82,11 +97,6 @@ interface ListWorshipServicesParams {
 // --- Classe de Serviço de Culto ---
 
 class WorshipServiceManager {
-  /**
-   * ✅ NOVO: Envia um aviso administrativo para todos no culto.
-   * @param worshipServiceId O ID do culto.
-   * @param notice O objeto contendo a mensagem e, opcionalmente, a imagem.
-   */
   async sendAdminNotice(
     worshipServiceId: number,
     notice: AdminNoticePayload
@@ -211,15 +221,30 @@ class WorshipServiceManager {
 
   async presentHymn(
     worshipServiceId: number,
-    hymnNumber: number,
-    verseNumber: number
-  ): Promise<void> {
-    await authFetch(
-      `${API_BASE_URL}/WorshipActivity/${worshipServiceId}/hymn/${hymnNumber}/present/${verseNumber}`,
-      {
-        method: "POST",
-      }
-    );
+    params: PresentHymnParams
+  ): Promise<PresentHymnResponse> {
+    const { hymnNumber, verseNumber, previousVerseNumber, nextVerseNumber } =
+      params;
+
+    const queryParams: Record<string, string> = {};
+    if (previousVerseNumber != null) {
+      queryParams.previousVerseNumber = String(previousVerseNumber);
+    }
+    if (nextVerseNumber != null) {
+      queryParams.nextVerseNumber = String(nextVerseNumber);
+    }
+
+    const queryString = new URLSearchParams(queryParams).toString();
+
+    const url = `${API_BASE_URL}/WorshipActivity/${worshipServiceId}/hymn/${hymnNumber}/present/${verseNumber}${
+      queryString ? `?${queryString}` : ""
+    }`;
+
+    const response = await authFetchJson(url, {
+      method: "POST",
+    });
+
+    return response as PresentHymnResponse;
   }
 
   async presentOffering(worshipServiceId: number): Promise<WorshipActivity> {

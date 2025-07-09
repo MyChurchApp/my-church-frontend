@@ -243,9 +243,6 @@ function isOnlyVerseChanged(
   );
 }
 
-// ===================================================================
-//   COMPONENTE PRINCIPAL
-// ===================================================================
 function WorshipClient({
   worshipIdFromUrl,
 }: {
@@ -385,19 +382,26 @@ function WorshipClient({
   const handleHymnUpdate = useCallback(
     (event: Event) => {
       if (!(event instanceof CustomEvent)) return;
-      const { hymnDto, verseFocus } = event.detail;
-      if (!hymnDto || !hymnDto.verses) {
+
+      const { hymn, verseFocus } = event.detail;
+
+      if (!hymn || !hymn.verses) {
         setError("Dados do hino inválidos.");
         return;
       }
-      setLiveHymn(hymnDto as Hymn);
+
+      setLiveHymn(hymn as Hymn);
       setDisplayMode("hymn");
+
       if (verseFocus > 0) {
         setHighlightedPartKey(`verse-${verseFocus}`);
         setLastFocusedVerse(verseFocus);
       } else if (lastFocusedVerse) {
         setHighlightedPartKey(`chorus-after-${lastFocusedVerse}`);
+      } else {
+        setHighlightedPartKey(null);
       }
+
       setError(null);
     },
     [lastFocusedVerse]
