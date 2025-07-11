@@ -5,6 +5,16 @@ interface AuthFetchOptions extends RequestInit {
   skipAutoLogout?: boolean;
 }
 
+// Função utilitária para logout centralizado
+function autoLogout() {
+  localStorage.removeItem("authToken");
+  localStorage.removeItem("user");
+  localStorage.removeItem("userRole");
+  localStorage.removeItem("churchData");
+  window.location.href = "/login";
+}
+
+// authFetch valida 401 e já faz logout
 export async function authFetch(
   url: string,
   options: AuthFetchOptions = {}
@@ -21,6 +31,7 @@ export async function authFetch(
     const token = getToken();
     if (!token) {
       console.error("🚨 Token não encontrado no localStorage");
+      autoLogout();
       throw new Error("Token de autenticação não encontrado");
     }
 
@@ -41,9 +52,18 @@ export async function authFetch(
       headers,
     });
 
+    // Se 401, força logout
+    if (response.status === 401 && !options.skipAutoLogout) {
+      console.error("🚨 401 detectado no authFetch");
+      autoLogout();
+      // Pode lançar erro ou só retornar
+      return response;
+    }
+
     return response;
   } catch (error) {
     console.error("🚨 [authFetch] Erro na requisição:", error);
+    autoLogout();
     throw error;
   }
 }
@@ -55,9 +75,10 @@ export async function authFetchJson(
   try {
     const response = await authFetch(url, options);
 
-    if (response.status === 401) {
+    if (response.status === 401 && !options.skipAutoLogout) {
       console.error("🚨 401 confirmado no authFetchJson");
-      throw new Error("Sessão expirada. Redirecionando para login...");
+      autoLogout();
+      return;
     }
 
     if (!response.ok) {
@@ -109,6 +130,7 @@ export async function authFetchJson(
     return text;
   } catch (error) {
     console.error("❌ Erro na requisição authFetchJson:", error);
+    autoLogout();
     throw error;
   }
 }

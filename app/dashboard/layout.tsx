@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
 import SidebarMenu from "@/components/sidebar/SidebarMenu";
 import { ChurchProvider, useChurch } from "@/contexts/Church/ChurchContext";
+import { jwtDecode } from "jwt-decode"; // JWT decode aqui
 
 const useLocalStorage = (key: string, initialValue: boolean) => {
   const [storedValue, setStoredValue] = useState(() => {
@@ -144,8 +145,37 @@ export const DashboardHeader = ({ user, onMenuClick }: any) => {
   );
 };
 
+// ----------- Função de validação do token JWT -----------
+
+function isTokenValid(token: string | null): boolean {
+  if (!token) return false;
+  try {
+    const decoded: { exp: number } = jwtDecode(token);
+    if (decoded.exp * 1000 < Date.now()) {
+      // Token expirado, remove do localStorage
+      localStorage.removeItem("authToken");
+      localStorage.removeItem("user");
+      return false;
+    }
+    return true;
+  } catch {
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("user");
+    return false;
+  }
+}
+
+// -------------------------------------------------------
+
 function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const { push } = useRouter();
+
+  useEffect(() => {
+    const token = getToken();
+    if (!isTokenValid(token)) {
+      push("/login");
+    }
+  }, [push]);
 
   const { churchData, isLoading: isChurchLoading } = useChurch();
   const user = getUser();
