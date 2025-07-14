@@ -6,6 +6,7 @@ import React, {
   useEffect,
   useState,
   useRef,
+  useCallback,
 } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -13,37 +14,48 @@ import { Button } from "@/components/ui/button";
 import { LogOut, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { logout } from "@/lib/auth-utils";
 import clsx from "clsx";
-// CORREÇÃO 1: A importação agora é "nomeada" (com chaves)
-import { FocusTrap } from "focus-trap-react";
+import FocusTrap from "focus-trap-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   MenuItem,
-  SidebarContentProps,
   SidebarContextProps,
   SidebarProps,
   SubItem,
 } from "./sidernar.types";
 import { rawMenu } from "./sidebar.constant";
 
-// --- TIPOS E DADOS ---
-
+// --- Contexto da Sidebar ---
 const SidebarContext = createContext<SidebarContextProps | undefined>(
   undefined
 );
 const useSidebar = () => {
   const context = useContext(SidebarContext);
   if (!context)
-    throw new Error("useSidebar must be used within a SidebarProvider");
+    throw new Error("useSidebar deve ser usado dentro de um SidebarProvider");
   return context;
 };
 
-// --- SUBCOMPONENTES INTERNOS DA SIDEBAR ---
+// --- Subcomponente: Item do Menu ---
 const SidebarMenuItem = ({ item }: { item: MenuItem }) => {
-  const { isCollapsed, isActive, expandedMenus, toggleSubMenu } = useSidebar();
+  const { isCollapsed, isActive, expandedMenus, toggleSubMenu, expandSidebar } =
+    useSidebar();
   const pathname = usePathname();
   const hasSubItems = item.subItems && item.subItems.length > 0;
   const isExpanded = expandedMenus.includes(item.id);
 
-  const renderContent = () => (
+  const handleClick = () => {
+    if (isCollapsed && hasSubItems) {
+      expandSidebar();
+    }
+    toggleSubMenu(item.id);
+  };
+
+  const itemContent = (
     <>
       <item.icon className="h-5 w-5 flex-shrink-0" />
       <span
@@ -63,81 +75,105 @@ const SidebarMenuItem = ({ item }: { item: MenuItem }) => {
   const inactiveClasses = "text-gray-300 hover:bg-gray-700 hover:text-white";
   const itemIsActive = isActive(item.href, item.subItems);
 
+  const menuItemElement = hasSubItems ? (
+    <div>
+      <button
+        onClick={handleClick}
+        aria-expanded={isExpanded}
+        aria-controls={`submenu-${item.id}`}
+        className={clsx(
+          commonClasses,
+          "justify-between",
+          itemIsActive ? activeClasses : inactiveClasses
+        )}
+      >
+        <div className="flex items-center gap-3 min-w-0">{itemContent}</div>
+        {!isCollapsed && (
+          <ChevronRight
+            className={clsx(
+              "h-4 w-4 transform transition-transform duration-300",
+              isExpanded && "rotate-90"
+            )}
+          />
+        )}
+      </button>
+      <div
+        className={clsx(
+          "overflow-hidden transition-[max-height] duration-300 ease-in-out",
+          isExpanded && !isCollapsed ? "max-h-screen" : "max-h-0"
+        )}
+      >
+        <ul
+          id={`submenu-${item.id}`}
+          className="ml-4 mt-1 space-y-1 border-l border-gray-700 pl-4 py-1"
+        >
+          {item.subItems!.map((sub) => (
+            <li key={sub.href}>
+              <Link
+                href={sub.href}
+                className={clsx(
+                  "block px-3 py-1.5 text-sm rounded-md",
+                  pathname === sub.href
+                    ? "text-white font-medium"
+                    : "text-gray-400 hover:text-white"
+                )}
+              >
+                {sub.label}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  ) : (
+    <Link
+      href={item.href}
+      className={clsx(
+        commonClasses,
+        itemIsActive ? activeClasses : inactiveClasses
+      )}
+    >
+      {itemContent}
+    </Link>
+  );
+
   return (
     <li>
-      {hasSubItems ? (
-        <div>
-          <button
-            onClick={() => toggleSubMenu(item.id)}
-            aria-expanded={isExpanded}
-            aria-controls={`submenu-${item.id}`}
-            className={clsx(
-              commonClasses,
-              "justify-between",
-              itemIsActive ? activeClasses : inactiveClasses
-            )}
-          >
-            <div className="flex items-center gap-3 min-w-0">
-              {renderContent()}
-            </div>
-            {!isCollapsed && (
-              <ChevronRight
-                className={clsx(
-                  "h-4 w-4 transform transition-transform duration-300 flex-shrink-0",
-                  isExpanded && "rotate-90"
-                )}
-              />
-            )}
-          </button>
-          <div
-            className={clsx(
-              "overflow-hidden transition-[max-height] duration-300 ease-in-out",
-              isExpanded && !isCollapsed ? "max-h-screen" : "max-h-0"
-            )}
-          >
-            <ul
-              id={`submenu-${item.id}`}
-              className="ml-4 mt-1 space-y-1 border-l border-gray-700 pl-4 py-1"
+      {isCollapsed ? (
+        <TooltipProvider delayDuration={0}>
+          <Tooltip>
+            <TooltipTrigger asChild>{menuItemElement}</TooltipTrigger>
+            <TooltipContent
+              side="right"
+              className="bg-gray-900 text-white border-gray-700"
             >
-              {item.subItems!.map((sub) => (
-                <li key={sub.href}>
-                  <Link
-                    href={sub.href}
-                    className={clsx(
-                      "block px-3 py-1.5 text-sm rounded-md transition-colors",
-                      pathname === sub.href
-                        ? "text-white font-medium"
-                        : "text-gray-400 hover:text-white"
-                    )}
-                  >
-                    {sub.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
+              <p>{item.label}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       ) : (
-        <Link
-          href={item.href}
-          className={clsx(
-            commonClasses,
-            itemIsActive ? activeClasses : inactiveClasses
-          )}
-        >
-          {renderContent()}
-        </Link>
+        menuItemElement
       )}
     </li>
   );
 };
 
-const SidebarContent = ({
+interface InternalSidebarProps {
+  menuItems: MenuItem[];
+  church: SidebarProps["church"];
+  onToggleCollapse?: () => void;
+  onCloseMobile?: () => void;
+  closeButtonRef?: React.RefObject<HTMLButtonElement | null>;
+}
+
+const InternalSidebarContent = ({
   menuItems,
   church,
-  isCollapsed,
   onToggleCollapse,
-}: SidebarContentProps) => {
+  onCloseMobile,
+  closeButtonRef,
+}: InternalSidebarProps) => {
+  const { isCollapsed } = useSidebar();
   const router = useRouter();
   const handleLogout = () => {
     logout();
@@ -147,19 +183,19 @@ const SidebarContent = ({
   return (
     <div className="flex flex-col h-full bg-gray-800 text-white border-r border-gray-700">
       <div
-        className="flex items-center h-16 px-4 border-b border-gray-700 flex-shrink-0 cursor-pointer"
+        className="flex items-center justify-between h-16 px-4 border-b border-gray-700 flex-shrink-0 cursor-pointer"
         onClick={onToggleCollapse}
       >
-        <div className="flex items-center justify-between w-full">
-          <span
-            className={clsx(
-              "font-bold text-xs text-white transition-opacity duration-200",
-              "truncate w-full",
-              isCollapsed && "opacity-0 w-0"
-            )}
-          >
-            {church?.name || "MyChurch"}
-          </span>
+        <span
+          className={clsx(
+            "font-bold text-lg text-white transition-opacity duration-200 truncate",
+            isCollapsed && "opacity-0 w-0"
+          )}
+        >
+          {church?.name || "MyChurch"}
+        </span>
+
+        {onToggleCollapse && (
           <Button
             variant="ghost"
             size="icon"
@@ -176,8 +212,22 @@ const SidebarContent = ({
               <ChevronLeft className="h-5 w-5" />
             )}
           </Button>
-        </div>
+        )}
+
+        {onCloseMobile && (
+          <Button
+            ref={closeButtonRef}
+            variant="ghost"
+            size="icon"
+            onClick={onCloseMobile}
+            aria-label="Fechar menu"
+            className="text-gray-400 hover:text-white hover:bg-gray-700"
+          >
+            <X className="h-5 w-5" />
+          </Button>
+        )}
       </div>
+
       <nav className="flex-1 px-3 py-4 overflow-y-auto">
         <ul className="space-y-1.5">
           {menuItems.map((item) => (
@@ -185,6 +235,7 @@ const SidebarContent = ({
           ))}
         </ul>
       </nav>
+
       <div className="px-3 py-4 border-t border-gray-700 flex-shrink-0">
         <Button
           variant="ghost"
@@ -221,35 +272,45 @@ export default function SidebarMenu({
 }: SidebarProps) {
   const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
   const pathname = usePathname();
-  const router = useRouter();
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
-  useEffect(() => {
-    setIsMobileOpen(false);
-  }, [pathname, setIsMobileOpen]);
-
-  const filterByRole = (items: MenuItem[]): MenuItem[] =>
-    items
-      .map((item) => {
-        if (!user) return null;
-        const parentAllowed =
-          user.accessLevel === "admin" || item.accessLevel === "member";
-        const subItems = item.subItems?.filter(
-          (sub) =>
-            (sub.accessLevel ?? item.accessLevel) === "member" ||
-            user.accessLevel === "admin"
-        );
-        if (!parentAllowed && (!subItems || subItems.length === 0)) return null;
-        if (!parentAllowed && subItems && subItems.length > 0)
-          return { ...item, href: subItems[0].href, subItems };
-        return { ...item, subItems };
-      })
-      .filter(Boolean) as MenuItem[];
+  const filterByRole = useCallback(
+    (items: MenuItem[]): MenuItem[] =>
+      items
+        .map((item) => {
+          if (!user) return null;
+          const parentAllowed =
+            user.accessLevel === "admin" || item.accessLevel === "member";
+          const subItems = item.subItems?.filter(
+            (sub) =>
+              (sub.accessLevel ?? item.accessLevel) === "member" ||
+              user.accessLevel === "admin"
+          );
+          if (!parentAllowed && (!subItems || subItems.length === 0))
+            return null;
+          if (!parentAllowed && subItems && subItems.length > 0)
+            return { ...item, href: subItems[0].href, subItems };
+          return { ...item, subItems };
+        })
+        .filter(Boolean) as MenuItem[],
+    [user]
+  );
 
   const menuItems = user ? filterByRole(rawMenu) : [];
 
+  useEffect(() => {
+    const activeParent = menuItems.find((item) =>
+      item.subItems?.some((sub) => sub.href === pathname)
+    );
+    if (activeParent && !expandedMenus.includes(activeParent.id)) {
+      setExpandedMenus([activeParent.id]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname, menuItems]);
+
   const isActive = (href: string, subs?: SubItem[]): boolean => {
     if (href === "/dashboard" && pathname === "/dashboard") return true;
+    if (href === "/dashboard" && pathname !== "/dashboard") return false;
     const isParentActive = href !== "/dashboard" && pathname.startsWith(href);
     const isChildActive = subs?.some((s) => pathname === s.href) ?? false;
     return isParentActive || isChildActive;
@@ -263,21 +324,21 @@ export default function SidebarMenu({
         p.includes(id) ? p.filter((i) => i !== id) : [...p, id]
       ),
     isActive,
+    expandSidebar: () => setIsCollapsed(false),
   };
 
   return (
     <>
       <aside
         className={clsx(
-          "hidden md:flex flex-col fixed inset-y-0 left-0 z-30 transition-all duration-300 ease-in-out",
+          "hidden md:flex flex-col fixed inset-y-0 left-0 z-30 transition-all duration-300",
           isCollapsed ? "w-20" : "w-64"
         )}
       >
         <SidebarContext.Provider value={sidebarProviderValue}>
-          <SidebarContent
+          <InternalSidebarContent
             menuItems={menuItems}
             church={church}
-            isCollapsed={isCollapsed}
             onToggleCollapse={() => setIsCollapsed(!isCollapsed)}
           />
         </SidebarContext.Provider>
@@ -306,50 +367,19 @@ export default function SidebarMenu({
             role="dialog"
             aria-modal="true"
             className={clsx(
-              "fixed top-0 left-0 h-full w-72 z-50 transform transition-transform duration-300 ease-in-out",
+              "fixed top-0 left-0 h-full w-72 z-50 transform transition-transform duration-300",
               isMobileOpen ? "translate-x-0" : "-translate-x-full"
             )}
           >
             <SidebarContext.Provider
               value={{ ...sidebarProviderValue, isCollapsed: false }}
             >
-              <div className="flex flex-col h-full bg-gray-800 text-white border-r border-gray-700">
-                <div className="flex items-center justify-between h-16 px-4 border-b border-gray-700 flex-shrink-0">
-                  <h2 className="font-bold text-lg text-white">
-                    {church?.name || "MyChurch"}
-                  </h2>
-                  <Button
-                    ref={closeButtonRef}
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setIsMobileOpen(false)}
-                    aria-label="Fechar menu"
-                    className="text-gray-400 hover:text-white hover:bg-gray-700"
-                  >
-                    <X className="h-5 w-5" />
-                  </Button>
-                </div>
-                <nav className="flex-1 px-3 py-4 overflow-y-auto">
-                  <ul className="space-y-1.5">
-                    {menuItems.map((item) => (
-                      <SidebarMenuItem key={item.id} item={item} />
-                    ))}
-                  </ul>
-                </nav>
-                <div className="px-3 py-4 border-t border-gray-700 flex-shrink-0">
-                  <Button
-                    variant="ghost"
-                    onClick={() => {
-                      logout();
-                      router.push("/login");
-                    }}
-                    className="w-full justify-start text-red-500 hover:text-red-400 hover:bg-red-500/10 px-3"
-                  >
-                    <LogOut className="h-5 w-5 flex-shrink-0" />
-                    <span className="ml-3 truncate">Sair</span>
-                  </Button>
-                </div>
-              </div>
+              <InternalSidebarContent
+                menuItems={menuItems}
+                church={church}
+                onCloseMobile={() => setIsMobileOpen(false)}
+                closeButtonRef={closeButtonRef}
+              />
             </SidebarContext.Provider>
           </div>
         </FocusTrap>
