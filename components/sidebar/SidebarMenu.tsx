@@ -153,7 +153,8 @@ const SidebarContent = ({
         <div className="flex items-center justify-between w-full">
           <span
             className={clsx(
-              "font-bold text-lg text-white transition-opacity duration-200",
+              "font-bold text-xs text-white transition-opacity duration-200",
+              "truncate w-full",
               isCollapsed && "opacity-0 w-0"
             )}
           >

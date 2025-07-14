@@ -48,12 +48,38 @@ export interface PresentHymnParams {
   nextVerseNumber?: number;
 }
 
+export interface HymnVerse {
+  number: number;
+  text: string;
+}
+
+export interface Hymn {
+  id: number;
+  title: string;
+  number: number;
+  language: string;
+  chorus: string;
+  lyricsAuthor: string;
+  melodyAuthor: string;
+  verses: HymnVerse[];
+}
+
 export interface PresentHymnResponse {
   activityId: number;
   presentationId: number;
-  slideIndex: number;
-  nextSlideIndex: number | null;
+  currentSlideIndex: number;
   previousSlideIndex: number | null;
+  nextSlideIndex: number | null;
+  chorusSlideIndex: number | null;
+  hymn: Hymn;
+  verseFocus: number;
+  allSlides: {
+    slideIndex: number;
+    stanzaNumber: number;
+    isChorus: boolean;
+    displayText: string;
+    contentReferenceJson: string;
+  }[];
 }
 
 export interface WorshipActivity {
@@ -396,22 +422,6 @@ export const bibleService = new BibleService();
 export interface HymnSummary {
   number: number;
   title: string;
-}
-
-export interface HymnVerse {
-  number: number;
-  text: string;
-}
-
-export interface Hymn {
-  id: number;
-  title: string;
-  number: number;
-  language: string;
-  chorus: string;
-  lyricsAuthor: string;
-  melodyAuthor: string;
-  verses: HymnVerse[];
 }
 
 class HymnService {

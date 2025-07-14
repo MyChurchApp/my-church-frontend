@@ -13,23 +13,36 @@ import {
   getPresentationById,
   type Presentation,
   type Slide,
-} from "../../services/presentation/presentation";
+} from "../../../services/presentation/presentation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, Maximize, Minimize, CheckCircle } from "lucide-react";
 
 //=========== TIPOS E CONSTANTES ===========//
+
 interface SlidePointer {
   presentationId: number;
   slideIndex: number;
 }
 
 const slideVariants = {
-  enter: { opacity: 0 },
-  center: { zIndex: 1, opacity: 1 },
-  exit: { zIndex: 0, opacity: 0 },
+  enter: (direction: number) => ({
+    x: direction > 0 ? "100%" : "-100%",
+    opacity: 0,
+  }),
+  center: {
+    zIndex: 1,
+    x: 0,
+    opacity: 1,
+  },
+  exit: (direction: number) => ({
+    zIndex: 0,
+    x: direction < 0 ? "100%" : "-100%",
+    opacity: 0,
+  }),
 };
 
-//=========== COMPONENTE DE OVERLAY DE CARREGAMENTO ===========//
+//=========== COMPONENTE DE OVERLAY DE CARREGAMENTO (MODIFICADO) ===========//
+
 type LoadingStage = "connecting" | "waiting" | "loading-data" | "preloading";
 
 interface LoadingOverlayProps {
@@ -109,17 +122,28 @@ function LoadingOverlay({ stage, progress = 0 }: LoadingOverlayProps) {
 
 //=========== COMPONENTE VISUALIZADOR DE SLIDE ===========//
 
-function SlideViewer({ slide }: { slide: Slide | null }) {
-  if (!slide) return null;
+function SlideViewer({
+  slide,
+  direction,
+}: {
+  slide: Slide | null;
+  direction: number;
+}) {
+  if (!slide?.cachedMediaUrl) return null;
+
   return (
-    <AnimatePresence initial={false}>
+    <AnimatePresence initial={false} custom={direction}>
       <motion.div
         key={slide.id}
+        custom={direction}
         variants={slideVariants}
         initial="enter"
         animate="center"
         exit="exit"
-        transition={{ opacity: { duration: 0.15 } }}
+        transition={{
+          x: { type: "spring", stiffness: 300, damping: 30 },
+          opacity: { duration: 0.2 },
+        }}
         className="absolute w-full h-full"
       >
         <img
@@ -132,12 +156,12 @@ function SlideViewer({ slide }: { slide: Slide | null }) {
   );
 }
 
-//=========== COMPONENTE INTERNO DA PÁGINA ===========//
+//=========== COMPONENTE INTERNO DA PÁGINA (MODIFICADO) ===========//
 
 function SlidePageInner() {
   const pageRef = useRef<HTMLDivElement>(null);
   const params = useSearchParams();
-  const worshipServiceId = params.get("id");
+  const id = params.get("id");
 
   const [presentationCache, setPresentationCache] =
     useState<Presentation | null>(null);
@@ -146,146 +170,148 @@ function SlidePageInner() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [preloadedImageUrls, setPreloadedImageUrls] = useState<Set<string>>(
+    new Set()
+  );
   const [isPreloading, setIsPreloading] = useState(false);
   const [preloadProgress, setPreloadProgress] = useState(0);
 
-  const { isConnected } = useSignalRForWorship(Number(worshipServiceId));
-  const preloadedUrls = useRef(new Set<string>()).current;
+  const { isConnected } = useSignalRForWorship(Number(id));
+  const prevSlideIndexRef = useRef<number | null>(null);
 
-  // Efeito 1: Lida com a busca de dados da apresentação
   useEffect(() => {
-    const fetchPresentationData = async (presentationId: number) => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const presentation = await getPresentationById(presentationId);
-        setPresentationCache(presentation);
-      } catch (err: any) {
-        setError(err.message || "Erro ao carregar a apresentação.");
-        setPresentationCache(null);
-      } finally {
-        setIsLoading(false);
+    const fetchPresentationForSlide = async (pointer: SlidePointer) => {
+      if (
+        !presentationCache ||
+        presentationCache.id !== pointer.presentationId
+      ) {
+        setIsLoading(true);
+        setError(null);
+        try {
+          const presentation = await getPresentationById(
+            pointer.presentationId
+          );
+          setPresentationCache(presentation);
+        } catch (err: any) {
+          setError(err.message || "Erro ao carregar a apresentação.");
+          setPresentationCache(null);
+        } finally {
+          setIsLoading(false);
+        }
       }
     };
 
-    if (!activeSlidePointer) return;
-
-    const { presentationId, slideIndex } = activeSlidePointer;
-
-    const needsToFetch =
-      !presentationCache ||
-      presentationCache.id !== presentationId ||
-      !presentationCache.slides.some((s) => s.orderIndex === slideIndex);
-
-    if (needsToFetch && !isLoading) {
-      fetchPresentationData(presentationId);
+    if (activeSlidePointer) {
+      fetchPresentationForSlide(activeSlidePointer);
     }
-  }, [activeSlidePointer, presentationCache, isLoading]);
+  }, [activeSlidePointer]);
 
-  // Efeito 2: Pré-carrega as imagens quando uma nova apresentação é colocada no cache.
+  // Efeito para pré-carregar as imagens
   useEffect(() => {
     if (!presentationCache?.slides) return;
+
     const imageUrls = presentationCache.slides
       .map((slide) => slide.cachedMediaUrl)
       .filter(Boolean);
+    const imagesToPreload = imageUrls.filter(
+      (url) => !preloadedImageUrls.has(url)
+    );
 
-    const imagesToPreload = imageUrls.filter((url) => !preloadedUrls.has(url));
-
-    if (imagesToPreload.length === 0) return;
+    if (imagesToPreload.length === 0) {
+      return;
+    }
 
     const preload = async () => {
       setIsPreloading(true);
       setPreloadProgress(0);
       let loadedCount = 0;
       const totalToLoad = imagesToPreload.length;
+
       const promises = imagesToPreload.map((url) => {
         return new Promise<void>((resolve) => {
           const img = new Image();
           img.src = url;
-          img.onload = img.onerror = () => {
+          img.onload = () => {
             loadedCount++;
-            preloadedUrls.add(url);
+            setPreloadedImageUrls((prev) => new Set(prev).add(url));
+            setPreloadProgress((loadedCount / totalToLoad) * 100);
+            resolve();
+          };
+          img.onerror = () => {
+            // Mesmo com erro, continua para não travar o processo
+            loadedCount++;
             setPreloadProgress((loadedCount / totalToLoad) * 100);
             resolve();
           };
         });
       });
+
       await Promise.all(promises);
       setIsPreloading(false);
     };
 
     preload();
-  }, [presentationCache, preloadedUrls]);
+  }, [presentationCache, preloadedImageUrls]);
 
-  // Efeito 3: Escuta os eventos do SignalR e apenas atualiza o ponteiro.
   useEffect(() => {
     const handleSlideUpdate = (event: Event) => {
       const customEvent = event as CustomEvent<any>;
       const detail = customEvent.detail;
-      const presentationId = detail.presentationId;
-      const slideIndex = detail.slideIndex ?? detail.currentSlideIndex;
+      if (detail && typeof detail.presentationId === "number") {
+        const slideIndex =
+          typeof detail.currentSlideIndex === "number"
+            ? detail.currentSlideIndex
+            : detail.slideIndex;
 
-      if (
-        typeof presentationId === "number" &&
-        typeof slideIndex === "number"
-      ) {
-        setActiveSlidePointer({ presentationId, slideIndex });
-      } else {
-        console.error("Payload do evento inválido.", detail);
+        if (typeof slideIndex === "number") {
+          setActiveSlidePointer((prev) => {
+            if (prev) {
+              prevSlideIndexRef.current = prev.slideIndex;
+            }
+            return {
+              presentationId: detail.presentationId,
+              slideIndex: slideIndex,
+            };
+          });
+        }
       }
     };
-
     window.addEventListener("bibleReadingUpdated", handleSlideUpdate);
     window.addEventListener("HymnPresented", handleSlideUpdate);
-
     return () => {
       window.removeEventListener("bibleReadingUpdated", handleSlideUpdate);
       window.removeEventListener("HymnPresented", handleSlideUpdate);
     };
   }, []);
 
-  // Lógica para navegação com as setas do teclado.
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
-      if (
-        !presentationCache?.slides ||
-        !activeSlidePointer ||
-        isPreloading ||
-        isLoading
-      )
+      if (!presentationCache || activeSlidePointer === null || isPreloading)
         return;
 
-      const sortedSlides = [...presentationCache.slides].sort(
-        (a, b) => a.orderIndex - b.orderIndex
-      );
-      const currentArrayIndex = sortedSlides.findIndex(
-        (s) => s.orderIndex === activeSlidePointer.slideIndex
-      );
+      const totalSlides = presentationCache.slides.length;
+      let nextSlideIndex = activeSlidePointer.slideIndex;
 
-      if (currentArrayIndex === -1) return;
-
-      let nextArrayIndex = currentArrayIndex;
       if (event.key === "ArrowRight") {
-        nextArrayIndex = Math.min(
-          currentArrayIndex + 1,
-          sortedSlides.length - 1
+        nextSlideIndex = Math.min(
+          activeSlidePointer.slideIndex + 1,
+          totalSlides > 0 ? totalSlides - 1 : 0
         );
       } else if (event.key === "ArrowLeft") {
-        nextArrayIndex = Math.max(currentArrayIndex - 1, 0);
+        nextSlideIndex = Math.max(activeSlidePointer.slideIndex - 1, 0);
       }
 
-      if (nextArrayIndex !== currentArrayIndex) {
-        const nextSlide = sortedSlides[nextArrayIndex];
+      if (nextSlideIndex !== activeSlidePointer.slideIndex) {
+        prevSlideIndexRef.current = activeSlidePointer.slideIndex;
         setActiveSlidePointer({
-          presentationId: activeSlidePointer.presentationId,
-          slideIndex: nextSlide.orderIndex,
+          ...activeSlidePointer,
+          slideIndex: nextSlideIndex,
         });
       }
     },
-    [activeSlidePointer, presentationCache, isPreloading, isLoading]
+    [activeSlidePointer, presentationCache, isPreloading]
   );
 
-  // Lógica para o modo de tela cheia.
   const toggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
       pageRef.current?.requestFullscreen().catch((err) => console.error(err));
@@ -293,6 +319,7 @@ function SlidePageInner() {
       document.exitFullscreen();
     }
   }, []);
+
   useEffect(() => {
     const onFullscreenChange = () =>
       setIsFullscreen(!!document.fullscreenElement);
@@ -301,25 +328,27 @@ function SlidePageInner() {
       document.removeEventListener("fullscreenchange", onFullscreenChange);
   }, []);
 
-  // Encontra o slide atual no cache.
-  const currentSlide =
-    presentationCache?.slides.find(
-      (s) => s.orderIndex === activeSlidePointer?.slideIndex
-    ) || null;
+  const currentSlide = presentationCache?.slides.find(
+    (s) => s.orderIndex === activeSlidePointer?.slideIndex
+  );
 
-  // Determina o estágio de carregamento para exibir o overlay correto.
+  const direction =
+    (activeSlidePointer?.slideIndex ?? 0) > (prevSlideIndexRef.current ?? -1)
+      ? 1
+      : -1;
+
   let stage: LoadingStage | null = null;
   if (!isConnected) {
     stage = "connecting";
+  } else if (!activeSlidePointer && !isLoading && !isPreloading) {
+    stage = "waiting";
   } else if (isLoading) {
     stage = "loading-data";
   } else if (isPreloading) {
     stage = "preloading";
-  } else if (!activeSlidePointer || !currentSlide) {
-    stage = "waiting";
   }
 
-  const showLoadingOverlay = !!stage;
+  const showLoadingOverlay = stage !== null && stage !== "waiting";
 
   return (
     <div
@@ -327,7 +356,6 @@ function SlidePageInner() {
       className="bg-gradient-to-br from-gray-900 to-black w-screen h-screen flex items-center justify-center select-none outline-none relative group"
       tabIndex={0}
       onKeyDown={handleKeyDown}
-      autoFocus
     >
       <button
         onClick={toggleFullscreen}
@@ -337,7 +365,6 @@ function SlidePageInner() {
         {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
       </button>
 
-      {/* AQUI ESTÁ A CORREÇÃO: Adicionamos a verificação 'stage &&' */}
       <AnimatePresence>
         {showLoadingOverlay && stage && (
           <LoadingOverlay stage={stage} progress={preloadProgress} />
@@ -350,12 +377,15 @@ function SlidePageInner() {
         </div>
       )}
 
-      {!showLoadingOverlay && <SlideViewer slide={currentSlide} />}
+      {!showLoadingOverlay && (
+        <SlideViewer slide={currentSlide || null} direction={direction} />
+      )}
     </div>
   );
 }
 
 //=========== COMPONENTE PRINCIPAL (EXPORT) ===========//
+
 export default function SlidePage() {
   return (
     <Suspense

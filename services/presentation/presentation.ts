@@ -1,6 +1,5 @@
 import { authFetchJson } from "@/lib/auth-fetch";
 
-// Definindo os tipos com base na sua resposta da API para ter um código mais seguro
 export interface Slide {
   id: number;
   orderIndex: number;
@@ -23,11 +22,6 @@ export interface Presentation {
 
 const API_BASE_URL = "https://demoapp.top1soft.com.br/api";
 
-/**
- * Busca os dados de uma apresentação específica pelo seu ID.
- * @param presentationId O ID da apresentação a ser buscada.
- * @returns Uma Promise que resolve para os dados da apresentação.
- */
 export async function getPresentationById(
   presentationId: number
 ): Promise<Presentation> {
@@ -43,7 +37,6 @@ export async function getPresentationById(
     const presentationData = await authFetchJson(url, {
       method: "GET",
       headers: {
-        // O content-type é 'text/plain' na resposta, mas a requisição pode aceitar json
         Accept: "text/plain, application/json",
       },
     });
@@ -54,7 +47,7 @@ export async function getPresentationById(
       `🚨 Erro ao buscar apresentação com ID ${presentationId}:`,
       error
     );
-    // Re-lança o erro para que o componente possa tratá-lo
+
     throw error;
   }
 }
