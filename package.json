@@ -76,6 +76,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@next/bundle-analyzer": "^15.3.5",
     "@types/aos": "^3.0.7",
     "@types/node": "^22",
     "@types/react": "^19",
