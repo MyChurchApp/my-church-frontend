@@ -14,7 +14,7 @@ import {
   type Presentation,
   type Slide,
 } from "../../services/presentation/presentation";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, Variants } from "framer-motion";
 import { Loader2, Maximize, Minimize, CheckCircle } from "lucide-react";
 
 //=========== TIPOS E CONSTANTES ===========//
@@ -23,13 +23,22 @@ interface SlidePointer {
   slideIndex: number;
 }
 
-const slideVariants = {
-  enter: { opacity: 0 },
-  center: { zIndex: 1, opacity: 1 },
-  exit: { zIndex: 0, opacity: 0 },
+const slideVariants: Variants = {
+  enter: {
+    opacity: 0,
+  },
+  center: {
+    zIndex: 1,
+    opacity: 1,
+  },
+  exit: {
+    zIndex: 0,
+    opacity: 0,
+  },
 };
 
-//=========== COMPONENTE DE OVERLAY DE CARREGAMENTO ===========//
+//=========== COMPONENTES DE CARREGAMENTO ===========//
+
 type LoadingStage = "connecting" | "waiting" | "loading-data" | "preloading";
 
 interface LoadingOverlayProps {
@@ -63,10 +72,14 @@ function LoadingOverlay({ stage, progress = 0 }: LoadingOverlayProps) {
     }
   }, [stage]);
 
-  const displayProgress = stage === "connecting" ? connectProgress : progress;
-
   return (
-    <div className="absolute inset-0 bg-black bg-opacity-80 backdrop-blur-sm z-30 flex flex-col items-center justify-center text-white">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
+      className="absolute inset-0 bg-black bg-opacity-80 backdrop-blur-sm z-30 flex flex-col items-center justify-center text-white"
+    >
       <div className="w-full max-w-md p-4 text-center">
         <AnimatePresence mode="wait">
           <motion.p
@@ -80,38 +93,55 @@ function LoadingOverlay({ stage, progress = 0 }: LoadingOverlayProps) {
             {loadingMessages[stage]}
           </motion.p>
         </AnimatePresence>
-
         {(stage === "connecting" || stage === "preloading") && (
           <div className="w-full bg-gray-700 rounded-full h-2.5">
             <motion.div
               className="bg-blue-500 h-2.5 rounded-full"
               initial={{ width: 0 }}
-              animate={{ width: `${displayProgress}%` }}
+              animate={{
+                width: `${
+                  stage === "connecting" ? connectProgress : progress
+                }%`,
+              }}
               transition={{ duration: 0.5, ease: "easeInOut" }}
             />
           </div>
         )}
-
         {stage === "waiting" && (
           <div className="flex justify-center items-center space-x-3 text-green-400">
             <CheckCircle size={24} />
             <span className="animate-pulse">Aguardando...</span>
           </div>
         )}
-
         {stage === "loading-data" && (
           <Loader2 className="h-10 w-10 animate-spin text-white" />
         )}
       </div>
-    </div>
+    </motion.div>
   );
 }
 
-//=========== COMPONENTE VISUALIZADOR DE SLIDE ===========//
+// Componente para o loading sutil
+function SubtleLoadingIndicator() {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 10 }}
+      transition={{ duration: 0.3 }}
+      className="absolute bottom-4 right-4 z-20 p-2 bg-black/50 rounded-full text-white/90"
+    >
+      <Loader2 className="h-5 w-5 animate-spin" />
+    </motion.div>
+  );
+}
+
+//=========== COMPONENTE VISUALIZADOR DE SLIDE (CORRIGIDO) ===========//
 
 function SlideViewer({ slide }: { slide: Slide | null }) {
   if (!slide) return null;
   return (
+    // A CORREÇÃO PRINCIPAL: `mode="wait"` foi removido para permitir a transição cruzada.
     <AnimatePresence initial={false}>
       <motion.div
         key={slide.id}
@@ -119,8 +149,9 @@ function SlideViewer({ slide }: { slide: Slide | null }) {
         initial="enter"
         animate="center"
         exit="exit"
-        transition={{ opacity: { duration: 0.15 } }}
-        className="absolute w-full h-full"
+        // Transição muito rápida para a sensação de troca instantânea.
+        transition={{ duration: 0.2, ease: "easeInOut" }}
+        className="absolute w-full h-full flex items-center justify-center"
       >
         <img
           src={slide.cachedMediaUrl}
@@ -148,6 +179,7 @@ function SlidePageInner() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isPreloading, setIsPreloading] = useState(false);
   const [preloadProgress, setPreloadProgress] = useState(0);
+  const [displayedSlide, setDisplayedSlide] = useState<Slide | null>(null);
 
   const { isConnected } = useSignalRForWorship(Number(worshipServiceId));
   const preloadedUrls = useRef(new Set<string>()).current;
@@ -171,28 +203,35 @@ function SlidePageInner() {
     if (!activeSlidePointer) return;
 
     const { presentationId, slideIndex } = activeSlidePointer;
+    const isSlideInMemory = presentationCache?.slides.some(
+      (s) => s.orderIndex === slideIndex
+    );
+    const isSamePresentation = presentationCache?.id === presentationId;
 
-    const needsToFetch =
-      !presentationCache ||
-      presentationCache.id !== presentationId ||
-      !presentationCache.slides.some((s) => s.orderIndex === slideIndex);
-
-    if (needsToFetch && !isLoading) {
+    if ((!isSamePresentation || !isSlideInMemory) && !isLoading) {
       fetchPresentationData(presentationId);
     }
   }, [activeSlidePointer, presentationCache, isLoading]);
 
-  // Efeito 2: Pré-carrega as imagens quando uma nova apresentação é colocada no cache.
+  // Efeito 2: Atualiza o slide visível
+  useEffect(() => {
+    if (!activeSlidePointer || !presentationCache) return;
+    const targetSlide = presentationCache.slides.find(
+      (s) => s.orderIndex === activeSlidePointer.slideIndex
+    );
+    if (targetSlide) {
+      setDisplayedSlide(targetSlide);
+    }
+  }, [activeSlidePointer, presentationCache]);
+
+  // Efeito 3: Pré-carrega as imagens
   useEffect(() => {
     if (!presentationCache?.slides) return;
     const imageUrls = presentationCache.slides
       .map((slide) => slide.cachedMediaUrl)
       .filter(Boolean);
-
     const imagesToPreload = imageUrls.filter((url) => !preloadedUrls.has(url));
-
     if (imagesToPreload.length === 0) return;
-
     const preload = async () => {
       setIsPreloading(true);
       setPreloadProgress(0);
@@ -213,38 +252,32 @@ function SlidePageInner() {
       await Promise.all(promises);
       setIsPreloading(false);
     };
-
     preload();
   }, [presentationCache, preloadedUrls]);
 
-  // Efeito 3: Escuta os eventos do SignalR e apenas atualiza o ponteiro.
+  // Efeito 4: Escuta os eventos do SignalR
   useEffect(() => {
     const handleSlideUpdate = (event: Event) => {
       const customEvent = event as CustomEvent<any>;
       const detail = customEvent.detail;
       const presentationId = detail.presentationId;
       const slideIndex = detail.slideIndex ?? detail.currentSlideIndex;
-
       if (
         typeof presentationId === "number" &&
         typeof slideIndex === "number"
       ) {
         setActiveSlidePointer({ presentationId, slideIndex });
-      } else {
-        console.error("Payload do evento inválido.", detail);
       }
     };
-
     window.addEventListener("bibleReadingUpdated", handleSlideUpdate);
     window.addEventListener("HymnPresented", handleSlideUpdate);
-
     return () => {
       window.removeEventListener("bibleReadingUpdated", handleSlideUpdate);
       window.removeEventListener("HymnPresented", handleSlideUpdate);
     };
   }, []);
 
-  // Lógica para navegação com as setas do teclado.
+  // Lógica de navegação por teclado
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
       if (
@@ -254,16 +287,13 @@ function SlidePageInner() {
         isLoading
       )
         return;
-
       const sortedSlides = [...presentationCache.slides].sort(
         (a, b) => a.orderIndex - b.orderIndex
       );
       const currentArrayIndex = sortedSlides.findIndex(
         (s) => s.orderIndex === activeSlidePointer.slideIndex
       );
-
       if (currentArrayIndex === -1) return;
-
       let nextArrayIndex = currentArrayIndex;
       if (event.key === "ArrowRight") {
         nextArrayIndex = Math.min(
@@ -273,7 +303,6 @@ function SlidePageInner() {
       } else if (event.key === "ArrowLeft") {
         nextArrayIndex = Math.max(currentArrayIndex - 1, 0);
       }
-
       if (nextArrayIndex !== currentArrayIndex) {
         const nextSlide = sortedSlides[nextArrayIndex];
         setActiveSlidePointer({
@@ -285,7 +314,7 @@ function SlidePageInner() {
     [activeSlidePointer, presentationCache, isPreloading, isLoading]
   );
 
-  // Lógica para o modo de tela cheia.
+  // Lógica de tela cheia
   const toggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
       pageRef.current?.requestFullscreen().catch((err) => console.error(err));
@@ -301,25 +330,24 @@ function SlidePageInner() {
       document.removeEventListener("fullscreenchange", onFullscreenChange);
   }, []);
 
-  // Encontra o slide atual no cache.
-  const currentSlide =
-    presentationCache?.slides.find(
-      (s) => s.orderIndex === activeSlidePointer?.slideIndex
-    ) || null;
+  // Lógica para decidir qual indicador de loading mostrar
+  const isInitialLoad = !displayedSlide;
+  const isBackgroundActivity = isLoading || isPreloading;
 
-  // Determina o estágio de carregamento para exibir o overlay correto.
-  let stage: LoadingStage | null = null;
+  const showFullScreenOverlay =
+    isInitialLoad && (!isConnected || isBackgroundActivity);
+  const showSubtleLoader = !isInitialLoad && isLoading; // Apenas o isLoading, pois o preload já é uma ação de fundo que não precisa de indicador.
+
+  let fullScreenStage: LoadingStage | null = null;
   if (!isConnected) {
-    stage = "connecting";
+    fullScreenStage = "connecting";
   } else if (isLoading) {
-    stage = "loading-data";
+    fullScreenStage = "loading-data";
   } else if (isPreloading) {
-    stage = "preloading";
-  } else if (!activeSlidePointer || !currentSlide) {
-    stage = "waiting";
+    fullScreenStage = "preloading";
+  } else if (!activeSlidePointer) {
+    fullScreenStage = "waiting";
   }
-
-  const showLoadingOverlay = !!stage;
 
   return (
     <div
@@ -337,10 +365,9 @@ function SlidePageInner() {
         {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
       </button>
 
-      {/* AQUI ESTÁ A CORREÇÃO: Adicionamos a verificação 'stage &&' */}
       <AnimatePresence>
-        {showLoadingOverlay && stage && (
-          <LoadingOverlay stage={stage} progress={preloadProgress} />
+        {showFullScreenOverlay && fullScreenStage && (
+          <LoadingOverlay stage={fullScreenStage} progress={preloadProgress} />
         )}
       </AnimatePresence>
 
@@ -350,7 +377,11 @@ function SlidePageInner() {
         </div>
       )}
 
-      {!showLoadingOverlay && <SlideViewer slide={currentSlide} />}
+      <SlideViewer slide={displayedSlide} />
+
+      <AnimatePresence>
+        {showSubtleLoader && <SubtleLoadingIndicator />}
+      </AnimatePresence>
     </div>
   );
 }
