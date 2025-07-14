@@ -79,7 +79,7 @@ export const rawMenu: MenuItem[] = [
     id: "bible",
     icon: BookHeart,
     label: "Bíblia",
-    href: "/biblia",
+    href: "/dashboard/biblia",
     accessLevel: "member",
   },
   {

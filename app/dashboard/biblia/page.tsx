@@ -6,13 +6,13 @@ import { BibleContainer } from "@/containers/biblia/biblia";
 
 const queryClient = new QueryClient();
 
-export default function DashboardBiblePage() {
+export default function BiblePage() {
   return (
     <QueryClientProvider client={queryClient}>
       <BibleContainer
         config={{
-          showBackButton: true,
-          enableGemini: false,
+          showBackButton: false,
+          enableGemini: true,
         }}
       />
     </QueryClientProvider>

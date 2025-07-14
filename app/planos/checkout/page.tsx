@@ -1,19 +1,28 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState } from "react"
-import { useSearchParams } from "next/navigation"
-import Link from "next/link"
-import { useLanguage } from "@/contexts/language-context"
-import { Logo } from "@/components/logo"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Separator } from "@/components/ui/separator"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Checkbox } from "@/components/ui/checkbox"
-import { ArrowLeft, CreditCard, Landmark, Barcode, CheckCircle, Info, Lock } from "lucide-react"
+import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { useLanguage } from "@/contexts/language-context";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  ArrowLeft,
+  CreditCard,
+  Landmark,
+  Barcode,
+  CheckCircle,
+  Info,
+  Lock,
+} from "lucide-react";
+import { Logo } from "@/components/ui/logo";
 
 // Vamos melhorar a lógica para garantir que a página funcione corretamente para ambos os planos
 
@@ -36,7 +45,8 @@ const plans = {
     branches: "2-3",
     support: "E-mail e Chat",
     popular: true,
-    description: "Perfeito para igrejas de médio porte com necessidades mais complexas",
+    description:
+      "Perfeito para igrejas de médio porte com necessidades mais complexas",
   },
   rede: {
     name: "Plano Rede",
@@ -47,16 +57,16 @@ const plans = {
     support: "Prioritário",
     description: "Solução completa para redes de igrejas com múltiplas filiais",
   },
-}
+};
 
 export default function CheckoutPage() {
   // Melhore a lógica de detecção do plano
-  const searchParams = useSearchParams()
-  const planId = searchParams.get("plano") || "comunidade"
-  const plan = plans[planId as keyof typeof plans] || plans.comunidade
+  const searchParams = useSearchParams();
+  const planId = searchParams.get("plano") || "comunidade";
+  const plan = plans[planId as keyof typeof plans] || plans.comunidade;
 
-  const { t } = useLanguage()
-  const [paymentMethod, setPaymentMethod] = useState("credit-card")
+  const { t } = useLanguage();
+  const [paymentMethod, setPaymentMethod] = useState("credit-card");
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -71,22 +81,22 @@ export default function CheckoutPage() {
     cardExpiry: "",
     cardCvv: "",
     agreeTerms: false,
-  })
+  });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
-    setFormData((prev) => ({ ...prev, [name]: value }))
-  }
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
 
   const handleCheckboxChange = (checked: boolean) => {
-    setFormData((prev) => ({ ...prev, agreeTerms: checked }))
-  }
+    setFormData((prev) => ({ ...prev, agreeTerms: checked }));
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     // Aqui você implementaria a lógica de processamento do pagamento
     // Redirecionar para página de sucesso ou mostrar mensagem
-  }
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
@@ -109,8 +119,12 @@ export default function CheckoutPage() {
       <main className="flex-1 container py-8 px-4 md:px-6">
         <div className="max-w-6xl mx-auto">
           <div className="mb-8">
-            <h1 className="text-3xl font-bold tracking-tight">Finalizar assinatura</h1>
-            <p className="text-muted-foreground mt-2">Complete as informações abaixo para assinar o {plan.name}</p>
+            <h1 className="text-3xl font-bold tracking-tight">
+              Finalizar assinatura
+            </h1>
+            <p className="text-muted-foreground mt-2">
+              Complete as informações abaixo para assinar o {plan.name}
+            </p>
           </div>
 
           <div className="grid gap-8 md:grid-cols-3">
@@ -119,7 +133,9 @@ export default function CheckoutPage() {
               <form onSubmit={handleSubmit} className="space-y-8">
                 {/* Informações pessoais */}
                 <div className="bg-background rounded-lg border p-6 shadow-sm">
-                  <h2 className="text-xl font-semibold mb-4">Informações pessoais</h2>
+                  <h2 className="text-xl font-semibold mb-4">
+                    Informações pessoais
+                  </h2>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
                       <Label htmlFor="name">Nome completo</Label>
@@ -171,7 +187,9 @@ export default function CheckoutPage() {
 
                 {/* Endereço de cobrança */}
                 <div className="bg-background rounded-lg border p-6 shadow-sm">
-                  <h2 className="text-xl font-semibold mb-4">Endereço de cobrança</h2>
+                  <h2 className="text-xl font-semibold mb-4">
+                    Endereço de cobrança
+                  </h2>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="sm:col-span-2 space-y-2">
                       <Label htmlFor="address">Endereço completo</Label>
@@ -224,19 +242,34 @@ export default function CheckoutPage() {
 
                 {/* Método de pagamento */}
                 <div className="bg-background rounded-lg border p-6 shadow-sm">
-                  <h2 className="text-xl font-semibold mb-4">Método de pagamento</h2>
+                  <h2 className="text-xl font-semibold mb-4">
+                    Método de pagamento
+                  </h2>
 
-                  <Tabs defaultValue="credit-card" onValueChange={setPaymentMethod} className="w-full">
+                  <Tabs
+                    defaultValue="credit-card"
+                    onValueChange={setPaymentMethod}
+                    className="w-full"
+                  >
                     <TabsList className="grid w-full grid-cols-3">
-                      <TabsTrigger value="credit-card" className="flex items-center gap-2">
+                      <TabsTrigger
+                        value="credit-card"
+                        className="flex items-center gap-2"
+                      >
                         <CreditCard className="h-4 w-4" />
                         <span>Cartão</span>
                       </TabsTrigger>
-                      <TabsTrigger value="bank-transfer" className="flex items-center gap-2">
+                      <TabsTrigger
+                        value="bank-transfer"
+                        className="flex items-center gap-2"
+                      >
                         <Landmark className="h-4 w-4" />
                         <span>Transferência</span>
                       </TabsTrigger>
-                      <TabsTrigger value="boleto" className="flex items-center gap-2">
+                      <TabsTrigger
+                        value="boleto"
+                        className="flex items-center gap-2"
+                      >
                         <Barcode className="h-4 w-4" />
                         <span>Boleto</span>
                       </TabsTrigger>
@@ -302,10 +335,14 @@ export default function CheckoutPage() {
                         <div className="flex items-start gap-3">
                           <Info className="h-5 w-5 text-primary mt-0.5" />
                           <div>
-                            <p className="font-medium">Instruções para transferência bancária</p>
+                            <p className="font-medium">
+                              Instruções para transferência bancária
+                            </p>
                             <p className="text-sm text-muted-foreground mt-1">
-                              Após finalizar sua assinatura, você receberá os dados bancários para realizar a
-                              transferência. Sua assinatura será ativada assim que confirmarmos o pagamento.
+                              Após finalizar sua assinatura, você receberá os
+                              dados bancários para realizar a transferência. Sua
+                              assinatura será ativada assim que confirmarmos o
+                              pagamento.
                             </p>
                           </div>
                         </div>
@@ -319,8 +356,10 @@ export default function CheckoutPage() {
                           <div>
                             <p className="font-medium">Pagamento via boleto</p>
                             <p className="text-sm text-muted-foreground mt-1">
-                              O boleto será gerado após a finalização da assinatura e enviado para seu email. Sua
-                              assinatura será ativada em até 3 dias úteis após o pagamento.
+                              O boleto será gerado após a finalização da
+                              assinatura e enviado para seu email. Sua
+                              assinatura será ativada em até 3 dias úteis após o
+                              pagamento.
                             </p>
                           </div>
                         </div>
@@ -344,11 +383,17 @@ export default function CheckoutPage() {
                       </Label>
                       <p className="text-sm text-muted-foreground mt-1">
                         Ao assinar, você concorda com nossos{" "}
-                        <Link href="/termos" className="text-primary hover:underline">
+                        <Link
+                          href="/termos"
+                          className="text-primary hover:underline"
+                        >
                           Termos de Serviço
                         </Link>{" "}
                         e{" "}
-                        <Link href="/privacidade" className="text-primary hover:underline">
+                        <Link
+                          href="/privacidade"
+                          className="text-primary hover:underline"
+                        >
                           Política de Privacidade
                         </Link>
                         .
@@ -357,7 +402,12 @@ export default function CheckoutPage() {
                   </div>
                 </div>
 
-                <Button type="submit" size="lg" className="w-full" disabled={!formData.agreeTerms}>
+                <Button
+                  type="submit"
+                  size="lg"
+                  className="w-full"
+                  disabled={!formData.agreeTerms}
+                >
                   Finalizar assinatura
                 </Button>
               </form>
@@ -367,7 +417,9 @@ export default function CheckoutPage() {
             <div className="md:col-span-1">
               <div className="bg-background rounded-lg border shadow-sm sticky top-24">
                 <div className="p-6">
-                  <h2 className="text-xl font-semibold mb-4">Resumo da assinatura</h2>
+                  <h2 className="text-xl font-semibold mb-4">
+                    Resumo da assinatura
+                  </h2>
 
                   <div className="space-y-4">
                     <div className="flex items-start gap-3">
@@ -377,7 +429,9 @@ export default function CheckoutPage() {
                       {/* Adicione uma mensagem personalizada baseada no plano selecionado */}
                       <div>
                         <h3 className="font-medium">{plan.name}</h3>
-                        <p className="text-sm text-muted-foreground">{plan.description}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {plan.description}
+                        </p>
                       </div>
                     </div>
 
@@ -406,7 +460,9 @@ export default function CheckoutPage() {
 
                     <div className="flex justify-between items-center">
                       <span className="font-medium">Total mensal</span>
-                      <span className="text-xl font-bold">R$ {plan.price},00</span>
+                      <span className="text-xl font-bold">
+                        R$ {plan.price},00
+                      </span>
                     </div>
 
                     <div className="text-sm text-muted-foreground">
@@ -425,7 +481,10 @@ export default function CheckoutPage() {
                 <div className="border-t p-6 bg-muted/30">
                   <div className="flex items-center justify-between text-sm">
                     <span>Precisa de ajuda?</span>
-                    <Link href="/contato" className="text-primary hover:underline">
+                    <Link
+                      href="/contato"
+                      className="text-primary hover:underline"
+                    >
                       Fale conosco
                     </Link>
                   </div>
@@ -443,17 +502,27 @@ export default function CheckoutPage() {
             <div className="flex items-center gap-2">
               <Logo size="sm" />
               <p className="text-sm text-muted-foreground">
-                &copy; {new Date().getFullYear()} MyChurch. Todos os direitos reservados.
+                &copy; {new Date().getFullYear()} MyChurch. Todos os direitos
+                reservados.
               </p>
             </div>
             <div className="flex gap-4">
-              <Link href="/suporte" className="text-sm text-muted-foreground hover:text-foreground">
+              <Link
+                href="/suporte"
+                className="text-sm text-muted-foreground hover:text-foreground"
+              >
                 Suporte
               </Link>
-              <Link href="/privacidade" className="text-sm text-muted-foreground hover:text-foreground">
+              <Link
+                href="/privacidade"
+                className="text-sm text-muted-foreground hover:text-foreground"
+              >
                 Privacidade
               </Link>
-              <Link href="/termos" className="text-sm text-muted-foreground hover:text-foreground">
+              <Link
+                href="/termos"
+                className="text-sm text-muted-foreground hover:text-foreground"
+              >
                 Termos
               </Link>
             </div>
@@ -461,5 +530,5 @@ export default function CheckoutPage() {
         </div>
       </footer>
     </div>
-  )
+  );
 }

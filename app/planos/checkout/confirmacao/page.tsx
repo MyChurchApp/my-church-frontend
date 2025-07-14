@@ -1,11 +1,18 @@
-"use client"
+"use client";
 
-import { useSearchParams } from "next/navigation"
-import Link from "next/link"
-import { Logo } from "@/components/logo"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { CheckCircle, ArrowRight } from "lucide-react"
+import { useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { CheckCircle, ArrowRight } from "lucide-react";
+import { Logo } from "@/components/ui/logo";
 
 // Definição dos planos
 const plans = {
@@ -21,17 +28,17 @@ const plans = {
     name: "Plano Rede",
     price: 499,
   },
-}
+};
 
 export default function ConfirmacaoPage() {
-  const searchParams = useSearchParams()
-  const planId = searchParams.get("plano") || "comunidade"
-  const plan = plans[planId as keyof typeof plans] || plans.comunidade
+  const searchParams = useSearchParams();
+  const planId = searchParams.get("plano") || "comunidade";
+  const plan = plans[planId as keyof typeof plans] || plans.comunidade;
 
   // Calcular a data da próxima cobrança (14 dias a partir de hoje)
-  const nextBillingDate = new Date()
-  nextBillingDate.setDate(nextBillingDate.getDate() + 14)
-  const formattedDate = nextBillingDate.toLocaleDateString("pt-BR")
+  const nextBillingDate = new Date();
+  nextBillingDate.setDate(nextBillingDate.getDate() + 14);
+  const formattedDate = nextBillingDate.toLocaleDateString("pt-BR");
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
@@ -49,13 +56,16 @@ export default function ConfirmacaoPage() {
               <CheckCircle className="h-6 w-6 text-primary" />
             </div>
             <CardTitle className="text-2xl">Assinatura confirmada!</CardTitle>
-            <CardDescription>Obrigado por escolher o MyChurch para gerenciar sua igreja.</CardDescription>
+            <CardDescription>
+              Obrigado por escolher o MyChurch para gerenciar sua igreja.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="rounded-md bg-muted p-4">
               <p className="text-sm">
-                Enviamos um email com os detalhes da sua assinatura e instruções para acessar sua conta. Você receberá
-                acesso ao sistema em até 24 horas.
+                Enviamos um email com os detalhes da sua assinatura e instruções
+                para acessar sua conta. Você receberá acesso ao sistema em até
+                24 horas.
               </p>
             </div>
 
@@ -99,17 +109,27 @@ export default function ConfirmacaoPage() {
             <div className="flex items-center gap-2">
               <Logo size="sm" />
               <p className="text-sm text-muted-foreground">
-                &copy; {new Date().getFullYear()} MyChurch. Todos os direitos reservados.
+                &copy; {new Date().getFullYear()} MyChurch. Todos os direitos
+                reservados.
               </p>
             </div>
             <div className="flex gap-4">
-              <Link href="/suporte" className="text-sm text-muted-foreground hover:text-foreground">
+              <Link
+                href="/suporte"
+                className="text-sm text-muted-foreground hover:text-foreground"
+              >
                 Suporte
               </Link>
-              <Link href="/privacidade" className="text-sm text-muted-foreground hover:text-foreground">
+              <Link
+                href="/privacidade"
+                className="text-sm text-muted-foreground hover:text-foreground"
+              >
                 Privacidade
               </Link>
-              <Link href="/termos" className="text-sm text-muted-foreground hover:text-foreground">
+              <Link
+                href="/termos"
+                className="text-sm text-muted-foreground hover:text-foreground"
+              >
                 Termos
               </Link>
             </div>
@@ -117,5 +137,5 @@ export default function ConfirmacaoPage() {
         </div>
       </footer>
     </div>
-  )
+  );
 }

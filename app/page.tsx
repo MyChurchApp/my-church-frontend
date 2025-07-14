@@ -12,8 +12,8 @@ import NewsFeedSection from "@/components/Home/NewsFeed";
 import FeaturesSection from "@/components/Home/Features";
 import PlansSection from "@/components/Home/Plans";
 import FAQSection from "@/components/Home/FAQ";
-import PWAInstall from "@/components/pwa-install";
 import Header from "@/components/Home/Header";
+import PWAInstall from "@/components/ui/pwa-install";
 
 export default function HomePage() {
   useEffect(() => {
