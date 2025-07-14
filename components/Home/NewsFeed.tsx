@@ -1,7 +1,6 @@
 import Image from "next/image";
 
 const NewsFeed = () => {
-  // ... (código do array `feedItems` continua o mesmo)
   const feedItems = [
     {
       img: "https://placehold.co/80x80/8B5CF6/FFFFFF?text=Evento",

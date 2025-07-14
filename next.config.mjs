@@ -3,7 +3,7 @@ import withBundleAnalyzer from "@next/bundle-analyzer";
 const nextConfig = {
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
-  images: {},
+  images: { unoptimized: true },
 };
 
 export default withBundleAnalyzer({
