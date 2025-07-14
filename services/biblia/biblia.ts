@@ -1,4 +1,7 @@
+// O URL base da sua API
 const API_URL = "https://demoapp.top1soft.com.br";
+
+// --- Interfaces e Tipos (sem alterações) ---
 
 export interface GeminiModalProps {
   open: boolean;
@@ -57,104 +60,119 @@ type ExplainVerseResponse = {
   application: string;
 };
 
-// Função utilitária para pegar o token do localStorage
-function getAuthToken(): string {
-  if (typeof window === "undefined") return "";
-  const token = localStorage.getItem("authToken");
-  if (!token) throw new Error("Token JWT não encontrado no localStorage");
-  return token;
-}
+// --- Funções de Fetch (Refatoradas) ---
 
-// Função genérica de fetch
-async function fetchAPI<T>(endpoint: string): Promise<T> {
-  const token = getAuthToken();
+// 1. Nova função para chamadas públicas (sem token)
+async function fetchPublicAPI<T>(endpoint: string): Promise<T> {
   const res = await fetch(`${API_URL}${endpoint}`, {
     headers: {
-      Accept: "*/*",
-      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
     },
-    cache: "no-store",
+    cache: "force-cache", // Recomenda-se cache agressivo para dados que não mudam
   });
-  if (!res.ok) throw new Error(`Erro ${res.status}: ${res.statusText}`);
+  if (!res.ok) {
+    throw new Error(`Erro na API pública: ${res.status} ${res.statusText}`);
+  }
   return res.json();
 }
 
+// 2. Função para chamadas autenticadas (com token)
+async function fetchAuthenticatedAPI<T>(
+  endpoint: string,
+  options?: RequestInit
+): Promise<T> {
+  const token =
+    typeof window !== "undefined" ? localStorage.getItem("authToken") : null;
+  if (!token) {
+    throw new Error("Usuário não autenticado.");
+  }
+
+  const res = await fetch(`${API_URL}${endpoint}`, {
+    ...options,
+    headers: {
+      ...options?.headers,
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error(`Erro na API autenticada: ${res.status} ${res.statusText}`);
+  }
+  return res.json();
+}
+
+// --- Objeto do Serviço (Atualizado) ---
+
 export const bibleService = {
-  // 1. Lista todas as versões
+  // Funções que agora usam a chamada pública
   getVersions(): Promise<BibleVersion[]> {
-    return fetchAPI<BibleVersion[]>("/api/Bible/versions");
+    return fetchPublicAPI<BibleVersion[]>("/api/Bible/versions");
   },
 
-  // 2. Lista todos os livros de uma versão
   getBooksByVersion(versionId: number): Promise<BibleBook[]> {
-    return fetchAPI<BibleBook[]>(`/api/Bible/versions/${versionId}/books`);
+    return fetchPublicAPI<BibleBook[]>(
+      `/api/Bible/versions/${versionId}/books`
+    );
   },
 
-  // 3. Lista todos os capítulos de um livro por ID
   getChaptersByBookId(bookId: number): Promise<BibleChapter[]> {
-    return fetchAPI<BibleChapter[]>(`/api/Bible/books/${bookId}/chapters`);
+    return fetchPublicAPI<BibleChapter[]>(
+      `/api/Bible/books/${bookId}/chapters`
+    );
   },
 
-  // 4. Lista todos os capítulos de um livro por versão e abreviação do livro
   getChaptersByBookName(
     versionId: number,
     bookName: string
   ): Promise<BibleChapter[]> {
-    return fetchAPI<BibleChapter[]>(
+    return fetchPublicAPI<BibleChapter[]>(
       `/api/Bible/versions/${versionId}/books/${bookName}/chapters`
     );
   },
 
-  // 5. Retorna UM versículo específico de um capítulo
   getVerseByChapterAndNumber(
     chapterId: number,
     verseNumber: number
   ): Promise<BibleVerse> {
-    return fetchAPI<BibleVerse>(
+    return fetchPublicAPI<BibleVerse>(
       `/api/Bible/chapters/${chapterId}/verses/${verseNumber}`
     );
   },
 
-  // 6. Lista todos os versículos de um capítulo (por ID de capítulo)
   getVersesByChapterId(chapterId: number): Promise<BibleVerse[]> {
-    return fetchAPI<BibleVerse[]>(`/api/Bible/chapters/${chapterId}/verses`);
+    return fetchPublicAPI<BibleVerse[]>(
+      `/api/Bible/chapters/${chapterId}/verses`
+    );
   },
 
-  // Implementação real usando o endpoint da API PastorBot
-  explainWithGemini: async (
-    verseText: string,
-    verseReference: string
-  ): Promise<ExplainVerseResponse> => {
-    const token = getAuthToken();
-    const res = await fetch(`${API_URL}/api/PastorBot/explainverse`, {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        verseReference,
-        verseText,
-      }),
-    });
-
-    if (!res.ok) throw new Error(`Erro ${res.status}: ${res.statusText}`);
-
-    // Retorna o objeto direto, sem formatação de string!
-    return res.json();
-  },
-
-  // 7. Lista todos os versículos por versão, livro (abreviação) e número do capítulo
   getVersesByReference(
     versionId: number,
     bookName: string,
     chapterNumber: number
   ): Promise<BibleVerse[]> {
-    return fetchAPI<BibleVerse[]>(
+    return fetchPublicAPI<BibleVerse[]>(
       `/api/Bible/versions/${versionId}/books/${bookName}/chapters/${chapterNumber}/verses`
     );
   },
+
+  // Função que CONTINUA usando a chamada autenticada
+  explainWithGemini: (
+    verseText: string,
+    verseReference: string
+  ): Promise<ExplainVerseResponse> => {
+    return fetchAuthenticatedAPI<ExplainVerseResponse>(
+      "/api/PastorBot/explainverse",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          verseReference,
+          verseText,
+        }),
+      }
+    );
+  },
 };
-
-

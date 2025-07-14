@@ -5,6 +5,7 @@ import { Loader2, ChevronLeft, ChevronRight, ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
+// A interface de props continua a mesma
 interface BibleHeaderProps {
   isDarkMode: boolean;
   onToggleTheme: () => void;
@@ -38,9 +39,8 @@ export function BibleHeader({
   const isNavigationDisabled = isLoadingBooks || isLoadingChapters;
 
   return (
-    <header className="fixed bottom-0 z-20 bg-white dark:bg-gray-900 shadow-lg p-2 flex items-center justify-between gap-2 border-t border-gray-200 dark:border-gray-800">
-      <div className="w-11">
-        {" "}
+    <>
+      <div className="w-11 flex-shrink-0 top-0 fixed">
         {showBackButton && (
           <Button
             variant="ghost"
@@ -52,46 +52,53 @@ export function BibleHeader({
           </Button>
         )}
       </div>
-      <div className="flex-grow flex justify-center items-center gap-2">
-        <Button
-          variant="default"
-          size="lg-icon"
-          onClick={onPrevChapter}
-          title="Capítulo Anterior"
-          disabled={isNavigationDisabled}
-        >
-          <ChevronLeft size={24} />
-        </Button>
+      <footer className="fixed bottom-0 left-0 right-0 z-20 bg-white dark:bg-gray-900 shadow-lg p-2 flex items-center justify-between gap-2 border-t border-gray-200 dark:border-gray-800">
+        <div className="flex-grow flex justify-center items-center gap-2">
+          {/* Botão Anterior (Fora do bloco) */}
+          <Button
+            variant="default"
+            size="lg-icon"
+            onClick={onPrevChapter}
+            title="Capítulo Anterior"
+            disabled={isNavigationDisabled}
+          >
+            <ChevronLeft size={24} />
+          </Button>
 
-        <Button
-          variant="secondary"
-          size="lg"
-          className="flex flex-col h-11 justify-center px-4 w-full max-w-[220px]"
-          onClick={onMobileNavClick}
-        >
-          <span className="text-base font-bold truncate max-w-full">
-            {isLoadingBooks ? (
-              <Loader2 size={16} className="animate-spin" />
-            ) : (
-              book?.name || "..."
-            )}
-          </span>
-          <span className="text-xs text-gray-600 dark:text-gray-400">
-            Capítulo {chapter}
-          </span>
-        </Button>
+          {/* Bloco Central (Clicável para abrir o modal) */}
+          <Button
+            variant="secondary"
+            size="lg"
+            className="flex flex-col h-11 justify-center px-4 w-full max-w-[220px]"
+            onClick={onMobileNavClick}
+          >
+            <span className="text-base font-bold truncate max-w-full">
+              {isLoadingBooks ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                book?.name || "..."
+              )}
+            </span>
+            <span className="text-xs text-gray-600 dark:text-gray-400">
+              Capítulo {chapter}
+            </span>
+          </Button>
 
-        <Button
-          variant="default"
-          size="lg-icon"
-          onClick={onNextChapter}
-          title="Próximo Capítulo"
-          disabled={isNavigationDisabled}
-        >
-          <ChevronRight size={24} />
-        </Button>
-      </div>
-      <div className="w-11"></div>{" "}
-    </header>
+          {/* Botão Próximo (Fora do bloco) */}
+          <Button
+            variant="default"
+            size="lg-icon"
+            onClick={onNextChapter}
+            title="Próximo Capítulo"
+            disabled={isNavigationDisabled}
+          >
+            <ChevronRight size={24} />
+          </Button>
+        </div>
+
+        {/* Espaçador (Direita, para manter o alinhamento) */}
+        <div className="w-11 flex-shrink-0"></div>
+      </footer>
+    </>
   );
 }

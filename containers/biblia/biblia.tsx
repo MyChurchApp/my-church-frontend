@@ -1,41 +1,32 @@
 "use client";
 
 import { useState } from "react";
-import { useBibleReader } from "./useBibleReader"; // Ajuste o caminho se for diferente
+import { useBibleReader } from "./useBibleReader";
 import { BibleHeader } from "@/components/biblia/BibleHeader/BibleHeader";
 import { BibleContent } from "@/components/biblia/BibleContent/BibleContent";
 import { ChapterModal } from "@/components/biblia/ChapterModal/ChapterPopover";
 import { VerseActionTooltip } from "@/components/biblia/VerseActionTooltip/VerseActionTooltip";
 import BookModal from "@/components/biblia/BookModal/BookModal";
 import { GeminiModal } from "@/components/biblia/GeminiModal/GeminiModal";
-
 import { Loader2 } from "lucide-react";
 import { NavigationModal } from "@/components/biblia/BibleHeader/NavigationModal";
 
-// Interface para as opções de configuração que a página pode passar
 interface BibleContainerConfig {
   showBackButton?: boolean;
   enableGemini?: boolean;
 }
 
-// O componente agora aceita 'config' como uma propriedade
 interface BibleContainerProps {
   config?: BibleContainerConfig;
 }
 
 export function BibleContainer({ config = {} }: BibleContainerProps) {
-  // Define os valores padrão para a configuração, caso não sejam passados
   const { showBackButton = true, enableGemini = false } = config;
-
-  // O hook 'useBibleReader' continua sendo o cérebro, fornecendo toda a lógica
   const { state, refs, loading, handlers } = useBibleReader();
-
-  // O container gerencia o estado de abertura de todos os modais
   const [isChapterModalOpen, setIsChapterModalOpen] = useState(false);
   const [isBookModalOpen, setIsBookModalOpen] = useState(false);
-  const [isNavModalOpen, setIsNavModalOpen] = useState(false); // Estado para o novo modal mobile
+  const [isNavModalOpen, setIsNavModalOpen] = useState(false);
 
-  // Funções de callback para o Tooltip
   const handleCopy = () => {
     if (state.tooltip?.text) {
       navigator.clipboard.writeText(
@@ -55,7 +46,6 @@ export function BibleContainer({ config = {} }: BibleContainerProps) {
     }
   };
 
-  // Funções de callback para os Modais de Seleção
   const handleSelectBook = (bookId: number) => {
     const newBook = state.books.find((b) => b.id === bookId);
     if (newBook) {

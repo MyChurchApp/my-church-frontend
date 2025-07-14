@@ -53,6 +53,13 @@ const Header = () => {
           >
             Planos
           </a>
+          <a
+            href="/livraria"
+            className="nav-link font-medium hover:text-blue-200"
+            onClick={closeMenu}
+          >
+            Livraria
+          </a>
         </div>
         <div className="flex items-center space-x-3">
           <DarkModeToggle isScrolled={isScrolled} />
