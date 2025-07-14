@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useBibleReader } from "./useBibleReader";
 import { BibleHeader } from "@/components/biblia/BibleHeader/BibleHeader";
 import { BibleContent } from "@/components/biblia/BibleContent/BibleContent";
 import { ChapterModal } from "@/components/biblia/ChapterModal/ChapterPopover";
@@ -9,6 +8,8 @@ import { VerseActionTooltip } from "@/components/biblia/VerseActionTooltip/Verse
 import BookModal from "@/components/biblia/BookModal/BookModal";
 import { GeminiModal } from "@/components/biblia/GeminiModal/GeminiModal";
 import { Loader2 } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { useBibleReader } from "./useBibleReader";
 import { NavigationModal } from "@/components/biblia/BibleHeader/NavigationModal";
 
 interface BibleContainerConfig {
@@ -26,6 +27,8 @@ export function BibleContainer({ config = {} }: BibleContainerProps) {
   const [isChapterModalOpen, setIsChapterModalOpen] = useState(false);
   const [isBookModalOpen, setIsBookModalOpen] = useState(false);
   const [isNavModalOpen, setIsNavModalOpen] = useState(false);
+  const [isUiVisible, setIsUiVisible] = useState(true);
+  const [theme, setTheme] = useState<"light" | "dark" | "sepia">("light");
 
   const handleCopy = () => {
     if (state.tooltip?.text) {
@@ -59,38 +62,64 @@ export function BibleContainer({ config = {} }: BibleContainerProps) {
     setIsChapterModalOpen(false);
   };
 
+  const toggleUiVisibility = () => setIsUiVisible((prev) => !prev);
+
   return (
     <div
-      className={`relative min-h-screen flex flex-col font-sans bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 ${
-        state.isDarkMode ? "dark" : ""
+      className={`relative min-h-screen flex flex-col font-serif transition-colors duration-300 ${
+        theme === "sepia" ? "bg-[#f9f5f0]" : "bg-gray-50 dark:bg-gray-950"
       }`}
     >
-      <BibleHeader
-        isDarkMode={state.isDarkMode}
-        onToggleTheme={() => handlers.setIsDarkMode(!state.isDarkMode)}
-        versionId={state.versionId}
-        onVersionChange={handlers.setVersionId}
-        versions={state.versions}
-        isLoadingVersions={loading.isLoadingVersions}
-        book={state.book}
-        isLoadingBooks={loading.isLoadingBooks}
-        isLoadingChapters={loading.isLoadingChapters}
-        onBookClick={() => setIsBookModalOpen(true)}
-        chapter={state.chapter}
-        onChapterClick={() => setIsChapterModalOpen(true)}
-        onPrevChapter={handlers.handlePrevChapter}
-        onNextChapter={handlers.handleNextChapter}
-        showBackButton={showBackButton}
-        onMobileNavClick={() => setIsNavModalOpen(true)}
+      <AnimatePresence>
+        {isUiVisible && (
+          <motion.div
+            initial={{ y: "100%" }}
+            animate={{ y: "0%" }}
+            exit={{ y: "100%" }}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+            className="fixed bottom-0 left-0 right-0 z-20"
+          >
+            <BibleHeader
+              isDarkMode={state.isDarkMode}
+              onToggleTheme={() => handlers.setIsDarkMode(!state.isDarkMode)}
+              versionId={state.versionId}
+              onVersionChange={handlers.setVersionId}
+              versions={state.versions}
+              isLoadingVersions={loading.isLoadingVersions}
+              book={state.book}
+              isLoadingBooks={loading.isLoadingBooks}
+              isLoadingChapters={loading.isLoadingChapters}
+              onBookClick={() => setIsBookModalOpen(true)}
+              chapter={state.chapter}
+              onChapterClick={() => setIsChapterModalOpen(true)}
+              onPrevChapter={handlers.handlePrevChapter}
+              onNextChapter={handlers.handleNextChapter}
+              showBackButton={showBackButton}
+              onMobileNavClick={() => setIsNavModalOpen(true)}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <div
+        onClick={handlers.handlePrevChapter}
+        className="fixed left-0 top-0 h-full w-[25vw] z-0"
+      />
+      <div
+        onClick={handlers.handleNextChapter}
+        className="fixed right-0 top-0 h-full w-[25vw] z-0"
+      />
+      <div
+        onClick={toggleUiVisibility}
+        className="fixed left-[25vw] top-0 h-full w-[50vw] z-0"
       />
 
       <main
         ref={refs.mainContentRef}
-        className="flex-grow p-4 md:p-6 max-w-4xl mx-auto w-full"
+        className="flex-grow pb-4 md:pb-6 max-w-2xl mx-auto w-full z-10"
       >
         {loading.showGlobalLoading ? (
-          <div className="flex justify-center items-center p-12">
-            <Loader2 className="h-8 w-8 animate-spin text-blue-600 dark:text-blue-400" />
+          <div className="flex justify-center items-center py-20">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         ) : (
           <BibleContent
@@ -98,7 +127,11 @@ export function BibleContainer({ config = {} }: BibleContainerProps) {
             chapter={state.chapter}
             verses={state.verses}
             isLoading={loading.isLoadingVerses}
-            onVerseClick={handlers.handleVerseClick}
+            onVerseClick={(e, verse) => {
+              e.stopPropagation();
+              handlers.handleVerseClick(e, verse);
+            }}
+            theme={theme}
           />
         )}
       </main>
@@ -157,6 +190,8 @@ export function BibleContainer({ config = {} }: BibleContainerProps) {
           setIsNavModalOpen(false);
           setIsChapterModalOpen(true);
         }}
+        currentTheme={theme}
+        onThemeChange={setTheme}
       />
     </div>
   );

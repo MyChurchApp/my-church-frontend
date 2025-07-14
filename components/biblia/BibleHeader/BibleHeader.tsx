@@ -39,22 +39,27 @@ export function BibleHeader({
   const isNavigationDisabled = isLoadingBooks || isLoadingChapters;
 
   return (
-    <>
-      <div className="w-11 flex-shrink-0 top-0 fixed">
-        {showBackButton && (
-          <Button
-            variant="ghost"
-            size="lg-icon"
-            onClick={() => router.back()}
-            title="Voltar"
-          >
-            <ArrowLeft size={22} />
-          </Button>
-        )}
-      </div>
-      <footer className="fixed bottom-0 left-0 right-0 z-20 bg-white dark:bg-gray-900 shadow-lg p-2 flex items-center justify-between gap-2 border-t border-gray-200 dark:border-gray-800">
+    // O <header> continua ocupando 100% da largura da tela...
+    <header className="fixed bottom-0 left-0 right-0 z-20 bg-white dark:bg-gray-900 shadow-lg border-t border-gray-200 dark:border-gray-800">
+      {/* ...mas agora, um <div> interno centraliza o conteúdo para alinhar com a página. */}
+      <div className="p-2 flex items-center ">
+        {/* Botão Voltar (Esquerda) */}
+        <div className="w-11 flex-shrink-0">
+          {showBackButton && (
+            <Button
+              variant="ghost"
+              size="lg-icon"
+              onClick={() => router.back()}
+              title="Voltar"
+            >
+              <ArrowLeft size={22} />
+            </Button>
+          )}
+        </div>
+
+        {/* Navegação Central */}
         <div className="flex-grow flex justify-center items-center gap-2">
-          {/* Botão Anterior (Fora do bloco) */}
+          {/* Botão Anterior */}
           <Button
             variant="default"
             size="lg-icon"
@@ -65,7 +70,7 @@ export function BibleHeader({
             <ChevronLeft size={24} />
           </Button>
 
-          {/* Bloco Central (Clicável para abrir o modal) */}
+          {/* Bloco Central Clicável */}
           <Button
             variant="secondary"
             size="lg"
@@ -84,7 +89,7 @@ export function BibleHeader({
             </span>
           </Button>
 
-          {/* Botão Próximo (Fora do bloco) */}
+          {/* Botão Próximo */}
           <Button
             variant="default"
             size="lg-icon"
@@ -98,7 +103,7 @@ export function BibleHeader({
 
         {/* Espaçador (Direita, para manter o alinhamento) */}
         <div className="w-11 flex-shrink-0"></div>
-      </footer>
-    </>
+      </div>
+    </header>
   );
 }
