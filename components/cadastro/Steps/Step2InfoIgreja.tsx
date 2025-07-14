@@ -191,7 +191,7 @@ export function Step2_InfoIgreja({
             </legend>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="denominacao">Denominação *</Label>
+                <Label htmlFor="denominacao">Descrição *</Label>
                 <Input
                   id="denominacao"
                   value={formData.description || ""}
