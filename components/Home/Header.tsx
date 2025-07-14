@@ -68,10 +68,10 @@ const Header = () => {
               Login
             </a>
             <a
-              href="#launch"
+              href="/cadastro?plano=1"
               className="px-5 py-2 bg-white text-blue-600 font-bold rounded-lg hover:bg-blue-100 dark:hover:bg-blue-200 transition duration-300 shadow-md"
             >
-              Seja Notificado
+              Criar Conta Grátis
             </a>
           </div>
           <button
@@ -86,7 +86,6 @@ const Header = () => {
         </div>
       </nav>
 
-      {/* ÁREA CORRIGIDA */}
       <div
         className={`${
           isMenuOpen ? "" : "hidden"
@@ -122,11 +121,11 @@ const Header = () => {
             Login
           </a>
           <a
-            href="#launch"
+            href="/cadastro?plano=1"
             className="block w-full text-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             onClick={closeMenu}
           >
-            Seja Notificado
+            Criar Conta Grátis
           </a>
         </div>
       </div>

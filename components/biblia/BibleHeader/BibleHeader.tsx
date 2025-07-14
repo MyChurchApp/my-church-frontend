@@ -38,7 +38,7 @@ export function BibleHeader({
   const isNavigationDisabled = isLoadingBooks || isLoadingChapters;
 
   return (
-    <header className="fixed bottom-0 left-0 right-0 z-20 bg-white dark:bg-gray-900 shadow-lg p-2 flex items-center justify-between gap-2 border-t border-gray-200 dark:border-gray-800">
+    <header className="fixed bottom-0 z-20 bg-white dark:bg-gray-900 shadow-lg p-2 flex items-center justify-between gap-2 border-t border-gray-200 dark:border-gray-800">
       <div className="w-11">
         {" "}
         {showBackButton && (
