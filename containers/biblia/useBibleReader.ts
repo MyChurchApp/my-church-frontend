@@ -19,6 +19,7 @@ export function useBibleReader() {
   const [isGeminiModalOpen, setIsGeminiModalOpen] = useState(false);
   const [geminiFullResponse, setGeminiFullResponse] = useState<any>(null);
   const [isGeminiLoading, setIsGeminiLoading] = useState(false);
+
   const router = useRouter();
   const mainContentRef = useRef<HTMLElement>(null);
 
@@ -68,16 +69,28 @@ export function useBibleReader() {
   });
 
   useEffect(() => {
-    if (versions.length && !versionId) setVersionId(versions[0].id);
+    if (versions.length && !versionId) {
+      setVersionId(versions[0].id);
+    }
   }, [versions, versionId]);
 
   useEffect(() => {
     if (books.length && (!book || !books.some((b) => b.id === book.id))) {
       setBook(books[0]);
-      setChapter(1);
     }
   }, [books, book]);
 
+  useEffect(() => {
+    if (!chapters || chapters.length === 0) return;
+
+    const chapterExistsInNewBook = chapters.some(
+      (c) => c.chapterNumber === chapter
+    );
+
+    if (!chapterExistsInNewBook) {
+      setChapter(1);
+    }
+  }, [chapters]);
   useEffect(() => {
     mainContentRef.current?.scrollTo({ top: 0, behavior: "smooth" });
     setTooltip(null);
@@ -92,7 +105,6 @@ export function useBibleReader() {
       const currentBookIndex = books.findIndex((b) => b.id === book?.id);
       if (currentBookIndex < books.length - 1) {
         setBook(books[currentBookIndex + 1]);
-        setChapter(1);
       }
     }
   }, [chapters, chapter, books, book, isLoadingChapters, isLoadingVerses]);
@@ -104,12 +116,16 @@ export function useBibleReader() {
     } else {
       const currentBookIndex = books.findIndex((b) => b.id === book?.id);
       if (currentBookIndex > 0) {
-        const prevBook = books[currentBookIndex - 1];
-        setBook(prevBook);
-        setChapter(1);
+        setBook(books[currentBookIndex - 1]);
       }
     }
   }, [chapter, books, book, isLoadingChapters, isLoadingVerses]);
+
+  const handleBookChange = (newBook: BibleBook | undefined) => {
+    if (newBook && newBook.id !== book?.id) {
+      setBook(newBook);
+    }
+  };
 
   const handleVerseClick = (
     event: React.MouseEvent<HTMLParagraphElement>,
@@ -178,7 +194,7 @@ export function useBibleReader() {
       router,
       setIsDarkMode,
       setVersionId,
-      setBook,
+      setBook: handleBookChange,
       setChapter,
       setTooltip,
       handleNextChapter,

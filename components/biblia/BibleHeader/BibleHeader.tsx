@@ -5,7 +5,6 @@ import { Loader2, ChevronLeft, ChevronRight, ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
-// A interface de props continua a mesma
 interface BibleHeaderProps {
   isDarkMode: boolean;
   onToggleTheme: () => void;
@@ -40,14 +39,12 @@ export function BibleHeader({
 
   return (
     <header className="fixed bottom-0 left-0 right-0 z-20 bg-white dark:bg-gray-900 shadow-lg p-2 flex items-center justify-between gap-2 border-t border-gray-200 dark:border-gray-800">
-      {/* Botão Voltar (Esquerda) */}
       <div className="w-11">
         {" "}
-        {/* Ajustado para alinhar com o botão de ícone */}
         {showBackButton && (
           <Button
             variant="ghost"
-            size="lg-icon" // <-- USANDO A NOVA VARIANTE
+            size="lg-icon"
             onClick={() => router.back()}
             title="Voltar"
           >
@@ -55,12 +52,10 @@ export function BibleHeader({
           </Button>
         )}
       </div>
-      {/* Navegação Central */}
       <div className="flex-grow flex justify-center items-center gap-2">
-        {/* Botão Anterior (Fora do bloco) */}
         <Button
           variant="default"
-          size="lg-icon" // <-- USANDO A NOVA VARIANTE
+          size="lg-icon"
           onClick={onPrevChapter}
           title="Capítulo Anterior"
           disabled={isNavigationDisabled}
@@ -68,11 +63,10 @@ export function BibleHeader({
           <ChevronLeft size={24} />
         </Button>
 
-        {/* Bloco Central (Clicável para abrir o modal) */}
         <Button
           variant="secondary"
-          size="lg" // <-- Usando o tamanho 'lg' padrão para altura h-11
-          className="flex flex-col h-11 justify-center px-4 w-full max-w-[220px]" // Ajustando padding e alinhamento
+          size="lg"
+          className="flex flex-col h-11 justify-center px-4 w-full max-w-[220px]"
           onClick={onMobileNavClick}
         >
           <span className="text-base font-bold truncate max-w-full">
@@ -87,10 +81,9 @@ export function BibleHeader({
           </span>
         </Button>
 
-        {/* Botão Próximo (Fora do bloco) */}
         <Button
           variant="default"
-          size="lg-icon" // <-- USANDO A NOVA VARIANTE
+          size="lg-icon"
           onClick={onNextChapter}
           title="Próximo Capítulo"
           disabled={isNavigationDisabled}
@@ -98,9 +91,7 @@ export function BibleHeader({
           <ChevronRight size={24} />
         </Button>
       </div>
-      {/* Espaçador (Direita, para manter o alinhamento) */}
       <div className="w-11"></div>{" "}
-      {/* Ajustado para alinhar com o botão de ícone */}
     </header>
   );
 }
