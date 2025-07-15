@@ -12,9 +12,8 @@ import Header from "@/components/Home/Header";
 import { AOSInitializer } from "./AOSInitializer";
 import PWAInstall from "@/components/ui/pwa-install";
 
-// Metadados otimizados para SEO e para sua marca
 export const metadata: Metadata = {
-  title: "MyChurch Lab | Software Completo para Gestão de Igrejas | MyChurch",
+  title: "MyChurch | Software Completo para Gestão de Igrejas",
   description:
     "A plataforma MyChurch Lab (MyChurch) simplifica a gestão de membros, finanças, eventos e comunicação da sua igreja. Comece com nosso plano gratuito para sempre.",
   keywords: [
