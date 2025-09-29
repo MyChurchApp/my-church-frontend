@@ -1,33 +1,35 @@
 import { readdirSync, readFileSync, writeFileSync } from "fs";
 
-const files = readdirSync(".").filter(f => f.startsWith("lh-") && f.endsWith(".json"));
+const files = readdirSync(".")
+  .filter(f => /^lh-(?!summary)(.+)\.json$/.test(f)); // ignora lh-summary.json
 
-const rows = files.map(file => {
+const rows = [];
+for (const file of files) {
   const j = JSON.parse(readFileSync(file, "utf8"));
+  const perfScore = j.categories?.performance?.score;
+
+  // pula arquivos inválidos (sem score)
+  if (typeof perfScore !== "number") {
+    console.warn(`⚠️ ignorado ${file}: sem categories.performance.score`);
+    continue;
+  }
+
   const get = (id, key="numericValue") => j.audits?.[id]?.[key] ?? null;
 
-  return {
+  rows.push({
     page: file.replace(/^lh-/, "").replace(/\.json$/, ""),
-    performance: (j.categories?.performance?.score ?? 0) * 100,
-    accessibility: (j.categories?.accessibility?.score ?? 0) * 100,
-    bestPractices: (j.categories?.["best-practices"]?.score ?? 0) * 100,
-    seo: (j.categories?.seo?.score ?? 0) * 100,
-    pwa: j.categories?.pwa?.score != null ? j.categories.pwa.score * 100 : null,
-
-    // Métricas principais:
+    performance: Math.round(perfScore * 100),
+    accessibility: j.categories?.accessibility?.score != null ? Math.round(j.categories.accessibility.score * 100) : null,
+    bestPractices: j.categories?.["best-practices"]?.score != null ? Math.round(j.categories["best-practices"].score * 100) : null,
+    seo: j.categories?.seo?.score != null ? Math.round(j.categories.seo.score * 100) : null,
+    pwa: j.categories?.pwa?.score != null ? Math.round(j.categories.pwa.score * 100) : null,
     lcp_ms: get("largest-contentful-paint"),
-    inp_ms: get("interaction-to-next-paint"),   // INP correto
+    inp_ms: get("interaction-to-next-paint"),
     cls: get("cumulative-layout-shift"),
     ttfb_ms: get("server-response-time"),
-  };
-});
+  });
+}
 
 writeFileSync("lh-summary.json", JSON.stringify(rows, null, 2));
-
-// CSV opcional
-const hdr = Object.keys(rows[0] || {}).join(",");
-const csv = [hdr, ...rows.map(r => Object.values(r).join(","))].join("\n");
-writeFileSync("lh-summary.csv", csv);
-
 console.table(rows);
-console.log("✅ Gerados: lh-summary.json e lh-summary.csv");
+console.log("✅ Gerados: lh-summary.json");

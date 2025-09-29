@@ -43,4 +43,4 @@ npx http-server -p 5173
 # ou (Python)
 python -m http.server 5173
 
-Abrir -> http://localhost:5173/lh-dashboard.html.
+Abrir -> http://localhost:5173/lh-dashboard.html
