@@ -7,9 +7,12 @@
     "dev": "next dev",
     "lint": "next lint",
     "start": "next start",
-    "build:pwa": "next build && next export -o out"
+    "build:pwa": "cross-env NODE_ENV=production next build && next export -o out",
+    "android:debug": "bash scripts/build-android-debug.sh"
   },
   "dependencies": {
+    "@capacitor/android": "^7.4.3",
+    "@capacitor/core": "^7.4.3",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
@@ -77,12 +80,14 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@capacitor/cli": "^7.4.3",
     "@ducanh2912/next-pwa": "^10.2.9",
     "@next/bundle-analyzer": "^15.3.5",
     "@types/aos": "^3.0.7",
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "cross-env": "^10.0.0",
     "postcss": "^8.5",
     "tailwindcss": "^3.4.17",
     "typescript": "^5"

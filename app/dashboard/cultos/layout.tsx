@@ -1,15 +1,13 @@
-// app/cultos/layout.tsx
+// app/dashboard/cultos/[id]/layout.tsx
+export async function generateStaticParams() {
+  // Não pré-geramos nada para export estático
+  return [];
+}
 
-export default function CultosLayout({
+export default function WorshipIdLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  // Esta "moldura" será aplicada a todas as páginas dentro de /cultos
-  return (
-    <div className="bg-gray-50 dark:bg-black min-h-screen">
-      {/* O 'children' aqui será o conteúdo das suas páginas */}
-      {children}
-    </div>
-  );
+  return <>{children}</>;
 }
