@@ -13,22 +13,30 @@ export const metadata: Metadata = {
   title: "MyChurch Lab | Software para Gestão de Igrejas | MyChurch",
   description:
     "A plataforma MyChurch Lab (MyChurch) simplifica a gestão de membros, finanças e eventos da sua igreja. Comece com nosso plano gratuito.",
-
   keywords: [
-    "mychurchlab",
-    "mychurch",
-    "my church lab",
-    "my church",
-    "gestão de igrejas",
-    "software para igreja",
-    "aplicativo para igreja",
-    "sistema para igreja",
+    "mychurchlab","mychurch","my church lab","my church",
+    "gestão de igrejas","software para igreja",
+    "aplicativo para igreja","sistema para igreja"
   ],
 
+  // PWA
+  manifest: "/manifest.webmanifest",
+  themeColor: "#0ea5e9",
+  icons: {
+    icon: [
+      { url: "/icons/android-chrome-192x192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/android-chrome-512x512.png", sizes: "512x512", type: "image/png" }
+    ],
+    apple: [
+      { url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }
+    ]
+  },
+  appleWebApp: { capable: true, statusBarStyle: "default", title: "MyChurch Lab" },
+
+  // OG
   openGraph: {
     title: "MyChurch Lab | Software para Gestão de Igrejas",
-    description:
-      "Simplifique a gestão da sua igreja com a plataforma MyChurch.",
+    description: "Simplifique a gestão da sua igreja com a plataforma MyChurch.",
     url: "https://www.mychurchlab.com.br",
     siteName: "MyChurch Lab",
     images: [{ url: "https://www.mychurchlab.com.br/og-image.png" }],

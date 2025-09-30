@@ -1,4 +1,12 @@
 import withBundleAnalyzer from "@next/bundle-analyzer";
+import withPWA from "@ducanh2912/next-pwa";
+
+const withPWAMiddleware = withPWA({
+  dest: "public",
+  register: true,
+  skipWaiting: true,
+  disable: process.env.NODE_ENV === "development",
+});
 
 const nextConfig = {
   eslint: { ignoreDuringBuilds: true },
@@ -8,4 +16,4 @@ const nextConfig = {
 
 export default withBundleAnalyzer({
   enabled: process.env.ANALYZE === "true",
-})(nextConfig);
+})(withPWAMiddleware(nextConfig));
