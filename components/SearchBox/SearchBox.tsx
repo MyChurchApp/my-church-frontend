@@ -1,10 +1,11 @@
+// app/components/SearchBox.tsx
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-
 import { useDebounce } from "@/hooks/useDebounce";
 import { ChurchItem, searchChurches } from "@/services/churchPublic/churchPublic";
 
+const RADIUS_KM_DEFAULT = 30;
 
 export default function SearchBox() {
   const [query, setQuery] = useState("");
@@ -12,53 +13,79 @@ export default function SearchBox() {
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<ChurchItem[]>([]);
   const [initialResults, setInitialResults] = useState<ChurchItem[]>([]);
+  const [initialLoaded, setInitialLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const debounced = useDebounce(query, 400);
 
   const boxRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-
-  useEffect(() => {
-    let ignore = false;
+  // ---- primeira busca: tenta por localização, senão pública ----
+  const loadInitialOnce = async () => {
+    if (initialLoaded) return;
     setLoading(true);
-    searchChurches({ page: 1, pageSize: 8 })
-      .then((res) => {
-        if (!ignore) {
-          setInitialResults(res.items);
-          setResults(res.items);
-        }
-      })
-      .catch((err) => !ignore && setError(err.message))
-      .finally(() => !ignore && setLoading(false));
+    setError(null);
 
-    return () => {
-      ignore = true;
+    const runDefault = async () => {
+      const res = await searchChurches({ page: 1, pageSize: 8 });
+      setInitialResults(res.items);
+      setResults(res.items);
+      setInitialLoaded(true);
     };
-  }, []);
 
+    // tenta geolocalização
+    if (typeof navigator !== "undefined" && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          try {
+            const res = await searchChurches({
+              userLatitude: pos.coords.latitude,
+              userLongitude: pos.coords.longitude,
+              radiusKm: RADIUS_KM_DEFAULT,
+              page: 1,
+              pageSize: 8,
+            });
+            setInitialResults(res.items);
+            setResults(res.items);
+            setInitialLoaded(true);
+          } catch (e: any) {
+            setError(e?.message ?? "Erro ao buscar por localização");
+            await runDefault();
+          } finally {
+            setLoading(false);
+          }
+        },
+        async () => {
+          // negou/erro -> fallback público
+          await runDefault();
+          setLoading(false);
+        },
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+      );
+    } else {
+      await runDefault();
+      setLoading(false);
+    }
+  };
 
+  // digitação: quando aberto, refaz busca; se vazio -> volta pros iniciais
   useEffect(() => {
     if (!open) return;
-
     if (!debounced.trim()) {
       setResults(initialResults);
       return;
     }
-
     let ignore = false;
     setLoading(true);
+    setError(null);
     searchChurches({ search: debounced, page: 1, pageSize: 8 })
       .then((res) => !ignore && setResults(res.items))
       .catch((err) => !ignore && setError(err.message))
       .finally(() => !ignore && setLoading(false));
-
-    return () => {
-      ignore = true;
-    };
+    return () => { ignore = true; };
   }, [debounced, open, initialResults]);
 
-
+  // fechar ao clicar fora
   useEffect(() => {
     function onDoc(e: MouseEvent) {
       if (!boxRef.current?.contains(e.target as Node)) setOpen(false);
@@ -67,37 +94,62 @@ export default function SearchBox() {
     return () => document.removeEventListener("mousedown", onDoc);
   }, []);
 
+  const openAndLoad = () => {
+    setOpen(true);
+    inputRef.current?.focus();
+    void loadInitialOnce();
+  };
+
   return (
     <div className="relative max-w-3xl mx-auto" ref={boxRef}>
       {/* Input */}
-        <div className="flex items-center bg-white rounded-full shadow-lg ring-1 ring-black/5 focus-within:ring-2 focus-within:ring-emerald-500">
-          <span className="pl-4 text-gray-500">
+      <div className="flex items-center bg-white rounded-full shadow-lg ring-1 ring-black/5 focus-within:ring-2 focus-within:ring-emerald-500">
+        <span className="pl-4 text-gray-500">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 104.5 4.5a7.5 7.5 0 0012.15 12.15z" />
+          </svg>
+        </span>
+
+        <input
+          ref={inputRef}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onFocus={openAndLoad}
+          placeholder="Digite aqui o nome da igreja..."
+          className="flex-1 py-3 px-3 text-gray-700 focus:outline-none bg-transparent"
+        />
+{/* Botões de ação (somem quando o dropdown abre) */}
+      {!open && (
+        <>
+          {/* Mobile: ícone apenas */}
+          <button
+            type="button"
+            onClick={openAndLoad}
+            aria-label="Buscar"
+            title="Buscar"
+            className="md:hidden h-11 w-11 mr-1 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white grid place-items-center transition focus:outline-none focus:ring-2 focus:ring-emerald-400"
+          >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 104.5 4.5a7.5 7.5 0 0012.15 12.15z" />
             </svg>
-          </span>
+          </button>
 
-          <input
-            ref={inputRef}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onFocus={() => setOpen(true)}
-            placeholder="Lugares para ir, o que fazer, hotéis..."
-            className="flex-1 py-3 px-3 text-gray-700 focus:outline-none bg-transparent"
-          />
+          {/* Tablet+ : texto "Buscar" */}
+          <button
+            type="button"
+            onClick={openAndLoad}
+            className="hidden md:inline-flex bg-emerald-500 hover:bg-emerald-600 text-white font-semibold px-5 py-2.5 rounded-full mr-1 transition focus:outline-none focus:ring-2 focus:ring-emerald-400"
+          >
+            Buscar
+          </button>
+        </>
+      )}
 
-          {!open && (
-            <button
-              className="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold px-5 py-2.5 rounded-full mr-1 transition"
-            >
-              Buscar
-            </button>
-          )}
-        </div>
+      </div>
 
       {/* Dropdown */}
       {open && (
-  <div className="absolute left-0 right-0 top-full mt-3 bg-white rounded-2xl shadow-2xl ring-1 ring-black/10 overflow-hidden z-[9999]">
+        <div className="absolute left-0 right-0 top-full mt-3 bg-white rounded-2xl shadow-2xl ring-1 ring-black/10 overflow-hidden z-[9999]">
           <div className="max-h-[360px] overflow-auto">
             {loading && <div className="p-4 text-sm text-gray-600">Buscando…</div>}
             {error && <div className="p-4 text-sm text-red-600">{error}</div>}
