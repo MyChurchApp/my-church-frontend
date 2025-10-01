@@ -1,243 +1,215 @@
-"use client";
+"use client"
 
-import type React from "react";
-import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import Link from "next/link";
-import { Church } from "lucide-react";
-import { AnimatePresence, motion } from "framer-motion";
-import {
-  QueryClient,
-  QueryClientProvider,
-  useMutation,
-} from "@tanstack/react-query";
-import { createChurchWithAdmin } from "@/services/registration/registration";
+import type React from "react"
 
-// Importando os novos componentes de cada passo
-import { StepIndicator } from "../../components/cadastro/StepIndicator/StepIndicator";
-import { Step1_PlanoContato } from "../../components/cadastro/Steps/Step1PlanoContato";
-import { Step2_InfoIgreja } from "../../components/cadastro/Steps/Step2InfoIgreja";
-import { Step3_InfoAdmin } from "../../components/cadastro/Steps/Step3InfoAdmin";
-import { Step4_Pagamento } from "../../components/cadastro/Steps/Step4Pagamento";
-import { Step5_Confirmacao } from "../../components/cadastro/Steps/Step5Confirmacao";
-import { Step6_PixPagamento } from "../../components/cadastro/Steps/Step6PixPagamento";
-
-export type Step =
-  | "plano"
-  | "igreja"
-  | "admin"
-  | "pagamento"
-  | "confirmacao"
-  | "pix";
-
-const queryClient = new QueryClient();
-
-function CadastroPageContent() {
-  const searchParams = useSearchParams();
-  const planoInicial = searchParams.get("plano");
-
-  const [currentStep, setCurrentStep] = useState<Step>("plano");
-
-  // Lógica de persistência de dados
-  const [formData, setFormData] = useState<any>(() => {
-    if (typeof window === "undefined") {
-      return {
-        planId: planoInicial ? Number(planoInicial) : null,
-        aceitarTermos: false,
-      };
-    }
-    try {
-      const savedData = localStorage.getItem("registrationFormData");
-      if (savedData) {
-        const parsedData = JSON.parse(savedData);
-        if (planoInicial && parsedData.planId !== Number(planoInicial)) {
-          parsedData.planId = Number(planoInicial);
-        }
-        return parsedData;
-      }
-    } catch (error) {
-      console.error("Falha ao ler dados do localStorage", error);
-    }
-    return {
-      planId: planoInicial ? Number(planoInicial) : null,
-      aceitarTermos: false,
-    };
-  });
-
-  const [error, setError] = useState<string | null>(null);
-  const [pixCheckout, setPixCheckout] = useState<any>(null);
-
-  useEffect(() => {
-    localStorage.setItem("registrationFormData", JSON.stringify(formData));
-  }, [formData]);
-
-  const { mutate: submitRegistration, isPending } = useMutation({
-    mutationFn: () => {
-      setError(null);
-      const payload = {
-        name: formData.name,
-        description: formData.description,
-        document: formData.document,
-        phone: formData.phone,
-        planId: formData.planId,
-        billingType: formData.billingType,
-        address: {
-          street: formData.street,
-          city: formData.city,
-          state: formData.state,
-          zipCode: formData.zipCode,
-          country: "Brasil",
-          neighborhood: formData.neighborhood,
-          number: formData.number,
-        },
-        adminName: formData.adminName,
-        adminEmail: formData.adminEmail,
-        adminPhone: formData.adminPhone,
-        adminPassword: formData.adminPassword,
-        adminDocuments: [{ type: 1, number: formData.adminCPF }],
-        adminAddress: {
-          street: formData.adminStreet,
-          city: formData.adminCity,
-          state: formData.adminState,
-          zipCode: formData.adminZipCode,
-          country: "Brasil",
-          neighborhood: formData.adminNeighborhood,
-          number: formData.adminNumber,
-        },
-        ministry: formData.ministry,
-      };
-      return createChurchWithAdmin(payload);
-    },
-    onSuccess: (data: any) => {
-      localStorage.removeItem("registrationFormData");
-      if (formData.billingType === "PIX" && data?.checkoutUrl) {
-        setPixCheckout(data);
-        setCurrentStep("pix");
-      } else {
-        setCurrentStep("confirmacao");
-      }
-    },
-    onError: (err: any) =>
-      setError(err?.message || "Erro desconhecido ao processar o cadastro."),
-  });
-
-  const nextStep = () => {
-    const steps: Step[] = ["plano", "igreja", "admin", "pagamento"];
-    const currentIndex = steps.indexOf(currentStep);
-    if (currentIndex < steps.length - 1) {
-      setCurrentStep(steps[currentIndex + 1]);
-    }
-  };
-
-  const prevStep = () => {
-    const steps: Step[] = ["plano", "igreja", "admin", "pagamento"];
-    const currentIndex = steps.indexOf(currentStep);
-    if (currentIndex > 0) {
-      setCurrentStep(steps[currentIndex - 1]);
-    }
-  };
-
-  const handleFinalSubmit = () => {
-    setError(null);
-    submitRegistration();
-  };
-
-  const stepsConfig = [
-    { id: "plano", title: "Plano e Contato" },
-    { id: "igreja", title: "Endereço" },
-    { id: "admin", title: "Administrador" },
-    { id: "pagamento", title: "Pagamento" },
-  ];
-
-  const renderStep = () => {
-    switch (currentStep) {
-      case "plano":
-        return (
-          <Step1_PlanoContato
-            formData={formData}
-            setFormData={setFormData}
-            nextStep={nextStep}
-          />
-        );
-      case "igreja":
-        return (
-          <Step2_InfoIgreja
-            formData={formData}
-            setFormData={setFormData}
-            nextStep={nextStep}
-            prevStep={prevStep}
-          />
-        );
-      case "admin":
-        return (
-          <Step3_InfoAdmin
-            formData={formData}
-            setFormData={setFormData}
-            nextStep={nextStep}
-            prevStep={prevStep}
-            handleFinalSubmit={handleFinalSubmit}
-            isPending={isPending}
-          />
-        );
-      case "pagamento":
-        return (
-          <Step4_Pagamento
-            formData={formData}
-            setFormData={setFormData}
-            prevStep={prevStep}
-            handleFinalSubmit={handleFinalSubmit}
-            isPending={isPending}
-          />
-        );
-      case "confirmacao":
-        return <Step5_Confirmacao />;
-      case "pix":
-        return <Step6_PixPagamento pixCheckout={pixCheckout} />;
-      default:
-        return null;
-    }
-  };
-
-  return (
-    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100">
-      <header className="w-full py-4 px-6 flex justify-center border-b border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-gray-950/80 backdrop-blur-sm sticky top-0 z-10">
-        <Link href="/" className="flex items-center gap-2 font-bold text-lg">
-          <Church className="h-6 w-6 text-primary" />
-          MyChurch
-        </Link>
-      </header>
-
-      <main className="flex-1 w-full flex flex-col items-center p-4 sm:p-6 lg:p-8">
-        <div className="w-full max-w-3xl mx-auto">
-          {["plano", "igreja", "admin", "pagamento"].includes(currentStep) && (
-            <StepIndicator steps={stepsConfig} currentStepId={currentStep} />
-          )}
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={currentStep}
-              initial={{ x: 30, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: -30, opacity: 0 }}
-              transition={{ duration: 0.3, ease: "easeInOut" }}
-            >
-              {renderStep()}
-            </motion.div>
-          </AnimatePresence>
-          {error && (
-            <p className="text-center text-destructive font-medium mt-4">
-              {error}
-            </p>
-          )}
-        </div>
-      </main>
-    </div>
-  );
-}
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Church, User, Mail, Lock, ArrowLeft } from "lucide-react"
+import Link from "next/link"
 
 export default function CadastroPage() {
+  const [formData, setFormData] = useState({
+    nome: "",
+    email: "",
+    senha: "",
+    confirmarSenha: "",
+    nomeIgreja: "",
+  })
+  const [loading, setLoading] = useState(false)
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    })
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setMessage(null)
+
+    // Validações básicas
+    if (!formData.nome || !formData.email || !formData.senha) {
+      setMessage({ type: "error", text: "Por favor, preencha todos os campos obrigatórios" })
+      setLoading(false)
+      return
+    }
+
+    if (formData.senha !== formData.confirmarSenha) {
+      setMessage({ type: "error", text: "As senhas não coincidem" })
+      setLoading(false)
+      return
+    }
+
+    try {
+      const cadastroData = {
+        nome: formData.nome,
+        email: formData.email,
+        senha: formData.senha,
+        // Se nomeIgreja estiver vazio, o usuário não será vinculado a uma igreja
+        nomeIgreja: formData.nomeIgreja || null,
+        vinculadoIgreja: formData.nomeIgreja ? true : false,
+      }
+
+      console.log("[v0] Dados do cadastro:", cadastroData)
+
+      // Aqui você faria a chamada para sua API
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(cadastroData),
+      })
+
+      if (response.ok) {
+        setMessage({
+          type: "success",
+          text: formData.nomeIgreja
+            ? `Cadastro realizado com sucesso! Você foi vinculado à ${formData.nomeIgreja}.`
+            : "Cadastro realizado com sucesso! Você não está vinculado a nenhuma igreja.",
+        })
+
+        // Limpa o formulário
+        setFormData({
+          nome: "",
+          email: "",
+          senha: "",
+          confirmarSenha: "",
+          nomeIgreja: "",
+        })
+      } else {
+        setMessage({ type: "error", text: "Erro ao realizar cadastro. Tente novamente." })
+      }
+    } catch (error) {
+      console.error("[v0] Erro no cadastro:", error)
+      setMessage({ type: "error", text: "Erro ao conectar com o servidor" })
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
-    <QueryClientProvider client={queryClient}>
-      <CadastroPageContent />
-    </QueryClientProvider>
-  );
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white dark:from-gray-900 dark:to-gray-800 py-12 px-4">
+      <div className="container mx-auto max-w-md">
+        <Link href="/" className="inline-flex items-center gap-2 text-primary hover:underline mb-6">
+          <ArrowLeft className="h-4 w-4" />
+          Voltar para Home
+        </Link>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-2xl">Cadastro</CardTitle>
+            <CardDescription>Crie sua conta para acessar o MyChurchApp</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="nome" className="flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  Nome Completo *
+                </Label>
+                <Input
+                  id="nome"
+                  name="nome"
+                  type="text"
+                  placeholder="Seu nome completo"
+                  value={formData.nome}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="email" className="flex items-center gap-2">
+                  <Mail className="h-4 w-4" />
+                  Email *
+                </Label>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  placeholder="seu@email.com"
+                  value={formData.email}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="senha" className="flex items-center gap-2">
+                  <Lock className="h-4 w-4" />
+                  Senha *
+                </Label>
+                <Input
+                  id="senha"
+                  name="senha"
+                  type="password"
+                  placeholder="Mínimo 6 caracteres"
+                  value={formData.senha}
+                  onChange={handleChange}
+                  required
+                  minLength={6}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="confirmarSenha" className="flex items-center gap-2">
+                  <Lock className="h-4 w-4" />
+                  Confirmar Senha *
+                </Label>
+                <Input
+                  id="confirmarSenha"
+                  name="confirmarSenha"
+                  type="password"
+                  placeholder="Digite a senha novamente"
+                  value={formData.confirmarSenha}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+
+              <div className="border-t pt-4">
+                <div className="space-y-2">
+                  <Label htmlFor="nomeIgreja" className="flex items-center gap-2">
+                    <Church className="h-4 w-4" />
+                    Nome da Igreja (Opcional)
+                  </Label>
+                  <Input
+                    id="nomeIgreja"
+                    name="nomeIgreja"
+                    type="text"
+                    placeholder="Deixe em branco se não pertence a uma igreja"
+                    value={formData.nomeIgreja}
+                    onChange={handleChange}
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    Se você não preencher este campo, não será vinculado a nenhuma igreja
+                  </p>
+                </div>
+              </div>
+
+              {message && (
+                <Alert variant={message.type === "error" ? "destructive" : "default"}>
+                  <AlertDescription>{message.text}</AlertDescription>
+                </Alert>
+              )}
+
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? "Cadastrando..." : "Criar Conta"}
+              </Button>
+
+              <p className="text-sm text-center text-muted-foreground">* Campos obrigatórios</p>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
 }
