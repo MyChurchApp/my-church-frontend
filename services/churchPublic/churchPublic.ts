@@ -1,4 +1,4 @@
-import { authFetchJson } from "@/lib/auth-fetch"; 
+import { authFetchJson } from "@/lib/auth-fetch";
 
 export interface ChurchSearchParams {
   search?: string;
@@ -36,13 +36,19 @@ export interface PagedResponse<T> {
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://demoapp.top1soft.com.br";
+const PUBLIC_ENDPOINT = `${BASE_URL}/api/Church/public/search`;
+
+// Habilite o proxy no client definindo NEXT_PUBLIC_CHURCH_SEARCH_PROXY=1
+const USE_PROXY =
+  typeof window !== "undefined" &&
+  process.env.NEXT_PUBLIC_CHURCH_SEARCH_PROXY === "1";
 
 function add(qs: URLSearchParams, k: string, v: unknown) {
-  if (v === undefined || v === null) return;
+  if (v === undefined || v === null || v === "") return;
   qs.append(k, String(v));
 }
 
-
+/** Busca pública (com proxy opcional) */
 export async function searchChurches(
   params: ChurchSearchParams = {},
   opts?: { signal?: AbortSignal }
@@ -58,15 +64,30 @@ export async function searchChurches(
   add(qs, "Page", params.page);
   add(qs, "PageSize", params.pageSize);
 
-  const url = `${BASE_URL}/api/Church/public/search?${qs.toString()}`;
+  const url = USE_PROXY
+    ? `/api/church/search?${qs.toString()}`
+    : `${PUBLIC_ENDPOINT}?${qs.toString()}`;
 
   const data = await authFetchJson(url, {
     method: "GET",
-    headers: { Accept: "text/plain" }, 
-    skipAuth: true,                   
-    skipAutoLogout: true,              
+    // Backend pode retornar JSON com content-type text/plain
+    headers: { Accept: "text/plain" },
+    skipAuth: true,
+    skipAutoLogout: true,
     signal: opts?.signal,
   });
 
   return data as PagedResponse<ChurchItem>;
+}
+
+/** "Detalhe" público via search (não há endpoint dedicado) */
+export async function getChurchPublicById(
+  id: number,
+  opts?: { signal?: AbortSignal }
+): Promise<ChurchItem | null> {
+  const res = await searchChurches(
+    { search: String(id), page: 1, pageSize: 8 },
+    { signal: opts?.signal }
+  );
+  return res.items.find((i) => i.id === id) ?? null;
 }

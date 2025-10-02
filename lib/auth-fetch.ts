@@ -1,69 +1,69 @@
 import { getToken } from "./auth-utils";
 
-interface AuthFetchOptions extends RequestInit {
+export interface AuthFetchOptions extends RequestInit {
+  /** Ignora Authorization */
   skipAuth?: boolean;
+  /** Não dispara autoLogout em erro/401 */
   skipAutoLogout?: boolean;
 }
 
-// Função utilitária para logout centralizado
+// Logout centralizado
 function autoLogout() {
-  localStorage.removeItem("authToken");
-  localStorage.removeItem("user");
-  localStorage.removeItem("userRole");
-  localStorage.removeItem("churchData");
-  window.location.href = "/login";
+  try {
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("user");
+    localStorage.removeItem("userRole");
+    localStorage.removeItem("churchData");
+  } catch {}
+  if (typeof window !== "undefined") {
+    window.location.href = "/login";
+  }
 }
 
-// authFetch valida 401 e já faz logout
+/** fetch com token quando necessário; respeita skipAuth/skipAutoLogout */
 export async function authFetch(
   url: string,
   options: AuthFetchOptions = {}
 ): Promise<Response> {
-  const { skipAuth = false, ...fetchOptions } = options;
+  const { skipAuth = false, skipAutoLogout = false, ...fetchOptions } = options;
 
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
     Accept: "*/*",
     ...((fetchOptions.headers as Record<string, string>) || {}),
   };
+
+  // Define Content-Type se houver body e não foi setado
+  if (fetchOptions.body && !headers["Content-Type"]) {
+    headers["Content-Type"] = "application/json";
+  }
 
   if (!skipAuth) {
     const token = getToken();
     if (!token) {
       console.error("🚨 Token não encontrado no localStorage");
-      autoLogout();
+      if (!skipAutoLogout) autoLogout(); // só desloga quando a chamada requer auth
       throw new Error("Token de autenticação não encontrado");
     }
-
-    let authHeader: string;
-    const cleanToken = token.trim();
-    if (cleanToken.toLowerCase().startsWith("bearer ")) {
-      authHeader = cleanToken;
-    } else {
-      authHeader = `Bearer ${cleanToken}`;
-    }
-
-    headers.Authorization = authHeader;
+    const clean = token.trim();
+    headers.Authorization = clean.toLowerCase().startsWith("bearer ")
+      ? clean
+      : `Bearer ${clean}`;
   }
 
   try {
-    const response = await fetch(url, {
-      ...fetchOptions,
-      headers,
-    });
+    const response = await fetch(url, { ...fetchOptions, headers });
 
-    // Se 401, força logout
-    if (response.status === 401 && !options.skipAutoLogout) {
+    // auto-logout só em 401 de chamadas autenticadas
+    if (response.status === 401 && !skipAutoLogout && !skipAuth) {
       console.error("🚨 401 detectado no authFetch");
       autoLogout();
-      // Pode lançar erro ou só retornar
       return response;
     }
 
     return response;
   } catch (error) {
     console.error("🚨 [authFetch] Erro na requisição:", error);
-    autoLogout();
+    if (!skipAutoLogout && !skipAuth) autoLogout(); // não desloga em públicas
     throw error;
   }
 }
@@ -75,62 +75,47 @@ export async function authFetchJson(
   try {
     const response = await authFetch(url, options);
 
-    if (response.status === 401 && !options.skipAutoLogout) {
+    if (response.status === 401) {
       console.error("🚨 401 confirmado no authFetchJson");
-      autoLogout();
+      if (!options.skipAutoLogout && !options.skipAuth) autoLogout();
       return;
     }
 
     if (!response.ok) {
       let errorText = "";
       try {
-        const contentType = response.headers.get("content-type");
-        if (contentType && contentType.includes("application/json")) {
-          const errorData = await response.json();
-          errorText = JSON.stringify(errorData);
-          console.error("❌ Erro JSON:", errorData);
+        const ct = response.headers.get("content-type") || "";
+        if (ct.includes("application/json")) {
+          const errData = await response.json();
+          errorText = JSON.stringify(errData);
+          console.error("❌ Erro JSON:", errData);
         } else {
           errorText = await response.text();
           console.error("❌ Erro texto:", errorText);
         }
       } catch (e) {
         errorText = "Erro desconhecido";
-        console.error("❌ Erro ao processar resposta de erro:", e);
+        console.error("❌ Erro ao ler resposta de erro:", e);
       }
-
       throw new Error(`Erro na API: ${response.status} - ${errorText}`);
     }
 
-    if (response.status === 204) {
-      return null;
-    }
-
-    const contentType = response.headers.get("content-type");
-
-    if (contentType && contentType.includes("text/plain")) {
+    const ct = response.headers.get("content-type") || "";
+    if (ct.includes("text/plain")) {
       const text = await response.text();
-
       try {
-        const parsed = JSON.parse(text);
-
-        return parsed;
+        return JSON.parse(text);
       } catch {
         return text;
       }
     }
-
-    if (contentType && contentType.includes("application/json")) {
-      const data = await response.json();
-
-      return data;
+    if (ct.includes("application/json")) {
+      return response.json();
     }
-
-    const text = await response.text();
-
-    return text;
+    return response.text();
   } catch (error) {
     console.error("❌ Erro na requisição authFetchJson:", error);
-    autoLogout();
+    if (!options.skipAutoLogout && !options.skipAuth) autoLogout();
     throw error;
   }
 }
