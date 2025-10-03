@@ -7,21 +7,27 @@ import {
   getChurchPublicById,
   searchChurches,
 } from "@/services/churchPublic/churchPublic";
+import { Church, getChurchData } from "@/services/church.service";
+import Reviews from "@/components/igreja/Reviews/Reviews";
+import MapCard from "@/components/igreja/MapCard/MapCard";
 
 export default function ChurchPage({ params }: { params: { id: string } }) {
   const id = Number(params.id);
   const [church, setChurch] = useState<ChurchItem | null>(null);
   const [nearby, setNearby] = useState<ChurchItem[]>([]);
+  const [privateInfo, setPrivateInfo] = useState<Church | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let ignore = false;
     (async () => {
       setLoading(true);
+
+      // público
       const item = await getChurchPublicById(id).catch(() => null);
       if (!ignore) setChurch(item);
 
-      // Próximas (por lat/lng se tiver; senão por cidade)
+      // próximas
       if (item?.latitude && item?.longitude) {
         const near = await searchChurches({
           userLatitude: item.latitude,
@@ -42,6 +48,15 @@ export default function ChurchPage({ params }: { params: { id: string } }) {
         if (!ignore)
           setNearby((near?.items ?? []).filter((x) => x.id !== id));
       }
+
+      // privado opcional (só enriquece endereço se for a própria igreja do user)
+      try {
+        const mine = await getChurchData(); // exige auth
+        if (!ignore && mine?.id === id) setPrivateInfo(mine);
+      } catch {
+        // ignorar se não logado
+      }
+
       if (!ignore) setLoading(false);
     })();
     return () => {
@@ -51,6 +66,18 @@ export default function ChurchPage({ params }: { params: { id: string } }) {
 
   if (loading) return <div className="container mx-auto px-6 py-10">Carregando…</div>;
   if (!church) return <div className="container mx-auto px-6 py-10">Igreja não encontrada.</div>;
+
+  const privateAddressText = privateInfo
+    ? [
+        privateInfo.address?.street,
+        privateInfo.address?.neighborhood,
+        privateInfo.address?.city,
+        privateInfo.address?.state,
+        privateInfo.address?.zipCode,
+      ]
+        .filter(Boolean)
+        .join(", ")
+    : undefined;
 
   return (
     <div className="pb-12">
@@ -95,16 +122,24 @@ export default function ChurchPage({ params }: { params: { id: string } }) {
       {/* CONTEÚDO */}
       <div className="container mx-auto px-6 grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
         <div className="lg:col-span-2 space-y-6">
+          {/* Visão geral */}
           <div className="bg-white rounded-2xl shadow p-6">
             <h2 className="text-xl font-bold mb-2">Visão geral</h2>
             <p className="text-gray-700">
               {church.description || "Descrição não informada."}
             </p>
           </div>
+
+          {/* Avaliações */}
+          <Reviews churchId={id} />
         </div>
 
-        {/* Sidebar: igrejas próximas */}
+        {/* Sidebar */}
         <aside className="space-y-6">
+          {/* Mapa / Como chegar */}
+          <MapCard church={church} addressText={privateAddressText} />
+
+          {/* Igrejas próximas */}
           <div className="bg-white rounded-2xl shadow p-6">
             <h3 className="font-semibold mb-3">Igrejas próximas</h3>
             {nearby.length === 0 && (
