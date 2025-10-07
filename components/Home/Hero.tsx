@@ -11,7 +11,7 @@ export default function Hero() {
         <h2 className="text-2xl md:text-3xl font-semibold mb-4" data-aos="fade-up">
           Qual igreja está procurando?
         </h2>
-        <div data-aos="fade-up" data-aos-delay="100" className="mb-10 relative z-[9999]">
+        <div data-aos="fade-up" data-aos-delay="100" className="mb-10 relative z-[20]">
           <SearchBox />
         </div>
 
